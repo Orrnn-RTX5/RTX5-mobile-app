@@ -1,0 +1,83 @@
+RTX Mobile Report a Bug implementation and verification
+Recorded 2026-10-02. No push, OTA publication, production promotion or deployment performed.
+
+Implementation
+- Settings > Support & Help > Report a Bug, plus the existing About report entry and shake report host.
+- Selected broker's BrokerAPI session, bearer authentication and existing recovery handling.
+- Exact /bug-reports/options and /bug-reports routes appended to the authenticated /api/v2 base.
+- Strict server-enabled options, retry/error/loading states, API-value selectors with friendly translated labels.
+- Required title/description/category/severity; optional reproduction steps, expected/actual behavior and local incident time.
+- Flat supported payload fields only, steps array, epoch seconds, runtime native version/build/OS and captured affected context.
+- Multipart JSON text payload and repeated attachments file parts, including reports without attachments.
+- UTF-8 bounds, broker count/file limits, 8 MiB file ceiling and conservative 24 MiB multipart budget.
+- Platform document/photo pickers, content inspection, native image decode checks, HEIC-to-PNG conversion, actual final-size checks.
+- Attachment preview/removal and explicit review requirement; selected UTF-8 text logs scrubbed into separate cache copies.
+- Session-token removal from logs, sensitive-line redaction and exclusion of multiline storage dumps. No automatic raw diagnostic attachments.
+- Read-only guard, synchronous submission lock, upload progress/cancellation, no automatic POST replay after token refresh.
+- Account/broker-scoped process-memory draft recovery, back/discard confirmation, uncertain acceptance retry confirmation.
+- Strict 201 receipt validation, report ID copying, 1-based partial attachment failure names; no whole-report automatic resubmission.
+
+Changed/new files attributable to this feature
+rtx5-app/src/api/bugReports.ts
+rtx5-app/src/api/bugReports.test.ts
+rtx5-app/src/api/brokerApi.ts (XHR abort/status-zero handling only; other existing changes preserved)
+rtx5-app/src/features/settings/BugReportScreen.tsx
+rtx5-app/src/features/settings/bugReportAttachmentPolicy.ts
+rtx5-app/src/features/settings/bugReportAttachmentPolicy.test.ts
+rtx5-app/src/features/settings/bugReportAttachments.ts
+rtx5-app/src/features/settings/bugReportRuntime.ts
+rtx5-app/src/features/settings/bugReportDraftState.ts
+rtx5-app/src/features/settings/bugReportDraftState.test.ts
+rtx5-app/src/features/settings/SettingsScreen/SettingsScreen.tsx
+rtx5-app/src/features/settings/AboutScreen.tsx
+rtx5-app/src/features/settings/AboutDetailDestinationHost.tsx
+rtx5-app/src/features/settings/shakeToReport/ShakeToReportBugHost.tsx
+rtx5-app/src/i18n/surfaces/bugReportSurface.ts
+rtx5-app/src/i18n/translations.ts
+rtx5-app/package.json and package-lock.json (SDK-compatible file system, image manipulation/picking, clipboard, localization)
+rtx5-app/app.json (photo-picker permission configuration; camera/audio disabled)
+rtx5-app/scripts/verify-bug-reports-nexa.ts
+rtx5-app/docs/BUG_REPORT_VERIFICATION.txt
+Existing BugReportScreen.styles.ts retained and reused. Numerous unrelated uncommitted changes were already present.
+
+Checks actually executed
+1. npm run typecheck: passed.
+2. Focused API, attachment-policy, draft/submission lock, BrokerAPI session-isolation, navigation and interaction contracts: 91 tests passed.
+   Evidence: .codex-artifacts/bug-report-focused-tests.log
+   These use synthetic sessions and mocked transport. They are not live acceptance validation.
+3. npm test: all 402 test files executed in 17 batches; batches 1-16 passed.
+   Final batch retains two failures in existing chart code untouched by this task:
+   - tests/chart-webview/resize-recovery.test.ts: fullscreen enter/exit fast press/resize contract.
+   - tests/chart-webview/trade-sheet-chart-interaction.test.ts: SL/TP toolbar contract.
+   Evidence: .codex-artifacts/bug-report-unrelated-test-failures.log
+4. npx expo export --platform android: passed; local Hermes Android bundle.
+5. npx expo export --platform all: passed; local Hermes Android/iOS bundles, not APK/IPA builds.
+6. npm run doctor:android: failed readiness; Java/JBR and Android SDK Build-Tools missing.
+   No native APK, IPA or device UI verification was completed.
+7. git diff --check on touched tracked implementation/config files: passed.
+
+Nexa live integration results (read-only probe at 2026-10-01T13:44:10.786Z)
+Mobile base revision: 31078cd5ceff6232a2d9345047a1e615a55c91b4 plus this uncommitted feature and pre-existing workspace changes.
+Package/config app version: 1.1.30. Configured iOS build: 1. Android versionCode absent. These are source/config identities, not device-tested native build identities.
+Nexa discovered through the app's configured directories, not a hardcoded host.
+Resolved gateway: https://nexa.orrnn.com/api/v2; configuration version v2:21:1789459348.
+GET https://nexa.orrnn.com/health -> HTTP 200.
+GET https://nexa.orrnn.com/api/v2/bug-reports/options without bearer credentials -> HTTP 401.
+No authorized trader test session was provided; authenticated options, POST without files and POST with files were not executed live.
+Backend revision not exposed/verified. Report visibility in the support system not verified; no support/admin access supplied.
+No tunnel override was invented. Validate the configured Nexa gateway/tunnel with the backend operator before promotion.
+Sanitized machine-readable evidence: .codex-artifacts/bug-report-nexa-validation.json.
+Repeat probe: node scripts/run-tsx-cli.js scripts/verify-bug-reports-nexa.ts
+For an authorized test, inject RTX5_NEXA_ACCESS_TOKEN securely into the process; never paste or log it.
+The probe is read-only unless RTX5_NEXA_BUG_REPORT_SMOKE=1 is explicitly set; that creates one labeled no-file support test report.
+
+Remaining release gates and limits
+- Build a new native development/staging binary for the added native modules; retain fingerprint runtime compatibility. Do not force an OTA onto an old native runtime.
+- Device-test Android/iOS pickers, HEIC conversion, full preview, clipboard, back/discard, session recovery and upload cancellation.
+- Complete Nexa-first authenticated integration with/without supported files and check actual support receipt visibility when access is authorized.
+- Resolve existing chart test failures before a clean full-suite release gate.
+- Drafts are retained only in process memory, not after app process termination. Sensitive raw logs are never persisted by this feature.
+- No in-app screenshot capture service was present; screenshot selection is user initiated through the photo picker.
+- Standard image formats are preserved; HEIC is losslessly converted to PNG. Oversized images can be removed; automatic lossy compression is intentionally absent to preserve trading text legibility.
+- Core form/option labels are translated for all supported app languages. Other new helper/error strings use the app's existing English fallback.
+- Mobile source/device-model metadata, attachment retry, trader history and report lookup require explicit shared backend enhancements; no unsupported fields/endpoints were added.

@@ -1,0 +1,14 @@
+# EAS upload exclusions for verify-app.
+#
+# EAS Build re-installs dependencies from package-lock.json on the cloud
+# worker, so node_modules must NEVER be uploaded — it bloats the project
+# tarball by hundreds of MB and stalls submission.
+
+node_modules/
+.expo/
+dist/
+.cache/
+*.log
+.DS_Store
+android/
+ios/

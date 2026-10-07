@@ -1,0 +1,71 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { BrokerAPI } from '../api/brokerApi';
+import { acceptTradingHydration, assertTradingSession } from './tradingAccess';
+import { activateBrokerSession, beginActiveBrokerSessionTransition, __resetActiveBrokerSessionForTests } from '../state/activeBrokerSession';
+import { useTradingState } from '../state/tradingState';
+import { beginAuthSubmission, completeAuthenticatedLogin, dismissAuthFlow, getAuthFlowState, openAuthFlow, setAuthProgress } from '../features/trade/authFlowState';
+import { setPublicBrokerContext } from '../state/publicBrokerContext';
+import { publicBrokerFixture } from '../testFixtures/publicBroker';
+const activate = (investor = false) => activateBrokerSession(beginActiveBrokerSessionTransition(), { brokerId: 'Nexa', accountLogin: '10001', apiBase: 'https://services.example.com/api/v2', feedWsBase: 'wss://services.example.com/ws/feed', feedStatusUrl: 'https://services.example.com/ws/feed/status', servicesDomain: 'services.example.com', configVersion: 'test', investor }, { accessToken: 'jwt', refreshToken: '', expiresAt: '2099-01-01T00:00:00.000Z' });
+const instrument = { symbol: 'EURUSD.pro', trade_mode: 4, volume_min: .01, volume_max: 10, volume_step: .01 };
+const body = { account_login: 10001, symbol: 'EURUSD.pro', side: 'buy', volume: '.02' };
+
+test('fast dashboard login cannot send an order while hydration is pending or failed', async t => {
+  __resetActiveBrokerSessionForTests();
+  setPublicBrokerContext(publicBrokerFixture('Nexa'));
+  const capture = activate(); const api = new BrokerAPI(); const original = fetch;
+  let requests = 0;
+  globalThis.fetch = (async () => { requests++; return new Response('{}'); }) as typeof fetch;
+  t.after(() => { globalThis.fetch = original; api.dispose(); dismissAuthFlow(); setPublicBrokerContext(null); __resetActiveBrokerSessionForTests(); });
+  openAuthFlow(undefined, 'login');
+  const submission = beginAuthSubmission()!;
+  setAuthProgress(submission.state.attempt, 'hydrating');
+  assert.equal(completeAuthenticatedLogin(submission.state.attempt), true);
+  assert.equal(getAuthFlowState().screen, 'ready');
+  const send = () => api.request('/orders', { method: 'POST', body: JSON.stringify(body) });
+  await assert.rejects(send(), /still loading/);
+  assert.equal(acceptTradingHydration(capture.session.cacheNamespace, {}, null, [instrument]), false);
+  await assert.rejects(send(), /still loading/);
+  assert.equal(requests, 0);
+  const replacement = activate();
+  assert.equal(acceptTradingHydration(capture.session.cacheNamespace, {}, { login: 10001 }, [instrument]), false);
+  assert.throws(() => assertTradingSession(replacement.session.cacheNamespace), /still loading/);
+});
+
+test('hydrated investor permissions restrict a master-looking response before a draft or mutation', t => {
+  const capture = activate(); t.after(__resetActiveBrokerSessionForTests);
+  assert.equal(acceptTradingHydration(capture.session.cacheNamespace, { investor: true }, { login: 10001 }, [instrument]), true);
+  assert.throws(() => assertTradingSession(capture.session.cacheNamespace), /read-only/);
+});
+test('order transport stays at zero through authentication/hydration and until an explicitly invoked valid order', async t => {
+  __resetActiveBrokerSessionForTests(); const original = fetch; const capture = activate(); const api = new BrokerAPI();
+  t.after(() => { globalThis.fetch = original; api.dispose(); __resetActiveBrokerSessionForTests(); });
+  let orders = 0;
+  globalThis.fetch = (async url => { const path = String(url); if (path.endsWith('/orders')) orders++;
+    return new Response(JSON.stringify(path.includes('/market/status/') ? { trade_open: true } : path.includes('/calculate/margin') ? { required_margin: 1, free_margin: 100, max_lots: 2 } : {})); }) as typeof fetch;
+  assert.equal(orders, 0);
+  await assert.rejects(api.request('/orders', { method: 'POST', body: JSON.stringify(body) }), /loading/); assert.equal(orders, 0);
+  assert.equal(acceptTradingHydration(capture.session.cacheNamespace, { broker_id: 'Other' }, { login: 10001 }, [instrument]), false);
+  assert.equal(acceptTradingHydration(capture.session.cacheNamespace, { broker_id: 'Nexa' }, { login: 10001 }, [instrument]), true); assert.equal(orders, 0);
+  useTradingState.getState().setQuote('EURUSD.pro', { bid: 1, ask: 1.1, lastReceivedAt: Date.now(), transport: 'websocket', tradable: true, stale: false });
+  await api.request('/orders', { method: 'POST', body: JSON.stringify(body) }); assert.equal(orders, 1);
+});
+test('investor, stale quotes, closed/unknown markets, invalid volume and failed margin checks block transport', async t => {
+  __resetActiveBrokerSessionForTests(); const original = fetch; const api = new BrokerAPI();
+  t.after(() => { globalThis.fetch = original; api.dispose(); __resetActiveBrokerSessionForTests(); });
+  let orders = 0; let marketOpen = true; let marginStatus = 200; let maxLots = 2;
+  globalThis.fetch = (async url => { const path = String(url); if (path.endsWith('/orders')) orders++;
+    return new Response(JSON.stringify(path.includes('/market/status/') ? { trade_open: marketOpen } : { required_margin: 1, free_margin: 100, max_lots: maxLots }), { status: path.includes('/calculate/margin') ? marginStatus : 200 }); }) as typeof fetch;
+  let capture = activate(true); acceptTradingHydration(capture.session.cacheNamespace, {}, { login: 10001 }, [instrument]);
+  await assert.rejects(api.request('/positions/1', { method: 'PUT', body: '{}' }), /read-only/);
+  capture = activate(); acceptTradingHydration(capture.session.cacheNamespace, {}, { login: 10001 }, [instrument]);
+  const request = () => api.request('/orders', { method: 'POST', body: JSON.stringify(body) });
+  useTradingState.getState().setQuote('EURUSD.pro', { bid: 1, ask: 1.1, lastReceivedAt: Date.now(), transport: 'websocket', stale: true, tradable: true }); await assert.rejects(request(), /fresh executable/);
+  useTradingState.getState().setQuote('EURUSD.pro', { stale: false, tradable: false }); await assert.rejects(request(), /fresh executable/);
+  useTradingState.getState().setQuote('EURUSD.pro', { stale: false, tradable: true });
+  await assert.rejects(api.request('/orders', { method: 'POST', body: JSON.stringify({ ...body, volume: '.015' }) }), /Volume/);
+  marketOpen = false; await assert.rejects(request(), /closed/); marketOpen = true;
+  marginStatus = 503; await assert.rejects(request(), /margin and risk/); marginStatus = 200;
+  maxLots = .01; await assert.rejects(request(), /Insufficient margin/); assert.equal(orders, 0);
+});

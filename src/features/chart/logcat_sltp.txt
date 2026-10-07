@@ -1,0 +1,548 @@
+--------- beginning of system
+--------- beginning of main
+06-18 17:56:09.557 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1143ms (apiClient.GET)
+06-18 17:56:11.011 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1461ms (apiClient.GET)
+06-18 17:56:11.013 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1459ms (apiClient.GET)
+06-18 17:56:12.620 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1625ms (apiClient.GET)
+06-18 17:56:20.494 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1605ms (apiClient.GET)
+06-18 17:56:23.394 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2914ms (apiClient.GET)
+06-18 17:56:23.408 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 17:56:23.408 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 17:56:23.410 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1604ms (apiClient.GET)
+06-18 17:56:23.412 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1602ms (apiClient.GET)
+06-18 17:56:23.677 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1365ms (apiClient.GET)
+06-18 17:56:35.482 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1842ms (apiClient.GET)
+06-18 17:56:36.931 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1702ms (apiClient.GET)
+06-18 17:56:38.057 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1443ms (apiClient.GET)
+06-18 17:56:43.391 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1581ms (apiClient.GET)
+06-18 17:56:43.647 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1831ms (apiClient.GET)
+06-18 17:56:49.344 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1463ms (apiClient.GET)
+06-18 17:56:55.588 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1454ms (apiClient.GET)
+06-18 17:56:55.590 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1445ms (apiClient.GET)
+06-18 17:56:55.593 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1451ms (apiClient.GET)
+06-18 17:56:55.595 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1444ms (apiClient.GET)
+06-18 17:56:56.166 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 17:56:56.167 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 17:56:57.876 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2299ms (apiClient.GET)
+06-18 17:56:59.013 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1964ms (apiClient.GET)
+06-18 17:57:01.755 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1141ms (apiClient.GET)
+06-18 17:57:06.274 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2108ms (apiClient.GET)
+06-18 17:57:08.726 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2150ms (apiClient.GET)
+06-18 17:57:13.678 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1390ms (apiClient.GET)
+06-18 17:57:15.929 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2283ms (apiClient.GET)
+06-18 17:57:16.305 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1217ms (apiClient.GET)
+06-18 17:57:26.777 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1708ms (apiClient.GET)
+06-18 17:57:28.521 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1768ms (apiClient.GET)
+06-18 17:57:28.523 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1762ms (apiClient.GET)
+06-18 17:57:28.524 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1760ms (apiClient.GET)
+06-18 17:57:28.526 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1769ms (apiClient.GET)
+06-18 17:57:28.528 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1760ms (apiClient.GET)
+06-18 17:57:29.821 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 17:57:29.822 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 17:57:37.674 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1594ms (apiClient.GET)
+06-18 17:57:40.407 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1403ms (apiClient.GET)
+06-18 17:57:40.409 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1401ms (apiClient.GET)
+06-18 17:57:42.321 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1919ms (apiClient.GET)
+06-18 17:57:53.029 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1343ms (apiClient.GET)
+06-18 17:57:55.784 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1385ms (apiClient.GET)
+06-18 17:57:58.103 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1181ms (apiClient.GET)
+06-18 17:57:59.889 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1781ms (apiClient.GET)
+06-18 17:58:01.650 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1754ms (apiClient.GET)
+06-18 17:58:01.651 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1752ms (apiClient.GET)
+06-18 17:58:01.653 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1749ms (apiClient.GET)
+06-18 17:58:01.658 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 17:58:01.658 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 17:58:06.921 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1063ms (apiClient.GET)
+06-18 17:58:17.669 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1356ms (apiClient.GET)
+06-18 17:58:20.674 W/ReactNativeJS(17481): [API slow] GET /orders/200159?limit=500 200 3270ms (apiClient.GET)
+06-18 17:58:20.706 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1974ms (apiClient.GET)
+06-18 17:58:20.709 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1487ms (apiClient.GET)
+06-18 17:58:25.988 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1098ms (apiClient.GET)
+06-18 17:58:28.247 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2497ms (apiClient.GET)
+06-18 17:58:28.517 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1108ms (apiClient.GET)
+06-18 17:58:32.248 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1355ms (apiClient.GET)
+06-18 17:58:33.655 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1680ms (apiClient.GET)
+06-18 17:58:33.656 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1663ms (apiClient.GET)
+06-18 17:58:33.658 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1680ms (apiClient.GET)
+06-18 17:58:34.159 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 17:58:34.159 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 17:58:35.556 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1907ms (apiClient.GET)
+06-18 17:58:38.393 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1732ms (apiClient.GET)
+06-18 17:58:47.957 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1353ms (apiClient.GET)
+06-18 17:58:50.010 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1221ms (apiClient.GET)
+06-18 17:58:57.538 E/chromium(19516): [0618/175857.536633:ERROR:android_webview/browser/variations/variations_seed_loader.cc:39] Seed missing signature.
+06-18 17:58:57.616 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1894ms (apiClient.GET)
+06-18 17:58:57.828 W/chromium(19516): [WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+06-18 17:58:57.890 W/chromium(19516): [WARNING:android_webview/browser/network_service/net_helpers.cc:137] HTTP Cache size is: 20971520
+06-18 17:59:05.207 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 17:59:05.208 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 17:59:09.647 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1439ms (apiClient.GET)
+06-18 17:59:10.739 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1422ms (apiClient.GET)
+06-18 17:59:17.558 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1053ms (apiClient.GET)
+06-18 17:59:21.079 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2189ms (apiClient.GET)
+06-18 17:59:21.505 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1411ms (apiClient.GET)
+06-18 17:59:24.433 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1563ms (apiClient.GET)
+06-18 17:59:28.728 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1558ms (apiClient.GET)
+06-18 17:59:29.436 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2243ms (apiClient.GET)
+06-18 17:59:34.119 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1360ms (apiClient.GET)
+06-18 17:59:37.334 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 17:59:37.335 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 17:59:37.337 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1170ms (apiClient.GET)
+06-18 17:59:37.338 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1175ms (apiClient.GET)
+06-18 17:59:37.340 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1169ms (apiClient.GET)
+06-18 17:59:38.406 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1366ms (apiClient.GET)
+06-18 17:59:44.733 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1429ms (apiClient.GET)
+06-18 17:59:47.524 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1365ms (apiClient.GET)
+06-18 17:59:51.606 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1427ms (apiClient.GET)
+06-18 17:59:58.490 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1334ms (apiClient.GET)
+06-18 17:59:59.211 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2051ms (apiClient.GET)
+06-18 18:00:00.297 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1818ms (apiClient.GET)
+06-18 18:00:06.705 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1637ms (apiClient.GET)
+06-18 18:00:08.070 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1367ms (apiClient.GET)
+06-18 18:00:09.456 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1908ms (apiClient.GET)
+06-18 18:00:09.458 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1907ms (apiClient.GET)
+06-18 18:00:09.459 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1904ms (apiClient.GET)
+06-18 18:00:09.467 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:00:09.468 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:00:12.941 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1362ms (apiClient.GET)
+06-18 18:00:28.107 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 2170ms (apiClient.GET)
+06-18 18:00:28.584 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1181ms (apiClient.GET)
+06-18 18:00:32.120 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1640ms (apiClient.GET)
+06-18 18:00:37.130 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1359ms (apiClient.GET)
+06-18 18:00:40.935 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1450ms (apiClient.GET)
+06-18 18:00:41.834 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1514ms (apiClient.GET)
+06-18 18:00:41.836 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1508ms (apiClient.GET)
+06-18 18:00:41.838 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1514ms (apiClient.GET)
+06-18 18:00:41.840 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:00:41.841 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:00:45.132 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1629ms (apiClient.GET)
+06-18 18:00:48.108 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1376ms (apiClient.GET)
+06-18 18:00:48.854 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1014ms (apiClient.GET)
+06-18 18:00:53.259 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1434ms (apiClient.GET)
+06-18 18:01:08.045 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1446ms (apiClient.GET)
+06-18 18:01:12.929 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2124ms (apiClient.GET)
+06-18 18:01:12.931 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2115ms (apiClient.GET)
+06-18 18:01:13.580 W/ReactNativeJS(17481): [Action] fastPress first frame took 1114ms; budget is 20ms.
+06-18 18:01:14.623 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2181ms (apiClient.GET)
+06-18 18:01:15.507 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:01:15.507 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:01:15.510 W/ReactNativeJS(17481): [API slow] GET /alerts 200 3059ms (apiClient.GET)
+06-18 18:01:15.511 W/ReactNativeJS(17481): [API slow] GET /account/200159 200 3065ms (apiClient.GET)
+06-18 18:01:22.203 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1616ms (apiClient.GET)
+06-18 18:01:27.714 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1005ms (apiClient.GET)
+06-18 18:01:30.909 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1805ms (apiClient.GET)
+06-18 18:01:32.616 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1790ms (apiClient.GET)
+06-18 18:01:37.482 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1214ms (apiClient.GET)
+06-18 18:01:45.235 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2118ms (apiClient.GET)
+06-18 18:01:45.238 W/ReactNativeJS(17481): [Action] fastPress first frame took 303ms; budget is 20ms.
+06-18 18:01:47.743 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1738ms (apiClient.GET)
+06-18 18:01:48.574 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:01:48.575 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:01:48.577 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2022ms (apiClient.GET)
+06-18 18:01:48.579 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2028ms (apiClient.GET)
+06-18 18:01:49.341 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1880ms (apiClient.GET)
+06-18 18:01:50.308 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1736ms (apiClient.GET)
+06-18 18:01:58.781 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1444ms (apiClient.GET)
+06-18 18:01:58.783 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1371ms (apiClient.GET)
+06-18 18:02:01.842 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1193ms (apiClient.GET)
+06-18 18:02:06.542 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1943ms (apiClient.GET)
+06-18 18:02:06.545 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1941ms (apiClient.GET)
+06-18 18:02:10.089 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2425ms (apiClient.GET)
+06-18 18:02:10.555 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1302ms (apiClient.GET)
+06-18 18:02:14.530 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1493ms (apiClient.GET)
+06-18 18:02:14.545 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1488ms (apiClient.GET)
+06-18 18:02:20.575 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1829ms (apiClient.GET)
+06-18 18:02:21.938 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:02:21.939 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:02:21.966 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1775ms (apiClient.GET)
+06-18 18:02:22.447 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2238ms (apiClient.GET)
+06-18 18:02:22.450 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2191ms (apiClient.GET)
+06-18 18:02:25.782 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1160ms (apiClient.GET)
+06-18 18:02:28.772 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1829ms (apiClient.GET)
+06-18 18:02:30.802 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2032ms (apiClient.GET)
+06-18 18:02:38.037 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1871ms (apiClient.GET)
+06-18 18:02:38.039 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1869ms (apiClient.GET)
+06-18 18:02:39.057 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1289ms (apiClient.GET)
+06-18 18:02:39.059 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1277ms (apiClient.GET)
+06-18 18:02:45.737 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1467ms (apiClient.GET)
+06-18 18:02:48.270 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1443ms (apiClient.GET)
+06-18 18:02:50.068 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1323ms (apiClient.GET)
+06-18 18:02:53.267 W/ReactNativeJS(17481): [Action] fastPress first frame took 871ms; budget is 20ms.
+06-18 18:02:54.351 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1962ms (apiClient.GET)
+06-18 18:02:54.368 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:02:54.368 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:02:54.677 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1407ms (apiClient.GET)
+06-18 18:02:54.679 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1393ms (apiClient.GET)
+06-18 18:02:55.837 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1472ms (apiClient.GET)
+06-18 18:03:04.345 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1141ms (apiClient.GET)
+06-18 18:03:18.184 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1574ms (apiClient.GET)
+06-18 18:03:18.187 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1451ms (apiClient.GET)
+06-18 18:03:25.323 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1163ms (apiClient.GET)
+06-18 18:03:25.922 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:03:25.922 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:03:48.406 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1004ms (apiClient.GET)
+06-18 18:03:50.523 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2219ms (apiClient.GET)
+06-18 18:03:56.929 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1507ms (apiClient.GET)
+06-18 18:03:58.440 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1820ms (apiClient.GET)
+06-18 18:03:58.443 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1807ms (apiClient.GET)
+06-18 18:03:58.445 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1821ms (apiClient.GET)
+06-18 18:03:58.447 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1815ms (apiClient.GET)
+06-18 18:03:58.454 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:03:58.455 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:04:01.737 W/chromium(20025): [0618/180401.736947:WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+06-18 18:04:01.796 W/chromium(20025): [0618/180401.796123:WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+06-18 18:04:05.715 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1719ms (apiClient.GET)
+06-18 18:04:13.836 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1825ms (apiClient.GET)
+06-18 18:04:13.839 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1821ms (apiClient.GET)
+06-18 18:04:18.321 W/ReactNativeJS(17481): [Tabs] trade first frame took 1810ms; sync navigation 4ms; budget is 20ms.
+06-18 18:04:18.785 E/chromium(17792): [ERROR:cc/tiles/tile_manager.cc:1012] WARNING: tile memory limits exceeded, some content may not draw
+06-18 18:04:18.785 E/chromium(17792): [ERROR:cc/tiles/tile_manager.cc:1012] WARNING: tile memory limits exceeded, some content may not draw
+06-18 18:04:20.148 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1131ms (apiClient.GET)
+06-18 18:04:20.432 E/chromium(17792): [ERROR:cc/tiles/tile_manager.cc:1012] WARNING: tile memory limits exceeded, some content may not draw
+06-18 18:04:20.432 E/chromium(17792): [ERROR:cc/tiles/tile_manager.cc:1012] WARNING: tile memory limits exceeded, some content may not draw
+06-18 18:04:29.612 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:04:29.612 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:04:44.705 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1027ms (apiClient.GET)
+06-18 18:05:00.640 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:05:00.641 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:05:27.751 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1073ms (apiClient.GET)
+06-18 18:05:31.698 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:05:31.699 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:06:02.926 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1050ms (apiClient.GET)
+06-18 18:06:02.927 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1049ms (apiClient.GET)
+06-18 18:06:03.025 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:06:03.026 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:06:24.922 W/ReactNativeJS(17481): [Tabs] chart first frame took 1761ms; sync navigation 4ms; budget is 20ms.
+06-18 18:06:24.975 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2164ms (apiClient.GET)
+06-18 18:06:28.779 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1163ms (apiClient.GET)
+06-18 18:06:28.788 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:06:28.789 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:06:29.335 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1716ms (apiClient.GET)
+06-18 18:06:29.336 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1715ms (apiClient.GET)
+06-18 18:06:31.077 I/ReactNativeJS(17481): [API warn] GET /instruments/GBPUSD 404 1227ms (apiClient.GET)
+06-18 18:06:33.047 W/ReactNativeJS(17481): [API slow] GET /candles/GBPUSD?timeframe=M1&limit=2500 200 5423ms (apiClient.GET)
+06-18 18:06:36.925 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1215ms (apiClient.GET)
+06-18 18:06:39.760 W/ReactNativeJS(17481): [API slow] GET /positions/200159?limit=50&offset=0 200 3166ms (apiClient.GET)
+06-18 18:06:41.576 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1819ms (apiClient.GET)
+06-18 18:06:47.095 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1684ms (apiClient.GET)
+06-18 18:06:47.097 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1560ms (apiClient.GET)
+06-18 18:06:50.917 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1778ms (apiClient.GET)
+06-18 18:06:54.044 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2225ms (apiClient.GET)
+06-18 18:06:54.939 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1574ms (apiClient.GET)
+06-18 18:06:57.822 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1307ms (apiClient.GET)
+06-18 18:06:59.952 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:06:59.952 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:07:01.833 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1890ms (apiClient.GET)
+06-18 18:07:01.835 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1888ms (apiClient.GET)
+06-18 18:07:01.837 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1489ms (apiClient.GET)
+06-18 18:07:07.204 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1975ms (apiClient.GET)
+06-18 18:07:07.551 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1253ms (apiClient.GET)
+06-18 18:07:09.623 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1158ms (apiClient.GET)
+06-18 18:07:10.251 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1171ms (apiClient.GET)
+06-18 18:07:17.367 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1540ms (apiClient.GET)
+06-18 18:07:20.035 W/ReactNativeJS(17481): [API slow] GET /positions/200159?limit=50&offset=0 200 3013ms (apiClient.GET)
+06-18 18:07:20.365 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1819ms (apiClient.GET)
+06-18 18:07:27.923 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2154ms (apiClient.GET)
+06-18 18:07:27.925 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1780ms (apiClient.GET)
+06-18 18:07:31.253 W/ReactNativeJS(17481): [Action] fastPress first frame took 337ms; budget is 20ms.
+06-18 18:07:33.567 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2325ms (apiClient.GET)
+06-18 18:07:33.569 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2311ms (apiClient.GET)
+06-18 18:07:33.600 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:07:33.601 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:07:36.008 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2435ms (apiClient.GET)
+06-18 18:07:36.011 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2434ms (apiClient.GET)
+06-18 18:07:37.268 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1902ms (apiClient.GET)
+06-18 18:07:37.878 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1526ms (apiClient.GET)
+06-18 18:07:45.363 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2127ms (apiClient.GET)
+06-18 18:07:47.008 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1938ms (apiClient.GET)
+06-18 18:07:48.196 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1574ms (apiClient.GET)
+06-18 18:07:53.543 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1740ms (apiClient.GET)
+06-18 18:07:55.173 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1659ms (apiClient.GET)
+06-18 18:07:57.028 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1884ms (apiClient.GET)
+06-18 18:07:58.741 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2021ms (apiClient.GET)
+06-18 18:07:59.333 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1389ms (apiClient.GET)
+06-18 18:08:01.863 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1681ms (apiClient.GET)
+06-18 18:08:06.717 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:08:06.718 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:08:07.309 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1449ms (apiClient.GET)
+06-18 18:08:10.061 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1777ms (apiClient.GET)
+06-18 18:08:13.017 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2079ms (apiClient.GET)
+06-18 18:08:17.937 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1518ms (apiClient.GET)
+06-18 18:08:17.939 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1513ms (apiClient.GET)
+06-18 18:08:30.299 W/ReactNativeJS(17481): [Action] chart.tradeSheet.stepper.tp first frame took 1389ms; budget is 20ms.
+06-18 18:08:30.300 W/ReactNativeJS(17481): [Action] fastPress first frame took 1390ms; budget is 20ms.
+06-18 18:08:30.362 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 2179ms (apiClient.GET)
+06-18 18:08:31.912 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1556ms (apiClient.GET)
+06-18 18:08:37.246 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1925ms (apiClient.GET)
+06-18 18:08:38.073 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1744ms (apiClient.GET)
+06-18 18:08:38.680 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1425ms (apiClient.GET)
+06-18 18:08:38.682 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1421ms (apiClient.GET)
+06-18 18:08:38.690 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:08:38.691 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:08:40.931 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1379ms (apiClient.GET)
+06-18 18:08:40.932 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1377ms (apiClient.GET)
+06-18 18:08:45.752 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1864ms (apiClient.GET)
+06-18 18:08:47.117 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1251ms (apiClient.GET)
+06-18 18:08:47.119 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1254ms (apiClient.GET)
+06-18 18:08:47.121 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1250ms (apiClient.GET)
+06-18 18:08:47.123 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1256ms (apiClient.GET)
+06-18 18:08:47.125 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1256ms (apiClient.GET)
+06-18 18:08:48.634 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:08:48.635 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:08:51.952 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1019ms (apiClient.GET)
+06-18 18:09:00.150 W/ReactNativeJS(17481): [Action] fastPress first frame took 1593ms; budget is 20ms.
+06-18 18:09:00.285 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2367ms (apiClient.GET)
+06-18 18:09:00.287 W/ReactNativeJS(17481): [Action] fastPress first frame took 129ms; budget is 20ms.
+06-18 18:09:00.288 W/ReactNativeJS(17481): [Action] fastPress first frame took 126ms; budget is 20ms.
+06-18 18:09:02.057 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1791ms (apiClient.GET)
+06-18 18:09:02.058 W/ReactNativeJS(17481): [Action] fastPress first frame took 774ms; budget is 20ms.
+06-18 18:09:03.109 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1850ms (apiClient.GET)
+06-18 18:09:03.110 W/ReactNativeJS(17481): [Action] fastPress first frame took 130ms; budget is 20ms.
+06-18 18:09:04.685 W/ReactNativeJS(17481): [Action] fastPress first frame took 660ms; budget is 20ms.
+06-18 18:09:07.780 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1567ms (apiClient.GET)
+06-18 18:09:09.325 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2158ms (apiClient.GET)
+06-18 18:09:17.427 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1857ms (apiClient.GET)
+06-18 18:09:17.738 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1179ms (apiClient.GET)
+06-18 18:09:21.765 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2199ms (apiClient.GET)
+06-18 18:09:21.767 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2195ms (apiClient.GET)
+06-18 18:09:21.769 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2180ms (apiClient.GET)
+06-18 18:09:21.778 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:09:21.778 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:09:25.318 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2292ms (apiClient.GET)
+06-18 18:09:25.666 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1429ms (apiClient.GET)
+06-18 18:09:28.188 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2860ms (apiClient.GET)
+06-18 18:09:28.541 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1348ms (apiClient.GET)
+06-18 18:09:32.795 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1786ms (apiClient.GET)
+06-18 18:09:36.177 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1831ms (apiClient.GET)
+06-18 18:09:37.203 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1028ms (apiClient.GET)
+06-18 18:09:37.204 W/ReactNativeJS(17481): [Action] fastPress first frame took 276ms; budget is 20ms.
+06-18 18:09:39.501 W/ReactNativeJS(17481): [Action] chart.tradeSheet.stepper.sl first frame took 743ms; budget is 20ms.
+06-18 18:09:39.502 W/ReactNativeJS(17481): [Action] fastPress first frame took 744ms; budget is 20ms.
+06-18 18:09:40.406 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1681ms (apiClient.GET)
+06-18 18:09:40.409 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1659ms (apiClient.GET)
+06-18 18:09:52.028 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1288ms (apiClient.GET)
+06-18 18:09:53.584 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1550ms (apiClient.GET)
+06-18 18:09:54.477 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:09:54.478 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:09:57.663 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1506ms (apiClient.GET)
+06-18 18:10:01.214 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2036ms (apiClient.GET)
+06-18 18:10:02.960 W/ReactNativeJS(17481): [Action] fastPress first frame took 102ms; budget is 20ms.
+06-18 18:10:05.726 W/ReactNativeJS(17481): [Action] fastPress first frame took 971ms; budget is 20ms.
+06-18 18:10:06.243 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2073ms (apiClient.GET)
+06-18 18:10:06.245 W/ReactNativeJS(17481): [Action] fastPress first frame took 510ms; budget is 20ms.
+06-18 18:10:07.845 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1607ms (apiClient.GET)
+06-18 18:10:09.383 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 2125ms (apiClient.GET)
+06-18 18:10:09.385 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2112ms (apiClient.GET)
+06-18 18:10:18.335 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1499ms (apiClient.GET)
+06-18 18:10:19.216 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1194ms (apiClient.GET)
+06-18 18:10:21.790 W/ReactNativeJS(17481): [Action] chart.mt5-market.trade.buy first frame took 720ms; budget is 10ms.
+06-18 18:10:21.791 W/ReactNativeJS(17481): [Action] fastPress first frame took 721ms; budget is 20ms.
+06-18 18:10:22.763 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1701ms (apiClient.GET)
+06-18 18:10:22.766 I/ReactNativeJS(17481): [API warn] POST /orders 200 1553ms (apiClient.POST)
+06-18 18:10:22.772 I/ReactNativeJS(17481): [API warn] POST /orders 200 1688ms (trade.placeMarketOrder.buy)
+06-18 18:10:26.433 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1546ms (apiClient.GET)
+06-18 18:10:27.290 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2401ms (apiClient.GET)
+06-18 18:10:27.291 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2401ms (apiClient.GET)
+06-18 18:10:27.293 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2381ms (apiClient.GET)
+06-18 18:10:27.295 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2378ms (apiClient.GET)
+06-18 18:10:27.321 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:10:27.322 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:10:31.182 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1578ms (apiClient.GET)
+06-18 18:10:35.426 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1797ms (apiClient.GET)
+06-18 18:10:39.316 W/ReactNativeJS(17481): [Action] fastPress first frame took 347ms; budget is 20ms.
+06-18 18:10:41.915 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1738ms (apiClient.GET)
+06-18 18:10:43.843 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2235ms (apiClient.GET)
+06-18 18:10:44.739 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1437ms (apiClient.GET)
+06-18 18:10:55.737 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1395ms (apiClient.GET)
+06-18 18:10:57.305 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1826ms (apiClient.GET)
+06-18 18:10:58.233 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1286ms (apiClient.GET)
+06-18 18:10:59.630 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2060ms (apiClient.GET)
+06-18 18:10:59.633 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2053ms (apiClient.GET)
+06-18 18:10:59.635 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2060ms (apiClient.GET)
+06-18 18:11:00.475 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:11:00.476 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:11:05.237 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1705ms (apiClient.GET)
+06-18 18:11:07.261 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1157ms (apiClient.GET)
+06-18 18:11:09.976 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1311ms (apiClient.GET)
+06-18 18:11:17.227 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1113ms (apiClient.GET)
+06-18 18:11:19.796 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2565ms (apiClient.GET)
+06-18 18:11:22.629 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1179ms (apiClient.GET)
+06-18 18:11:26.890 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1941ms (apiClient.GET)
+06-18 18:11:28.314 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1444ms (apiClient.GET)
+06-18 18:11:32.224 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1566ms (apiClient.GET)
+06-18 18:11:32.226 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1573ms (apiClient.GET)
+06-18 18:11:32.228 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1566ms (apiClient.GET)
+06-18 18:11:32.229 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:11:32.230 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:11:35.590 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1650ms (apiClient.GET)
+06-18 18:11:35.592 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1645ms (apiClient.GET)
+06-18 18:11:38.140 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1409ms (apiClient.GET)
+06-18 18:11:41.208 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1421ms (apiClient.GET)
+06-18 18:11:45.388 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1356ms (apiClient.GET)
+06-18 18:11:48.243 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1134ms (apiClient.GET)
+06-18 18:11:48.245 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1123ms (apiClient.GET)
+06-18 18:11:49.374 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1394ms (apiClient.GET)
+06-18 18:12:03.035 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1485ms (apiClient.GET)
+06-18 18:12:04.159 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1139ms (apiClient.GET)
+06-18 18:12:04.175 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:12:04.176 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:12:04.178 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1154ms (apiClient.GET)
+06-18 18:12:04.180 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1151ms (apiClient.GET)
+06-18 18:12:11.967 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1671ms (apiClient.GET)
+06-18 18:12:17.965 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1494ms (apiClient.GET)
+06-18 18:12:17.967 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1386ms (apiClient.GET)
+06-18 18:12:17.969 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1380ms (apiClient.GET)
+06-18 18:12:25.414 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1681ms (apiClient.GET)
+06-18 18:12:25.416 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1677ms (apiClient.GET)
+06-18 18:12:26.937 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1777ms (apiClient.GET)
+06-18 18:12:33.237 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1826ms (apiClient.GET)
+06-18 18:12:36.611 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1866ms (apiClient.GET)
+06-18 18:12:36.612 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1852ms (apiClient.GET)
+06-18 18:12:36.614 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1850ms (apiClient.GET)
+06-18 18:12:37.451 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:12:37.451 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:12:38.334 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1736ms (apiClient.GET)
+06-18 18:12:38.336 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1727ms (apiClient.GET)
+06-18 18:12:40.505 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2155ms (apiClient.GET)
+06-18 18:12:47.669 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1963ms (apiClient.GET)
+06-18 18:12:49.168 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1769ms (apiClient.GET)
+06-18 18:12:50.533 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 2011ms (apiClient.GET)
+06-18 18:12:51.714 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1725ms (apiClient.GET)
+06-18 18:12:55.427 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1614ms (apiClient.GET)
+06-18 18:13:02.742 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1524ms (apiClient.GET)
+06-18 18:13:04.240 W/chromium(20990): [0618/181304.236104:WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+06-18 18:13:04.300 W/chromium(20990): [0618/181304.300691:WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+06-18 18:13:05.727 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2998ms (apiClient.GET)
+06-18 18:13:05.889 W/chromium(21183): [0618/181305.888920:WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+06-18 18:13:05.957 W/chromium(21183): [0618/181305.957521:WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+06-18 18:13:09.536 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1710ms (apiClient.GET)
+06-18 18:13:09.537 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1703ms (apiClient.GET)
+06-18 18:13:09.539 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1710ms (apiClient.GET)
+06-18 18:13:09.547 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:13:09.548 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:13:17.357 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1575ms (apiClient.GET)
+06-18 18:13:18.798 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1464ms (apiClient.GET)
+06-18 18:13:23.127 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2059ms (apiClient.GET)
+06-18 18:13:24.222 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1720ms (apiClient.GET)
+06-18 18:13:28.556 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1443ms (apiClient.GET)
+06-18 18:13:29.387 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1118ms (apiClient.GET)
+06-18 18:13:36.137 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1077ms (apiClient.GET)
+06-18 18:13:38.832 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1750ms (apiClient.GET)
+06-18 18:13:42.563 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2286ms (apiClient.GET)
+06-18 18:13:42.564 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2281ms (apiClient.GET)
+06-18 18:13:42.566 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2286ms (apiClient.GET)
+06-18 18:13:42.579 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:13:42.580 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:13:42.588 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1461ms (apiClient.GET)
+06-18 18:13:44.473 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1897ms (apiClient.GET)
+06-18 18:13:47.244 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1145ms (apiClient.GET)
+06-18 18:13:51.560 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1646ms (apiClient.GET)
+06-18 18:13:55.426 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1369ms (apiClient.GET)
+06-18 18:13:57.127 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1804ms (apiClient.GET)
+06-18 18:14:05.023 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1232ms (apiClient.GET)
+06-18 18:14:14.071 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1438ms (apiClient.GET)
+06-18 18:14:14.073 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1432ms (apiClient.GET)
+06-18 18:14:14.075 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1438ms (apiClient.GET)
+06-18 18:14:14.077 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:14:14.078 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:14:19.267 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2111ms (apiClient.GET)
+06-18 18:14:19.269 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2108ms (apiClient.GET)
+06-18 18:14:19.876 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1469ms (apiClient.GET)
+06-18 18:14:27.122 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1717ms (apiClient.GET)
+06-18 18:14:28.530 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1414ms (apiClient.GET)
+06-18 18:14:29.948 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1996ms (apiClient.GET)
+06-18 18:14:32.733 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1626ms (apiClient.GET)
+06-18 18:14:37.569 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1154ms (apiClient.GET)
+06-18 18:14:41.035 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1424ms (apiClient.GET)
+06-18 18:14:44.470 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1471ms (apiClient.GET)
+06-18 18:14:46.012 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1831ms (apiClient.GET)
+06-18 18:14:46.013 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1818ms (apiClient.GET)
+06-18 18:14:46.023 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1837ms (apiClient.GET)
+06-18 18:14:46.024 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1835ms (apiClient.GET)
+06-18 18:14:46.863 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:14:46.864 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:14:55.529 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1895ms (apiClient.GET)
+06-18 18:14:58.388 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1783ms (apiClient.GET)
+06-18 18:14:58.390 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1496ms (apiClient.GET)
+06-18 18:15:11.046 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1131ms (apiClient.GET)
+06-18 18:15:15.744 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2030ms (apiClient.GET)
+06-18 18:15:19.082 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1871ms (apiClient.GET)
+06-18 18:15:19.958 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2367ms (apiClient.GET)
+06-18 18:15:19.960 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2192ms (apiClient.GET)
+06-18 18:15:19.962 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2190ms (apiClient.GET)
+06-18 18:15:20.645 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:15:20.646 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:15:24.208 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2056ms (apiClient.GET)
+06-18 18:15:24.209 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2049ms (apiClient.GET)
+06-18 18:15:34.609 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1455ms (apiClient.GET)
+06-18 18:15:37.163 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2557ms (apiClient.GET)
+06-18 18:15:38.715 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2482ms (apiClient.GET)
+06-18 18:15:38.724 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1565ms (apiClient.GET)
+06-18 18:15:46.317 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1757ms (apiClient.GET)
+06-18 18:15:48.024 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1445ms (apiClient.GET)
+06-18 18:15:48.898 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1138ms (apiClient.GET)
+06-18 18:15:52.193 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1931ms (apiClient.GET)
+06-18 18:15:52.227 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:15:52.228 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:15:58.131 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1421ms (apiClient.GET)
+06-18 18:15:59.616 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1782ms (apiClient.GET)
+06-18 18:16:01.202 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1858ms (apiClient.GET)
+06-18 18:16:07.358 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1744ms (apiClient.GET)
+06-18 18:16:07.360 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1740ms (apiClient.GET)
+06-18 18:16:08.783 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1436ms (apiClient.GET)
+06-18 18:16:13.454 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1199ms (apiClient.GET)
+06-18 18:16:13.456 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 1190ms (apiClient.GET)
+06-18 18:16:14.889 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1510ms (apiClient.GET)
+06-18 18:16:21.809 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1458ms (apiClient.GET)
+06-18 18:16:25.165 I/ReactNativeJS(17481): [API warn] GET /alerts 200 1695ms (apiClient.GET)
+06-18 18:16:25.168 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 1680ms (apiClient.GET)
+06-18 18:16:25.169 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 1678ms (apiClient.GET)
+06-18 18:16:25.172 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:16:25.173 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:16:27.284 I/ReactNativeJS(17481): [API warn] GET /orders/200159?limit=500 200 2130ms (apiClient.GET)
+06-18 18:16:29.489 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2215ms (apiClient.GET)
+06-18 18:16:29.491 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 2208ms (apiClient.GET)
+06-18 18:16:37.419 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1494ms (apiClient.GET)
+06-18 18:16:38.871 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1492ms (apiClient.GET)
+06-18 18:16:40.322 I/ReactNativeJS(17481): [API warn] GET /deals/200159?limit=1000&offset=0 200 1845ms (apiClient.GET)
+06-18 18:16:48.091 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1363ms (apiClient.GET)
+06-18 18:16:57.831 I/ReactNativeJS(17481): [API warn] GET /alerts 200 2095ms (apiClient.GET)
+06-18 18:16:57.833 I/ReactNativeJS(17481): [API warn] GET /positions/200159/history?limit=1000&offset=0 200 2093ms (apiClient.GET)
+06-18 18:16:57.835 I/ReactNativeJS(17481): [API warn] GET /account/200159 200 2077ms (apiClient.GET)
+06-18 18:16:58.678 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:16:58.679 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:16:58.692 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1500ms (apiClient.GET)
+06-18 18:16:58.694 I/ReactNativeJS(17481): [API warn] GET /quotes?symbols=GBPUSD 200 1500ms (apiClient.GET)
+06-18 18:16:58.696 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1389ms (apiClient.GET)
+06-18 18:17:03.388 W/ReactNativeJS(17481): [Tabs] history first frame took 1483ms; sync navigation 5ms; budget is 20ms.
+06-18 18:17:03.736 E/chromium(17792): [ERROR:cc/tiles/tile_manager.cc:1012] WARNING: tile memory limits exceeded, some content may not draw
+06-18 18:17:03.790 E/chromium(17792): [ERROR:cc/tiles/tile_manager.cc:1012] WARNING: tile memory limits exceeded, some content may not draw
+06-18 18:17:04.889 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:17:04.890 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:17:25.731 W/ReactNativeJS(17481): [Tabs] trade first frame took 2043ms; sync navigation 6ms; budget is 20ms.
+06-18 18:17:35.991 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:17:35.992 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:17:55.165 W/ReactNativeJS(17481): [Tabs] history first frame took 1539ms; sync navigation 4ms; budget is 20ms.
+06-18 18:17:56.220 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:17:56.220 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:18:26.730 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:18:26.730 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:18:57.275 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:18:57.275 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:19:27.704 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:19:27.705 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:19:58.153 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:19:58.154 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:20:28.618 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:20:28.620 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:20:59.198 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:20:59.199 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:21:29.658 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:21:29.658 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:22:00.129 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:22:00.129 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:22:30.596 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:22:30.596 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:23:01.105 I/ReactNativeJS(17481): '[ClosedHistory] Response json:', '[]'
+06-18 18:23:01.106 I/ReactNativeJS(17481): '[ClosedHistory] Parsed rows length:', 0
+06-18 18:23:03.209 I/ReactNativeJS(17481): [API warn] GET /positions/200159?limit=50&offset=0 200 1161ms (apiClient.GET)
