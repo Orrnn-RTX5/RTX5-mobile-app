@@ -1,0 +1,73 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+.npm-cache/
+
+# Expo
+.expo/
+.codex-tmp/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+.g/
+.gradle/
+.gradle-home/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# local device repro dumps (screenshots / videos / UI XML)
+artifacts/
+adb-nav-comparison/
+test-results/
+rtx5_*.png
+rtx5_*.jpg
+rtx5_*.jpeg
+rtx5_*.mp4
+rtx5_*.xml
+quotes_sheet_*
+sidebar_*
+audit-*
+
+# build artifacts
+*.apk
+*.aab
+*.ipa
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# machine-only Android access and store credentials
+/ACCESS_PHONE_LOCAL.ps1
+/phone-uinput-tap
+google-services.json
+
+# IDE/hosting state that contains machine paths, PIDs, or local project links
+/.claude/settings.local.json
+.netlify/
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android

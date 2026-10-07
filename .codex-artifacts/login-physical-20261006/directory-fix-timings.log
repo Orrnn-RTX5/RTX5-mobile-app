@@ -1,0 +1,73 @@
+ LOG  [API warn] GET /broker/servers 200 1906ms (broker.servers)
+ LOG  [API warn] GET /broker/servers 200 1476ms (broker.servers)
+ LOG  [API warn] GET /instruments 200 1259ms (guest.public)
+ LOG  [API warn] GET /broker/config 200 1218ms (guest.public)
+ LOG  [API warn] GET /quotes 200 1263ms (guest.public)
+ INFO  [LoginTrace] submit 0
+ LOG  [API warn] POST /auth/login 200 2854ms (auth.guest.login)
+ INFO  [LoginTrace] authentication complete 2981
+ INFO  [LoginTrace] commit.queue.entered 0
+ LOG  [API warn] GET /broker/servers 200 1588ms (broker.servers)
+ INFO  [LoginTrace] commit.directory.done 1246
+ INFO  [LoginTrace] commit.transition.done 1258
+ INFO  [LoginTrace] commit.teardown.done 1291
+ INFO  [LoginTrace] commit.prune.done 1436
+ INFO  [LoginTrace] commit.credentials.done 2941
+ INFO  [LoginTrace] commit.manifest.done 2981
+ INFO  [LoginTrace] commit.activate.done 3015
+ INFO  [LoginTrace] commit.preferences.done 5126
+ INFO  [LoginTrace] commit complete 8180
+ LOG  [API warn] GET /instruments 200 1477ms (apiClient.GET)
+ LOG  [API warn] GET /quotes?symbols=[redacted] 200 1522ms (apiClient.GET)
+ LOG  [API warn] GET /market/status/BTCUSD 200 1536ms (apiClient.GET)
+ LOG  [API warn] GET /watchlist 200 1533ms (apiClient.GET)
+ LOG  [API warn] GET /candles/BTCUSD?timeframe=[redacted]&limit=[redacted] 200 2811ms (apiClient.GET)
+ LOG  [API warn] GET /account/:login 200 2802ms (apiClient.GET)
+ LOG  [API warn] GET /auth/me 200 2807ms (apiClient.GET)
+ LOG  [API warn] GET /positions/:login 200 2808ms (apiClient.GET)
+ LOG  [API warn] GET /orders/:login 200 2808ms (apiClient.GET)
+ LOG  [API warn] GET /instruments 200 2809ms (apiClient.GET)
+ LOG  [API warn] GET /market/status 200 2808ms (apiClient.GET)
+ INFO  [LoginTrace] hydration complete 12115
+ INFO  [LoginTrace] password persistence complete 14322
+ INFO  [LoginTrace] flow complete 14324
+ LOG  [API slow] GET /api/v1/candles 200 5239ms (candles.feedHistory)
+ LOG  [API slow] GET /quotes?symbols=[redacted] 200 5328ms (apiClient.GET)
+ LOG  [API slow] GET /candles/BTCUSD?timeframe=[redacted]&limit=[redacted] 200 3568ms (apiClient.GET)
+ LOG  [API warn] GET /candles/BTCUSD?timeframe=[redacted]&limit=[redacted]&from=[redacted]&to=[redacted] 200 1432ms (apiClient.GET)
+ LOG  [API warn] GET /account/:login 200 1321ms (apiClient.GET)
+ LOG  [API warn] GET /account/:login 200 1329ms (apiClient.GET)
+ LOG  [API warn] GET /positions/:login 200 2899ms (apiClient.GET)
+ LOG  [API slow] GET /broker/servers 200 5890ms (broker.servers)
+ LOG  [API slow] GET /candles/BTCUSD 200 5443ms (guest.public)
+ INFO  [LoginTrace] submit 0
+ LOG  [API warn] POST /auth/login 200 2743ms (auth.guest.login)
+ LOG  [API warn] GET /broker/servers 200 2657ms (broker.servers)
+ INFO  [LoginTrace] authentication complete 2752
+ INFO  [LoginTrace] commit.queue.entered 0
+ INFO  [LoginTrace] commit.directory.done 49
+ INFO  [LoginTrace] commit.transition.done 58
+ INFO  [LoginTrace] commit.teardown.done 99
+ INFO  [LoginTrace] commit.prune.done 124
+ INFO  [LoginTrace] commit.credentials.done 773
+ INFO  [LoginTrace] commit.manifest.done 826
+ INFO  [LoginTrace] commit.activate.done 843
+ INFO  [LoginTrace] commit.preferences.done 2777
+ INFO  [LoginTrace] commit complete 5640
+ LOG  [API warn] GET /quotes?symbols=[redacted] 200 1212ms (apiClient.GET)
+ LOG  [API warn] GET /watchlist 200 1258ms (apiClient.GET)
+ LOG  [API warn] GET /market/status/BTCUSD 200 1266ms (apiClient.GET)
+ LOG  [API warn] GET /auth/me 200 1811ms (apiClient.GET)
+ LOG  [API warn] GET /account/:login 200 1851ms (apiClient.GET)
+ LOG  [API warn] GET /orders/:login 200 2693ms (apiClient.GET)
+ LOG  [API warn] GET /positions/:login 200 2952ms (apiClient.GET)
+ LOG  [API warn] GET /instruments 200 2950ms (apiClient.GET)
+ LOG  [API warn] GET /market/status 200 2951ms (apiClient.GET)
+ LOG  [API warn] GET /api/v1/candles 200 2356ms (candles.feedHistory)
+ LOG  [API warn] GET /quotes?symbols=[redacted] 200 1191ms (apiClient.GET)
+ INFO  [LoginTrace] hydration complete 8814
+ INFO  [LoginTrace] password persistence complete 9644
+ INFO  [LoginTrace] flow complete 9646
+ LOG  [API warn] GET /candles/BTCUSD?timeframe=[redacted]&limit=[redacted]&from=[redacted]&to=[redacted] 200 1592ms (apiClient.GET)
+ LOG  [API warn] GET /account/:login 200 1033ms (apiClient.GET)
+ LOG  [API warn] GET /account/:login 200 1033ms (apiClient.GET)

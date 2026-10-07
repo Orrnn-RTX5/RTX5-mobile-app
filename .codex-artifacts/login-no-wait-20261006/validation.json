@@ -1,0 +1,30 @@
+{
+  "source_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree": "uncommitted; existing changes preserved",
+  "file_sha256": {
+    "src/features/auth/GuestFlowHost.tsx": "41367609dc07c3e42e418a55425c46eee029e2a10b47ebdf2d8495f024c56956",
+    "src/services/brokerSessionCoordinator.ts": "0c3bb07770915d99723cf05fd99e2001b53595444dd9efe6708d73ddcb5968f1",
+    "src/services/persistBrokerSessionAuthority.ts": "7f603eb0f3ba24baddf49e2ed2ddb53e554f4cf1f6446928ef2823e649dc86b3",
+    "src/services/persistBrokerSessionAuthority.test.ts": "25f44c9c1aa95debab35bac67109bee3da89ec70c1a7533eaf95d644b470541a",
+    "src/services/brokerSessionCoordinatorSource.test.ts": "b38ccc9af31192a5dd498afefc863670373ba17346b3414f9a1acdda35ba3085",
+    "src/state/activeBrokerSessionStorage.ts": "d218b04a387b45b576e3a1da11efebbd8c64a55622462b9f49107842188d581c",
+    "src/state/sessionCacheStorage.ts": "cb0687097e0a75b2044eac85b55e4c6d180b5e56e26368f026e761c1452e1640",
+    "src/state/sessionCacheStorage.test.ts": "70c5ffa5a7802aa90be42ef92ba4ff08fd5bf98af3a7b69e46c4bb5341ba60ad"
+  },
+  "changes": [
+    "Only credentials and current secure manifest gate session activation",
+    "Legacy non-credential routing metadata and obsolete cache cleanup run after first frame",
+    "Background cleanup resolves active cache namespace after asynchronous enumeration",
+    "Success no longer forces preference serialization before paint; existing scheduled persistence handles it",
+    "Guest catalog warmup pauses while authentication is visible"
+  ],
+  "validation": {
+    "typecheck": "passed exit 0",
+    "focused": "62 tests passed exit 0",
+    "full_regression": "All 426 test files passed, 18 batches, exit 0",
+    "diff_check": "passed"
+  },
+  "device_validation": "No controlled new physical timing captured for this incremental change. Earlier measurements are not asserted for this candidate.",
+  "publication": "none",
+  "review": "Independent race review passed: asynchronous cleanup never touches current authority or newly activated cache namespaces."
+}

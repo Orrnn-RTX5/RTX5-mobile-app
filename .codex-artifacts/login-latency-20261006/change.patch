@@ -1,0 +1,426 @@
+--- src/services/bootstrapApp.ts before
++++ src/services/bootstrapApp.ts after
+@@ -36,6 +36,7 @@
+   commitActiveAccountEnvironmentPayload,
+ } from './accountEnvironmentSession';
+ import { acceptTradingHydration } from './tradingAccess';
++import { createBootstrapRequestCoordinator, type BootstrapRun } from './bootstrapRequestCoordinator';
+ 
+ type BootstrapResult = {
+   me: unknown;
+@@ -61,6 +62,8 @@
+ type BootstrapOptions = {
+   accountLogin?: string | number;
+   expectedProvenance?: ActiveBrokerSessionProvenance;
++  /** Authentication needs verified identity, account policy and catalog only. */
++  waitFor?: 'trading' | 'complete';
+ };
+ 
+ const emptyBootstrapResult = (): BootstrapResult => ({
+@@ -190,6 +193,8 @@
+   }
+ };
+ 
++const joinBootstrapRequest = createBootstrapRequestCoordinator<BootstrapResult>();
++
+ export async function bootstrapApp(options: BootstrapOptions = {}): Promise<BootstrapResult> {
+   const sessionCapture = captureActiveBrokerSession();
+   if (!sessionCapture) {
+@@ -225,13 +230,22 @@
+     return emptyBootstrapResult();
+   }
+ 
++  const requestKey = `${activeProvenance.cacheNamespace}:${activeProvenance.credentialGeneration}`;
++  return joinBootstrapRequest(requestKey, options.waitFor ?? 'complete', () =>
++    startBootstrapRequest(sessionCapture, activeProvenance));
++}
++
++function startBootstrapRequest(
++  sessionCapture: NonNullable<ReturnType<typeof captureActiveBrokerSession>>,
++  activeProvenance: ActiveBrokerSessionProvenance,
++): BootstrapRun<BootstrapResult> {
+   recordMarketDataEvent('bootstrap_gate', {
+     outcome: 'started',
+     brokerId: sessionCapture.session.brokerId,
+     sessionEpoch: sessionCapture.session.sessionEpoch,
+   });
+ 
+-  const accountLogin = requestedAccountLogin;
++  const accountLogin = sessionCapture.session.accountLogin;
+   const encodedAccountLogin = encodeURIComponent(accountLogin);
+   const cacheNamespace = sessionCapture.session.cacheNamespace;
+   const accountEnvironmentRefresh = beginAccountEnvironmentRefresh(activeProvenance);
+@@ -322,37 +336,29 @@
+       return marketStatus;
+     }));
+ 
+-  const [
+-    me,
+-    accounts,
+-    positions,
+-    orders,
+-    instruments,
+-    marketStatus,
+-  ] = await Promise.all([
++  // Only these authoritative snapshots gate authentication. The remaining
++  // requests keep updating their session-scoped stores in the background.
++  const ready = Promise.all([mePromise, accountsPromise, instrumentsPromise])
++    .then(([me, accounts, instruments]) => {
++      acceptTradingHydration(cacheNamespace, me, accounts, instruments);
++      return { ...emptyBootstrapResult(), me, accounts, instruments };
++    });
++  const complete = Promise.all([
+     mePromise,
+     accountsPromise,
+     positionsPromise,
+     ordersPromise,
+     instrumentsPromise,
+     marketStatusPromise,
+-  ]);
+-
+-  recordMarketDataEvent('bootstrap_gate', {
+-    outcome: 'completed',
+-    brokerId: sessionCapture.session.brokerId,
+-    sessionEpoch: sessionCapture.session.sessionEpoch,
+-    completedSnapshots: [me, accounts, positions, orders, instruments, marketStatus]
+-      .filter((value) => value !== null).length,
++  ]).then(([me, accounts, positions, orders, instruments, marketStatus]) => {
++    recordMarketDataEvent('bootstrap_gate', {
++      outcome: 'completed',
++      brokerId: sessionCapture.session.brokerId,
++      sessionEpoch: sessionCapture.session.sessionEpoch,
++      completedSnapshots: [me, accounts, positions, orders, instruments, marketStatus]
++        .filter((value) => value !== null).length,
++    });
++    return { me, accounts, positions, orders, instruments, marketStatus };
+   });
+-
+-  acceptTradingHydration(cacheNamespace, me, accounts, instruments);
+-  return {
+-    me,
+-    accounts,
+-    positions,
+-    orders,
+-    instruments,
+-    marketStatus,
+-  };
++  return { ready, complete };
+ }
+--- /dev/null
++++ src/services/bootstrapRequestCoordinator.ts
+@@ -0,0 +1,35 @@
++export type BootstrapRun<T> = Readonly<{
++  ready: Promise<T>;
++  complete: Promise<T>;
++}>;
++
++/** Shares current work without turning completed account snapshots into a cache. */
++export function createBootstrapRequestCoordinator<T>() {
++  const inFlight = new Map<string, BootstrapRun<T>>();
++
++  return (
++    key: string,
++    waitFor: 'trading' | 'complete',
++    start: () => BootstrapRun<T>,
++  ): Promise<T> => {
++    let run = inFlight.get(key);
++    if (!run) {
++      try {
++        run = start();
++      } catch (error) {
++        return Promise.reject(error);
++      }
++      inFlight.set(key, run);
++      const ownedRun = run;
++      const release = () => {
++        if (inFlight.get(key) === ownedRun) inFlight.delete(key);
++      };
++      // A caller may await only one stage. Handle both branches without hiding
++      // their original rejection from callers that do await that stage.
++      void run.ready.catch(() => undefined);
++      void run.complete.then(release, release);
++    }
++
++    return waitFor === 'trading' ? run.ready : run.complete;
++  };
++}
+--- /dev/null
++++ src/services/bootstrapRequestCoordinator.test.ts
+@@ -0,0 +1,142 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { createBootstrapRequestCoordinator } from './bootstrapRequestCoordinator';
++
++function deferred<T>() {
++  let resolve!: (value: T) => void;
++  let reject!: (error: unknown) => void;
++  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
++    resolve = resolvePromise;
++    reject = rejectPromise;
++  });
++  return { promise, resolve, reject };
++}
++
++test('trading readiness resolves while ancillary bootstrap requests remain pending', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  const ready = deferred<string>();
++  const complete = deferred<string>();
++  let starts = 0;
++  const start = () => {
++    starts += 1;
++    return { ready: ready.promise, complete: complete.promise };
++  };
++  const trading = coordinate('account:1:credentials:1', 'trading', start);
++  let allFinished = false;
++  const full = coordinate('account:1:credentials:1', 'complete', start);
++  void full.then(() => { allFinished = true; });
++
++  ready.resolve('policy and symbols ready');
++  assert.equal(await trading, 'policy and symbols ready');
++  assert.equal(allFinished, false);
++  assert.equal(starts, 1);
++
++  complete.resolve('all snapshots ready');
++  assert.equal(await full, 'all snapshots ready');
++});
++
++test('complete callers arriving after trading readiness join the original run', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  const ready = deferred<string>();
++  const complete = deferred<string>();
++  let starts = 0;
++  const start = () => {
++    starts += 1;
++    return { ready: ready.promise, complete: complete.promise };
++  };
++  const trading = coordinate('account:1:credentials:1', 'trading', start);
++  ready.resolve('ready');
++  await trading;
++
++  const full = coordinate('account:1:credentials:1', 'complete', start);
++  assert.equal(full, complete.promise);
++  assert.equal(coordinate('account:1:credentials:1', 'trading', start), ready.promise);
++  assert.equal(starts, 1);
++  complete.resolve('complete');
++  await full;
++});
++
++test('account namespaces and credential generations cannot join another run', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  const keys = ['broker-a:account-1:generation-1', 'broker-a:account-1:generation-2', 'broker-b:account-1:generation-1'];
++  const pending = keys.map(() => ({ ready: deferred<string>(), complete: deferred<string>() }));
++  let starts = 0;
++  const calls = keys.map((key, index) => coordinate(key, 'trading', () => {
++    starts += 1;
++    return { ready: pending[index].ready.promise, complete: pending[index].complete.promise };
++  }));
++
++  pending.forEach((run, index) => {
++    run.ready.resolve(keys[index]);
++    run.complete.resolve(keys[index]);
++  });
++  assert.deepEqual(await Promise.all(calls), keys);
++  assert.equal(starts, 3);
++});
++
++test('completed work is released so a later refresh starts new requests', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  let starts = 0;
++  const start = () => {
++    starts += 1;
++    return { ready: Promise.resolve('ready'), complete: Promise.resolve(`complete-${starts}`) };
++  };
++
++  assert.equal(await coordinate('account:1:credentials:1', 'complete', start), 'complete-1');
++  assert.equal(await coordinate('account:1:credentials:1', 'complete', start), 'complete-2');
++  assert.equal(starts, 2);
++});
++
++test('a rejected background completion is handled and does not prevent retry', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  const complete = deferred<string>();
++  const trading = coordinate('account:1:credentials:1', 'trading', () => ({
++    ready: Promise.resolve('ready'), complete: complete.promise,
++  }));
++  assert.equal(await trading, 'ready');
++
++  complete.reject(new Error('ancillary request failed'));
++  // Flush the completion handler, without creating a consumer of that stage.
++  await Promise.resolve();
++  let starts = 0;
++  const retried = coordinate('account:1:credentials:1', 'complete', () => {
++    starts += 1;
++    return { ready: Promise.resolve('ready again'), complete: Promise.resolve('retried') };
++  });
++  assert.equal(await retried, 'retried');
++  assert.equal(starts, 1);
++});
++
++test('readiness failures reach callers and are released when the run finishes', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  const ready = deferred<string>();
++  const complete = deferred<string>();
++  const run = { ready: ready.promise, complete: complete.promise };
++  const tradingFailure = assert.rejects(coordinate('account:1:credentials:1', 'trading', () => run), /policy unavailable/);
++  const completeFailure = assert.rejects(coordinate('account:1:credentials:1', 'complete', () => run), /policy unavailable/);
++  ready.reject(new Error('policy unavailable'));
++  complete.reject(new Error('policy unavailable'));
++  await Promise.all([tradingFailure, completeFailure]);
++
++  assert.equal(await coordinate('account:1:credentials:1', 'trading', () => ({
++    ready: Promise.resolve('recovered'), complete: Promise.resolve('recovered'),
++  })), 'recovered');
++});
++
++test('a complete-only caller does not leave a readiness rejection unhandled', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  assert.equal(await coordinate('account:1:credentials:1', 'complete', () => ({
++    ready: Promise.reject(new Error('readiness failed')),
++    complete: Promise.resolve('completed with failed snapshot'),
++  })), 'completed with failed snapshot');
++});
++
++test('synchronous startup errors do not leave an in-flight entry', async () => {
++  const coordinate = createBootstrapRequestCoordinator<string>();
++  await assert.rejects(coordinate('account:1:credentials:1', 'trading', () => {
++    throw new Error('startup failed');
++  }), /startup failed/);
++  assert.equal(await coordinate('account:1:credentials:1', 'complete', () => ({
++    ready: Promise.resolve('ready'), complete: Promise.resolve('retry completed'),
++  })), 'retry completed');
++});
+--- src/features/auth/GuestFlowHost.tsx before
++++ src/features/auth/GuestFlowHost.tsx after
+@@ -1,10 +1,10 @@
+ import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+-import { Modal } from 'react-native';
++import { Keyboard, Modal } from 'react-native';
+ import { router, usePathname } from 'expo-router';
+ import { useBrokerDirectory } from '../../query/broker';
+ import { useUserPreferences } from '../../state/userPreferences';
+ import { createPublicBrokerContext, getPublicBrokerContext, setPublicBrokerContext, subscribePublicBrokerContext, publicBrokerFetch, isPublicBrokerContextCurrent } from '../../state/publicBrokerContext';
+-import { captureActiveBrokerSession } from '../../state/activeBrokerSession';
++import { captureActiveBrokerSession, getActiveBrokerSessionProvenance } from '../../state/activeBrokerSession';
+ import { getAuthFlowState, subscribeAuthFlow, dismissAuthFlow, showAuthForm, beginAuthSubmission, isAuthAttemptCurrent, setAuthProgress, completeAuthenticatedFlow, retainAuthEntryHandoff } from '../trade/authFlowState';
+ import { authenticateGuest, demoRegistrationBody, GuestAuthError, loginRequestBody, isDemoRegistrationEnabled } from '../../api/guestAuthentication';
+ import { authorizeBrokerSessionCommit, cancelBrokerSessionCommitAuthorization, commitBrokerSession, logoutBrokerSession } from '../../services/brokerSessionCoordinator';
+@@ -78,9 +78,15 @@
+     const controller = new AbortController();
+     void publicBrokerFetch('/broker/config?broker_id=' + encodeURIComponent(context.brokerId), controller.signal).then(response => { if (!response.ok) throw new Error(); return response.json(); })
+       .then(payload => { if (isPublicBrokerContextCurrent(context)) setConfig(payload?.data ?? payload); }).catch(() => {});
+-    if (!isLoggedIn) void getOrrnnDemoPublicMarketCatalog(controller.signal).then(catalog => {
++    return () => controller.abort();
++  }, [context]);
++  useEffect(() => {
++    if (!context || isLoggedIn) return;
++    const controller = new AbortController();
++    void getOrrnnDemoPublicMarketCatalog(controller.signal).then(catalog => {
+       if (!isPublicBrokerContextCurrent(context)) return;
+       const preferences = useUserPreferences.getState();
++      if (preferences.isLoggedIn) return;
+       if (!catalog.symbols.includes(preferences.chartSymbol)) preferences.setChartSymbol(catalog.symbols[0]);
+       const saved = preferences.quoteSymbols.filter(symbol => catalog.symbols.includes(symbol));
+       preferences.setQuoteSymbols(saved.length ? saved : catalog.symbols.slice(0, 6)); preferences.setHasSetInitialSymbols(true);
+@@ -100,9 +106,11 @@
+     try { body = flow.form === 'demo' ? demoRegistrationBody({ name, email: identity, password, confirmation }, flow.context.brokerId) : loginRequestBody(identity, password, flow.context.brokerId); }
+     catch (error) { setLocalError((error as Error).message); return; }
+     const operation = beginAuthSubmission(); if (!operation) return;
++    Keyboard.dismiss();
+     submitting.current = true; setLocalError('');
+     const attempt = operation.state.attempt; const selected = operation.state.context!;
+     authorization.current = authorizeBrokerSessionCommit();
++    const submittedPassword = password; const submittedRemember = remember;
+     try {
+       const session = await authenticateGuest(selected, operation.state.form === 'demo' ? 'register' : 'login', body, operation.signal);
+       if (!isAuthAttemptCurrent(attempt)) return;
+@@ -115,12 +123,12 @@
+       }, authorization.current);
+       committedNamespace.current = capture.session.cacheNamespace;
+       if (!isAuthAttemptCurrent(attempt)) { await logoutBrokerSession(); return; }
+-      const hydrated = await bootstrapApp({ accountLogin: session.accountLogin });
++      const hydrated = await bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(capture.session), waitFor: 'trading' });
+       if (!isAuthAttemptCurrent(attempt)) return;
+       if (!acceptTradingHydration(capture.session.cacheNamespace, hydrated.me, hydrated.accounts, hydrated.instruments)) throw new Error('Account policy or authorized symbols could not be loaded. Trading remains disabled.');
+       if (operation.state.form === 'login') {
+         // Reuse the established secure saved-account password store.
+-        if (remember) await setSavedAccountPassword(selected.brokerId, session.accountLogin, password).catch(() => undefined);
++        if (submittedRemember) await setSavedAccountPassword(selected.brokerId, session.accountLogin, submittedPassword).catch(() => undefined);
+         else await removeSavedAccountPassword(selected.brokerId, session.accountLogin).catch(() => undefined);
+         if (!isAuthAttemptCurrent(attempt)) return;
+       }
+--- src/features/auth/LoginAccountScreen.tsx before
++++ src/features/auth/LoginAccountScreen.tsx after
+@@ -82,7 +82,7 @@
+               <View style={styles.fieldBlock}><Text style={styles.inputLabel}>{t('Server')}</Text><Pressable style={styles.inputShell} accessibilityRole="button" accessibilityLabel={t('Select broker')} onPress={props.onChangeBroker}><Ionicons name="server-outline" size={19} color={T.textMuted} /><Text style={styles.serverValue} numberOfLines={1}>{props.serverName}</Text><Ionicons name="chevron-down" size={18} color={T.textSub} /></Pressable></View>
+             </View>
+             <View style={styles.formMetaRow}>{remember(styles, 'Save password')}<Pressable style={styles.forgotBtn} onPress={recovery} accessibilityRole="button"><Text style={styles.forgotText}>{t('Forgot password?')}</Text></Pressable></View>
+-            <Pressable accessibilityRole="button" accessibilityState={{ disabled: props.disabled, busy: props.busy }} disabled={props.disabled} style={({ pressed }) => [styles.loginBtn, (pressed || props.disabled) && styles.loginBtnPressed]} onPress={props.onSubmit}>{submitContent || <Text style={styles.loginBtnText}>{t('Login')}</Text>}</Pressable>
++            <Pressable activateOnPressIn latencyLabel="auth.login.submit" latencyBudgetMs={100} accessibilityRole="button" accessibilityState={{ disabled: props.disabled, busy: props.busy }} disabled={props.disabled} style={({ pressed }) => [styles.loginBtn, (pressed || props.disabled) && styles.loginBtnPressed]} onPress={props.onSubmit}>{submitContent || <Text style={styles.loginBtnText}>{t('Login')}</Text>}</Pressable>
+           </View>
+         </ScrollView>
+       </KeyboardAvoidingView>
+@@ -102,7 +102,7 @@
+         </View></View><View style={styles.fieldDivider} />
+         {(['identity', 'password'] as const).map(key => <React.Fragment key={key}><View style={styles.fieldBlock} onLayout={event => { positions.current[key] = event.nativeEvent.layout.y; }}><Text style={styles.inputLabel}>{t(key === 'identity' ? 'Login ID' : 'Password')}</Text><View style={styles.inputRow}><Ionicons name={key === 'identity' ? 'person-outline' : 'lock-closed-outline'} size={21} color={T.textSub} style={styles.inputLeadingIcon} />{input(key, [styles.input, styles.stackedInput])}{key === 'password' ? eye(styles.eyeIconBtn) : null}</View></View><View style={styles.fieldDivider} /></React.Fragment>)}
+         {remember(styles, 'Remember me')}
+-        <Pressable accessibilityRole="button" accessibilityState={{ disabled: props.disabled, busy: props.busy }} disabled={props.disabled} style={({ pressed }) => [styles.loginBtn, (pressed || props.disabled) && styles.loginBtnPressed]} onPress={props.onSubmit}>{submitContent || <Text style={styles.loginBtnText}>{t('LOGIN')}</Text>}</Pressable>
++        <Pressable activateOnPressIn latencyLabel="auth.login.submit" latencyBudgetMs={100} accessibilityRole="button" accessibilityState={{ disabled: props.disabled, busy: props.busy }} disabled={props.disabled} style={({ pressed }) => [styles.loginBtn, (pressed || props.disabled) && styles.loginBtnPressed]} onPress={props.onSubmit}>{submitContent || <Text style={styles.loginBtnText}>{t('LOGIN')}</Text>}</Pressable>
+         {props.demoAllowed ? <View style={styles.registerPromptRow}><Text style={styles.registerPromptText}>{t("Don't have an account?")}</Text><Pressable style={styles.registerAccountBtn} disabled={props.busy} onPress={props.onDemo}><Text style={styles.registerAccountText}>{t('Register an account')}</Text></Pressable></View> : <Text style={styles.registerPromptText}>{t('Demo signup is disabled. Login and guest browsing are available.')}</Text>}
+       </View>
+     </ScrollView>
+--- src/services/bootstrapAppSource.test.ts before
++++ src/services/bootstrapAppSource.test.ts after
+@@ -15,7 +15,7 @@
+   const ordersPromiseIndex = bootstrapSource.indexOf('const ordersPromise = accountLogin');
+   const instrumentsPromiseIndex = bootstrapSource.indexOf("const instrumentsPromise = requestJson('/instruments').then");
+   const marketStatusPromiseIndex = bootstrapSource.indexOf("const marketStatusPromise = requestJson('/market/status').then");
+-  const promiseAllIndex = bootstrapSource.indexOf('] = await Promise.all([');
++  const promiseAllIndex = bootstrapSource.indexOf('const complete = Promise.all([');
+ 
+   assert.ok(realtimeConnectIndex > -1 && realtimeConnectIndex < mePromiseIndex);
+   assert.match(bootstrapSource, /import \{ quotesWsService \} from '\.\.\/api\/ws\/quotesSocket'/);
+@@ -69,6 +69,22 @@
+   assert.match(bootstrapSource, /error instanceof StaleBrokerSessionError/);
+ });
+ 
++test('authentication joins current bootstrap work and waits only for verified trading snapshots', () => {
++  const bootstrapSource = source();
++  assert.match(bootstrapSource, /const requestKey = `\$\{activeProvenance.cacheNamespace\}:\$\{activeProvenance.credentialGeneration\}`/);
++  assert.match(bootstrapSource, /joinBootstrapRequest\(requestKey, options.waitFor \?\? 'complete'/);
++  const ready = bootstrapSource.slice(
++    bootstrapSource.indexOf('const ready = Promise.all('),
++    bootstrapSource.indexOf('const complete = Promise.all('),
++  );
++  assert.match(ready, /Promise.all\(\[mePromise, accountsPromise, instrumentsPromise\]\)/);
++  assert.match(ready, /acceptTradingHydration\(cacheNamespace, me, accounts, instruments\)/);
++  assert.doesNotMatch(ready, /positionsPromise|ordersPromise|marketStatusPromise/);
++  const auth = readFileSync(resolve(process.cwd(), 'src/features/auth/GuestFlowHost.tsx'), 'utf8');
++  assert.match(auth, /expectedProvenance: getActiveBrokerSessionProvenance\(capture.session\), waitFor: 'trading'/);
++  assert.ok(auth.indexOf('!acceptTradingHydration(') < auth.indexOf('completeAuthenticatedFlow(attempt'));
++});
++
+ test('bootstrap account metrics accepts common backend account aliases', () => {
+   const bootstrapSource = source();
+ 
+--- src/features/trade/tradeAuthGateSource.test.ts before
++++ src/features/trade/tradeAuthGateSource.test.ts after
+@@ -53,6 +53,19 @@
+   assert.match(effect, /\[context, form, pathname, focused\]/);
+   const host = readSource('src/features/auth/GuestFlowHost.tsx');
+   assert.match(host, /if \(retainAuthEntryHandoff\(pathname\)\) return;/);
++});
++
++test('Login responds on press-in and keeps entered credentials through account hydration', () => {
++  const login = readSource('src/features/auth/LoginAccountScreen.tsx');
++  assert.equal((login.match(/activateOnPressIn latencyLabel="auth.login.submit"/g) ?? []).length, 2);
++  const host = readSource('src/features/auth/GuestFlowHost.tsx');
++  const reset = sourceBetween(host, "setConfig(null); setPassword('');", 'const demoAllowed');
++  assert.match(reset, /\}, \[context\]\);/);
++  const submit = sourceBetween(host, 'const submit = async', 'const changeBroker');
++  assert.ok(submit.indexOf('Keyboard.dismiss()') < submit.indexOf('await authenticateGuest'));
++  assert.ok(submit.indexOf('!acceptTradingHydration(') < submit.indexOf('await setSavedAccountPassword('));
++  assert.match(submit, /const submittedPassword = password; const submittedRemember = remember/);
++  assert.match(submit, /submitting.current \|\| busy/);
+ });
+ 
+ test('primary trade entry points guard before navigation, prefetch, or execution', () => {

@@ -1,0 +1,14 @@
+[
+  {
+    "path": "app/_layout.tsx",
+    "sha256": "1d1a2759229f8f670b875872c5cfb9106a872fca9d1ca95b1327c817aa555f95"
+  },
+  {
+    "path": "src/features/auth/GuestFlowHost.tsx",
+    "sha256": "24b3bfe41dc9527eed99de2202902a1188292e2fc9c0a9cfa94c8f0a63a8025e"
+  },
+  {
+    "path": "src/features/settings/SettingsScreen/LogoutConfirmation.tsx",
+    "sha256": "de8ea6aefe326ce92dc8cedb889eab2396440112f38abdbee40493e2123534eb"
+  }
+]

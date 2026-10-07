@@ -1,0 +1,105 @@
+{
+    "workspace": {
+        "name": "RTX5 Mobile App",
+        "root": "."
+    },
+    "agents": {
+        "enabled": true,
+        "orchestrator": "_agents/ORCHESTRATOR.md",
+        "auto_pilot": true,
+        "auto_pilot_config": "_agents/AUTO_PILOT.md",
+        "mission_control": "_agents/MISSION_CONTROL.md",
+        "protocol": "_agents/AGENT_PROTOCOL.md",
+        "registry": [
+            {
+                "id": "ui_agent",
+                "path": "_agents/agents/ui_agent.md",
+                "domains": [
+                    "app/",
+                    "src/components/",
+                    "src/features/",
+                    "src/theme/"
+                ],
+                "auto_run": true
+            },
+            {
+                "id": "backend_agent",
+                "path": "_agents/agents/backend_agent.md",
+                "domains": [
+                    "backend/",
+                    "routes/",
+                    "services/",
+                    "fix/"
+                ],
+                "auto_run": true
+            },
+            {
+                "id": "db_agent",
+                "path": "_agents/agents/db_agent.md",
+                "domains": [
+                    "src/state/",
+                    "src/query/",
+                    "src/domain/"
+                ],
+                "auto_run": true
+            },
+            {
+                "id": "qa_agent",
+                "path": "_agents/agents/qa_agent.md",
+                "domains": [
+                    "*"
+                ],
+                "auto_run": true,
+                "run_order": "after_impl"
+            },
+            {
+                "id": "devops_agent",
+                "path": "_agents/agents/devops_agent.md",
+                "domains": [
+                    "app.json",
+                    "eas.json",
+                    "package.json",
+                    "metro.config.js"
+                ],
+                "auto_run": true,
+                "run_order": "after_qa"
+            }
+        ],
+        "parallel_dispatch": true,
+        "max_parallel_agents": 5
+    },
+    "workflows": {
+        "directory": "_agents/workflows/",
+        "turbo_all_default": true,
+        "commands": {
+            "/feature": "feature.md",
+            "/bugfix": "bugfix.md",
+            "/deploy": "deploy.md",
+            "/review": "review.md",
+            "/turbo-build": "turbo_build.md"
+        }
+    },
+    "permissions": {
+        "file_edit": "auto",
+        "file_create": "auto",
+        "npm_install": "auto",
+        "run_tests": "auto",
+        "run_lint": "auto",
+        "run_build": "auto",
+        "git_commit": "auto",
+        "git_push_feature": "auto",
+        "git_push_main": "ask",
+        "eas_build_preview": "auto",
+        "eas_build_production": "ask",
+        "app_store_submit": "ask",
+        "secret_rotation": "ask",
+        "production_data_delete": "ask"
+    },
+    "reporting": {
+        "always_report": true,
+        "report_format": "structured",
+        "show_files_changed": true,
+        "show_commands_run": true,
+        "show_agent_breakdown": true
+    }
+}

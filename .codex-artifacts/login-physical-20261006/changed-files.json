@@ -1,0 +1,67 @@
+[
+  {
+    "path": "src/api/broker.ts",
+    "sha256": "76c8ea9bc8d9fe84199df62157647bd40bea322ff85afc4915f878391f26b6f4"
+  },
+  {
+    "path": "src/features/auth/GuestFlowHost.tsx",
+    "sha256": "e4924b233c582b3a9ba047b0cf0619387e4f468ea95379dea0cf1eb698a98e25"
+  },
+  {
+    "path": "src/features/chart/ChartScreen.native.tsx",
+    "sha256": "59c3498567aace24e78766a63379529d0e2c84104c10d3546450b780dc1a38c2"
+  },
+  {
+    "path": "src/features/chart/components/chartWindowsModularitySource.test.ts",
+    "sha256": "c2b01d62c7959e594e0e335d9252c052969a1fe683c9075e09bbed76e003797f"
+  },
+  {
+    "path": "src/features/quotes/QuotesScreen.tsx",
+    "sha256": "ce1c2e06799c95c483500a3b593d7a2c435e3996e7625469d4d6ff943a938b2f"
+  },
+  {
+    "path": "src/features/trade/tradeAuthGateSource.test.ts",
+    "sha256": "86918b8bff38892bb5131d4500f92c163e1394d3b761c9ba2c2b676ad9b0c29f"
+  },
+  {
+    "path": "src/services/brokerSessionCoordinator.ts",
+    "sha256": "07c83e90a00e4d4c49a14bfb517ca23fc3693813f4871118020e38fd21c18c5f"
+  },
+  {
+    "path": "src/services/brokerSessionCoordinatorSource.test.ts",
+    "sha256": "e020c804878bb5f300ff3db13c6e4bf77b03d890d919ed3952ba9f827437a410"
+  },
+  {
+    "path": "src/utils/hiddenScreenWorkContract.test.ts",
+    "sha256": "45d58e21acd291b738236571d1176523c76e680e799aac7fb357344fd4ae21e2"
+  },
+  {
+    "path": "tests/chart-webview/switching-contracts.test.ts",
+    "sha256": "f4edc158ab5b7164ab3c3dde95616fd50e51120a514c1f1389e1eed6c641c12e"
+  },
+  {
+    "path": "src/api/brokerDirectoryReadCache.ts",
+    "new": true,
+    "sha256": "980a67584871228a60ea47a0f763bbcb8a3e7a64909cb96b5dfc10c8999d4689"
+  },
+  {
+    "path": "src/api/brokerDirectoryReadCache.test.ts",
+    "new": true,
+    "sha256": "548820bdc0425f9a33f106e291bc41b469bd05e4f6c0cf6d0efe2114fe14699e"
+  },
+  {
+    "path": "src/api/brokerDirectoryLookup.test.ts",
+    "new": true,
+    "sha256": "95e61689709d311ebfbb6a02782b7ef2b989f564adf755d75089c5f8b635a17f"
+  },
+  {
+    "path": "src/features/trade/useAuthMarketVisibility.ts",
+    "new": true,
+    "sha256": "d1c0d281ea08574ee480cd2c8affc0a463c2ebdbcb26180a3e8c59c0c927b03e"
+  },
+  {
+    "path": "src/features/trade/useAuthMarketVisibility.test.ts",
+    "new": true,
+    "sha256": "769e0339fb0829b81f8f9452c04d2ca80138306d6c886fc1109f048f9f846da6"
+  }
+]

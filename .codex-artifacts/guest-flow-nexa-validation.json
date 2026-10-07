@@ -1,0 +1,25 @@
+{
+  "collectedAt": "2026-10-06T06:17:10.870Z",
+  "sourceRevision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "candidateBuild": "Not supplied; integration release validation incomplete",
+  "appVersion": "1.1.30",
+  "references": {
+    "web": "4736f223abc5923396dd33ada8dd033c2b609783",
+    "backend": "3d2d9597e2fc2794d9a65314c28013f90c6519ea",
+    "admin": "f00b8a48f6911bb6c1a8154e0091251387f01391"
+  },
+  "configuration": {
+    "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+    "EXPO_PUBLIC_ADDITIONAL_BROKER_DIRECTORY_BASE_URL": "https://nexa-terminal.orrnn.com/discovery-api/api/v2",
+    "EXPO_PUBLIC_ADDITIONAL_BROKER_IDS": "Nexa"
+  },
+  "automaticOrderRequests": 0,
+  "backendAdminChecks": "Incomplete: admin access and candidate build/revision not supplied",
+  "deviceChecks": "Incomplete: device/build results must be recorded separately",
+  "brokerIds": [
+    "achiever",
+    "Orrnn",
+    "trivanta-markets"
+  ],
+  "result": "Nexa discovery unavailable. Integration validation incomplete; no registration, configuration mutation or trades attempted."
+}

@@ -1,0 +1,256 @@
+--- before/src/services/brokerSessionCoordinator.ts
++++ after/src/services/brokerSessionCoordinator.ts
+@@ -1,4 +1,5 @@
+ import { InteractionManager } from 'react-native';
++import { persistBrokerSessionAuthority } from './persistBrokerSessionAuthority';
+ import { brokerApi } from '../api/brokerApi';
+ import { getBrokerDirectory, getBrokerDirectoryForBroker } from '../api/broker';
+ import { createPublicBrokerContext } from '../state/publicBrokerContext';
+@@ -322,6 +323,7 @@
+   rawInput: CommitBrokerSessionInput,
+ ): Promise<ActiveBrokerSessionCapture> => {
+   const input = validateCommitInput(rawInput);
++  const commitStartedAt = Date.now();
+   const startingEpoch = getActiveBrokerSessionEpoch();
+   const directory = await getBrokerDirectoryForBroker(input.session.brokerId);
+   const supported = directory.selectableServers.find(row => row.broker_id === input.session.brokerId && row.market_api_url === input.session.apiBase);
+@@ -331,24 +333,30 @@
+   if (verified.apiBase !== input.session.apiBase || verified.feedWsBase !== input.session.feedWsBase || verified.feedStatusUrl !== input.session.feedStatusUrl || (verified.endpoints.tradeWsBase ?? '') !== (input.session.tradeWsBase ?? '')) throw new Error('Trading session endpoints do not match the broker directory.');
+   if (rawInput.isCurrent && !rawInput.isCurrent()) throw new Error('Authentication was cancelled.');
+   if (getActiveBrokerSessionEpoch() !== startingEpoch) throw new Error('Trading session changed during broker validation.');
++  const validatedAt = Date.now();
+   const transition = beginActiveBrokerSessionTransition();
+   // Clear the old runtime before persisting the new secure session authority.
+   await teardownBrokerSessionRuntime();
+-  await pruneDisposableSessionStorage();
+   useUserPreferences.getState().logout();
++  const runtimeClearedAt = Date.now();
+ 
+   try {
+-    const [credentials] = await Promise.all([
+-      replaceAuthSessionCredentials({
++    // These touch separate keys. Wait for ALL writers even on failure so a
++    // late manifest write cannot recreate a session after rollback erased it.
++    // Cache pruning finishes before activation creates a new cache namespace.
++    const credentials = await persistBrokerSessionAuthority({
++      writeCredentials: () => replaceAuthSessionCredentials({
+         brokerId: input.session.brokerId,
+         accountLogin: input.session.accountLogin,
+         accessToken: input.credentials.accessToken,
+         refreshToken: input.credentials.refreshToken,
+         expiresAt: input.credentials.expiresAt,
+       }),
+-      clearLegacySelectedBrokerSession(),
+-    ]);
+-    await writeActiveBrokerSessionManifest(input.session);
++      clearLegacyRouting: clearLegacySelectedBrokerSession,
++      writeManifest: () => writeActiveBrokerSessionManifest(input.session),
++      pruneCaches: pruneDisposableSessionStorage,
++    });
++    const persistedAt = Date.now();
+ 
+     if (rawInput.isCurrent && !rawInput.isCurrent()) throw new Error('Authentication was cancelled before session activation.');
+ 
+@@ -381,6 +389,12 @@
+     // metadata already has an ordered persistence queue and must not hold the
+     // Login button while AsyncStorage finishes writing unrelated preferences.
+     void persistSessionPreferences();
++    if (__DEV__) console.info('[AuthTiming] session commit', {
++      directoryMs: validatedAt - commitStartedAt,
++      teardownMs: runtimeClearedAt - validatedAt,
++      securePersistenceMs: persistedAt - runtimeClearedAt,
++      activationMs: Date.now() - persistedAt,
++    });
+     return capture;
+   } catch (error) {
+     if (captureActiveBrokerSession()) {
+--- before/src/state/secureCredentialBundle.ts
++++ after/src/state/secureCredentialBundle.ts
+@@ -157,10 +157,15 @@
+     return this.enqueueMutation(async () => {
+       const bundle = createBundle(input);
+       // One versioned value makes credential replacement atomic at the secure
+-      // storage boundary. Legacy individual keys are cleanup-only afterwards.
+-      await this.storage.setItem(AUTH_CREDENTIAL_BUNDLE_KEY, JSON.stringify(bundle));
++      // storage boundary. Legacy keys are never read, so their independent
++      // deletion can overlap the bundle write. Settle both before rollback.
+       try {
+-        await this.removeLegacyCredentials();
++        const results = await Promise.allSettled([
++          this.storage.setItem(AUTH_CREDENTIAL_BUNDLE_KEY, JSON.stringify(bundle)),
++          this.removeLegacyCredentials(),
++        ]);
++        const failed = results.find(result => result.status === 'rejected');
++        if (failed?.status === 'rejected') throw failed.reason;
+       } catch (error) {
+         await Promise.allSettled([
+           this.storage.removeItem(AUTH_CREDENTIAL_BUNDLE_KEY),
+--- before/src/features/auth/GuestFlowHost.tsx
++++ after/src/features/auth/GuestFlowHost.tsx
+@@ -124,6 +124,7 @@
+     const authStartedAt = Date.now();
+     try {
+       const session = await authenticateGuest(selected, operation.state.form === 'demo' ? 'register' : 'login', body, operation.signal);
++      if (__DEV__) console.info('[AuthTiming] authentication response', Date.now() - authStartedAt);
+       if (!isAuthAttemptCurrent(attempt)) return;
+       setAuthProgress(attempt, 'hydrating');
+       let hydration: ReturnType<typeof bootstrapApp> | undefined;
+--- before/src/services/brokerSessionCoordinatorSource.test.ts
++++ after/src/services/brokerSessionCoordinatorSource.test.ts
+@@ -11,7 +11,7 @@
+ test('session coordinator carries approved services-domain provenance through commit and restore', () => {
+   assert.match(source, /const manifest = createActiveBrokerSessionManifest\(input\.session\)/);
+   assert.match(source, /servicesDomain: manifest\.servicesDomain/);
+-  assert.match(source, /await writeActiveBrokerSessionManifest\(input\.session\)/);
++  assert.match(source, /writeManifest: \(\) => writeActiveBrokerSessionManifest\(input\.session\)/);
+   assert.match(source, /manifest = await readActiveBrokerSessionManifest\(\)/);
+   assert.match(source, /activateBrokerSession\(transition, manifest, \{/);
+ });
+@@ -56,10 +56,8 @@
+     source.indexOf('const commitBrokerSessionInternal'),
+     source.indexOf('/** Commits credentials', source.indexOf('const commitBrokerSessionInternal')),
+   );
+-  assert.ok(
+-    commitBody.indexOf('await pruneDisposableSessionStorage()') <
+-      commitBody.indexOf('useUserPreferences.getState().login('),
+-  );
++  assert.match(commitBody, /const credentials = await persistBrokerSessionAuthority\(\{[\s\S]*pruneCaches: pruneDisposableSessionStorage/);
++  assert.ok(commitBody.indexOf('await persistBrokerSessionAuthority') < commitBody.indexOf('activateBrokerSession('));
+ });
+ 
+ test('interactive session commits are authorized at queued coordinator execution time', () => {
+@@ -116,7 +114,7 @@
+ test('secure activation starts hydration while UI preference persistence does not block commit', () => {
+   const commitBody = source.slice(source.indexOf('const commitBrokerSessionInternal'), source.indexOf('/** Commits credentials'));
+   const notification = commitBody.indexOf('rawInput.onActivated?.(capture)');
+-  assert.ok(notification > commitBody.indexOf('await writeActiveBrokerSessionManifest(input.session)'));
++  assert.ok(notification > commitBody.indexOf('await persistBrokerSessionAuthority('));
+   assert.ok(notification > commitBody.indexOf('activateBrokerSession('));
+   assert.ok(notification > commitBody.indexOf('useUserPreferences.getState().login('));
+   const successfulCommit = commitBody.slice(0, commitBody.indexOf('return capture'));
+--- before/src/state/secureCredentialBundle.test.ts
++++ after/src/state/secureCredentialBundle.test.ts
+@@ -219,4 +219,34 @@
+   });
+ });
+ 
+-
++test('legacy cleanup overlaps a slow bundle write, but a cleanup failure waits before erasing it', async () => {
++  const storage = new MemorySecureStorage();
++  let finishWrite!: () => void;
++  const pendingWrite = new Promise<void>(resolve => { finishWrite = resolve; });
++  const removed: string[] = [];
++  const cleanupError = new Error('legacy delete failed');
++  let failCleanup = true;
++  storage.setItem = async (key, value) => {
++    await pendingWrite;
++    storage.values.set(key, value);
++  };
++  storage.removeItem = async key => {
++    removed.push(key);
++    if (failCleanup && key === LEGACY_AUTH_CREDENTIAL_KEYS[0]) {
++      failCleanup = false;
++      throw cleanupError;
++    }
++    storage.values.delete(key);
++  };
++  const store = new SecureCredentialBundleStore(storage);
++  let settled = false;
++  const replacement = store.replace(credentials('Broker-A', '1001', 'access-a'))
++    .catch(error => { settled = true; assert.equal(error, cleanupError); });
++  await new Promise(resolve => setImmediate(resolve));
++  assert.ok(removed.includes(LEGACY_AUTH_CREDENTIAL_KEYS[0]), 'cleanup starts before the bundle write finishes');
++  assert.equal(removed.includes(AUTH_CREDENTIAL_BUNDLE_KEY), false, 'rollback waits for the pending writer');
++  assert.equal(settled, false);
++  finishWrite(); await replacement;
++  assert.equal(storage.values.has(AUTH_CREDENTIAL_BUNDLE_KEY), false);
++  assert.equal(await store.get(), null);
++});
+--- before/src/services/persistBrokerSessionAuthority.ts
++++ after/src/services/persistBrokerSessionAuthority.ts
+@@ -0,0 +1,20 @@
++/** Independent handoff writes overlap, but rollback must wait for every writer. */
++export async function persistBrokerSessionAuthority<T>(tasks: {
++  writeCredentials: () => Promise<T>;
++  writeManifest: () => Promise<unknown>;
++  clearLegacyRouting: () => Promise<unknown>;
++  pruneCaches: () => Promise<unknown>;
++}): Promise<T> {
++  const results = await Promise.allSettled([
++    Promise.resolve().then(tasks.writeCredentials),
++    Promise.resolve().then(tasks.writeManifest),
++    Promise.resolve().then(tasks.clearLegacyRouting),
++    Promise.resolve().then(tasks.pruneCaches),
++  ]);
++  for (const result of results) {
++    if (result.status === 'rejected') throw result.reason;
++  }
++  const credentials = results[0];
++  if (credentials.status === 'rejected') throw credentials.reason;
++  return credentials.value;
++}
+--- before/src/services/persistBrokerSessionAuthority.test.ts
++++ after/src/services/persistBrokerSessionAuthority.test.ts
+@@ -0,0 +1,62 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { persistBrokerSessionAuthority } from './persistBrokerSessionAuthority';
++
++function deferred<T = void>() {
++  let resolve!: (value: T) => void;
++  let reject!: (error: unknown) => void;
++  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
++  return { promise, resolve, reject };
++}
++
++test('all handoff operations start together and activation waits for every operation', async () => {
++  const credentials = deferred<string>();
++  const manifest = deferred(); const routing = deferred(); const caches = deferred();
++  const started: string[] = [];
++  let complete = false;
++  const commit = persistBrokerSessionAuthority({
++    writeCredentials: () => { started.push('credentials'); return credentials.promise; },
++    writeManifest: () => { started.push('manifest'); return manifest.promise; },
++    clearLegacyRouting: () => { started.push('routing'); return routing.promise; },
++    pruneCaches: () => { started.push('caches'); return caches.promise; },
++  }).then(value => { complete = true; return value; });
++  await Promise.resolve();
++  assert.deepEqual(started, ['credentials', 'manifest', 'routing', 'caches']);
++  credentials.resolve('secure-credentials'); manifest.resolve(); routing.resolve();
++  await new Promise(resolve => setImmediate(resolve));
++  assert.equal(complete, false, 'pruning cannot erase caches created by early activation');
++  caches.resolve();
++  assert.equal(await commit, 'secure-credentials');
++});
++
++test('a failed write cannot trigger rollback while another secure writer is still running', async () => {
++  const credentials = deferred<string>(); const manifest = deferred();
++  const error = new Error('credential write failed');
++  let rolledBack = false;
++  const commit = persistBrokerSessionAuthority({
++    writeCredentials: () => credentials.promise,
++    writeManifest: () => manifest.promise,
++    clearLegacyRouting: async () => {}, pruneCaches: async () => {},
++  }).catch(reason => { rolledBack = true; assert.equal(reason, error); });
++  credentials.reject(error);
++  await new Promise(resolve => setImmediate(resolve));
++  assert.equal(rolledBack, false);
++  manifest.resolve();
++  await commit;
++  assert.equal(rolledBack, true);
++});
++
++test('synchronous native-call failures still wait for the remaining tasks', async () => {
++  const manifest = deferred();
++  let settled = false;
++  const error = new Error('native storage unavailable');
++  const commit = persistBrokerSessionAuthority({
++    writeCredentials: () => { throw error; },
++    writeManifest: () => manifest.promise,
++    clearLegacyRouting: async () => {}, pruneCaches: async () => {},
++  }).catch(reason => { settled = true; assert.equal(reason, error); });
++  await new Promise(resolve => setImmediate(resolve));
++  assert.equal(settled, false);
++  manifest.resolve(); await commit;
++  assert.equal(settled, true);
++});

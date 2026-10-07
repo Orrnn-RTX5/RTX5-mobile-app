@@ -1,0 +1,5 @@
+ LOG  [API warn] POST /auth/login 200 1697ms (auth.guest.login)
+ INFO  [AuthTiming] dashboard navigation 3610
+ LOG  [API warn] GET /auth/me 200 1172ms (apiClient.GET)
+ LOG  [API warn] GET /instruments 200 1369ms (apiClient.GET)
+ LOG  [API warn] GET /positions/:login 200 1375ms (apiClient.GET)

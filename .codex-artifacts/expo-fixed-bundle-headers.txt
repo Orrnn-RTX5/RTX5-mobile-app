@@ -1,0 +1,17 @@
+HTTP/1.1 200 OK
+X-Content-Type-Options: nosniff
+Surrogate-Control: no-store
+Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate
+Pragma: no-cache
+Expires: 0
+X-Metro-Files-Changed-Count: 3351
+X-Metro-Delta-ID: 913c0d4ddfc42b00
+Content-Location: http://127.0.0.1:8081/node_modules/expo-router/entry.bundle//&platform=android&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+Content-Type: application/javascript; charset=UTF-8
+Last-Modified: Mon, 05 Oct 2026 12:14:07 GMT
+Content-Length: 26382434
+Vary: Accept-Encoding
+Date: Mon, 05 Oct 2026 12:14:07 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+

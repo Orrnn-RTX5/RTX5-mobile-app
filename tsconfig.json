@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "types": []
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./rtx5-app"
+    }
+  ]
+}

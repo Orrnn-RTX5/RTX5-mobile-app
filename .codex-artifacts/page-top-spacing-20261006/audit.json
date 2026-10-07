@@ -1,0 +1,384 @@
+{
+  "routes_reviewed": [
+    {
+      "route": "app\\contest-login.tsx",
+      "components": []
+    },
+    {
+      "route": "app\\index.tsx",
+      "components": []
+    },
+    {
+      "route": "app\\login.tsx",
+      "components": [
+        "../src/features/auth/AuthEntryScreen",
+        "../src/ui/components/FastPressable",
+        "../src/utils/secureStorage",
+        "../src/state/themeMode",
+        "../src/state/savedAccounts",
+        "../src/api/auth",
+        "../src/api/authRedaction",
+        "../src/api/broker",
+        "../src/api/brokerRouting",
+        "../src/ui/theme/useTheme",
+        "../src/query/broker",
+        "../src/query/authenticatedQueryScope",
+        "../src/i18n/useTranslation",
+        "../src/state/userPreferences",
+        "../src/api/orrnnDemoPublicMarket",
+        "../src/features/trade/tradeAuthGate",
+        "../src/domain/accountType",
+        "../src/utils/navigation",
+        "../src/utils/actionLatency",
+        "../src/features/settings/loginBrokerPicker",
+        "../src/services/bootstrapApp",
+        "../src/state/terminalJournalState",
+        "../src/features/settings/registerScreenPreload",
+        "../src/services/brokerSessionCoordinator",
+        "../src/api/authSession",
+        "../src/api/authSessionProfile",
+        "../src/api/investorSession",
+        "../src/features/settings/BrokerDetailScreenRegistrationGate",
+        "../src/state/activeBrokerSession",
+        "../src/features/settings/loginKeyboardLayout"
+      ]
+    },
+    {
+      "route": "app\\register-entry.tsx",
+      "components": [
+        "../src/features/auth/AuthEntryScreen",
+        "../src/features/settings/brokerDetailLaunchController",
+        "../src/features/settings/RegisterHandoffPreview",
+        "../src/features/settings/registerHandoffState",
+        "../src/features/settings/registerScreenPreload",
+        "../src/features/settings/registerLaunchController",
+        "../src/utils/navigation"
+      ]
+    },
+    {
+      "route": "app\\register.tsx",
+      "components": [
+        "../src/features/auth/AuthEntryScreen",
+        "../src/ui/components/FastPressable",
+        "../src/state/themeMode",
+        "../src/state/savedAccounts",
+        "../src/api/auth",
+        "../src/api/investorSession",
+        "../src/api/broker",
+        "../src/ui/theme/useTheme",
+        "../src/hooks/useDeferredActiveFlag",
+        "../src/query/broker",
+        "../src/query/authenticatedQueryScope",
+        "../src/i18n/useTranslation",
+        "../src/features/trade/tradeAuthGate",
+        "../src/config/legalLinks",
+        "../src/api/publicDemo",
+        "../src/query/publicDemo",
+        "../src/features/settings/registerHandoffState",
+        "../src/utils/navigation",
+        "../src/features/settings/brokerDetailLaunchController",
+        "../src/features/settings/registerLaunchController",
+        "../src/utils/contactValidation",
+        "../src/ui/components/ActionSheet",
+        "../src/state/terminalJournalState",
+        "../src/services/brokerSessionCoordinator",
+        "../src/api/authRedaction",
+        "../src/domain/accountType"
+      ]
+    },
+    {
+      "route": "app\\(tabs)\\chart.tsx",
+      "components": [
+        "../../src/features/chart/ChartScreen"
+      ]
+    },
+    {
+      "route": "app\\(tabs)\\history.tsx",
+      "components": [
+        "../../src/features/history/HistoryScreen"
+      ]
+    },
+    {
+      "route": "app\\(tabs)\\quotes.tsx",
+      "components": [
+        "../../src/features/quotes/QuotesScreen"
+      ]
+    },
+    {
+      "route": "app\\(tabs)\\settings.tsx",
+      "components": [
+        "../../src/features/settings/SettingsScreen"
+      ]
+    },
+    {
+      "route": "app\\(tabs)\\trade.tsx",
+      "components": [
+        "../../src/features/trade/TradeScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\alerts.tsx",
+      "components": [
+        "../../src/features/chart/PriceAlertsScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\analytics.tsx",
+      "components": [
+        "../../src/features/chart/ChartAnalyticsScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\calculator.tsx",
+      "components": [
+        "../../src/features/chart/ChartTradingCalculatorScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\colors.tsx",
+      "components": [
+        "../../src/features/chart/ChartColorsScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\indicator-config.tsx",
+      "components": [
+        "../../src/features/chart/IndicatorConfigScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\indicator-level.tsx",
+      "components": [
+        "../../src/features/chart/IndicatorLevelScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\indicator-line-style.tsx",
+      "components": [
+        "../../src/features/chart/IndicatorLineStyleScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\indicators.tsx",
+      "components": [
+        "../../src/features/chart/IndicatorsScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\menu-order.tsx",
+      "components": [
+        "../../src/features/chart/ChartMenuOrderScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\objects.tsx",
+      "components": [
+        "../../src/features/chart/ObjectsScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\open-order-mode.tsx",
+      "components": [
+        "../../src/features/chart/ChartOpenOrderModeScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\preferences.tsx",
+      "components": [
+        "../../src/features/chart/ChartPreferencesScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\price-source.tsx",
+      "components": [
+        "../../src/features/chart/ChartPriceSourceScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\schema-colors.tsx",
+      "components": [
+        "../../src/features/settings/ChartPropertiesScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\settings.tsx",
+      "components": [
+        "../../src/features/chart/ChartSettingsScreen"
+      ]
+    },
+    {
+      "route": "app\\chart\\specification.tsx",
+      "components": [
+        "../../src/features/chart/ChartSpecificationScreen"
+      ]
+    },
+    {
+      "route": "app\\history\\filter.tsx",
+      "components": [
+        "../../src/features/history/HistoryFilterScreen",
+        "../../src/features/history/HistoryNetProfitLossScreen"
+      ]
+    },
+    {
+      "route": "app\\quotes\\details.tsx",
+      "components": [
+        "../../src/features/quotes/QuoteInfoLaunchShell",
+        "../../src/features/quotes/quoteInfoLaunchController",
+        "../../src/features/quotes/quotesRoutePreloads",
+        "../../src/ui/components/DeferredRouteMount",
+        "../../src/utils/navigation"
+      ]
+    },
+    {
+      "route": "app\\quotes\\market-statistics.tsx",
+      "components": [
+        "../../src/features/quotes/QuoteInfoLaunchShell",
+        "../../src/features/quotes/quoteInfoLaunchController",
+        "../../src/features/quotes/quotesRoutePreloads",
+        "../../src/ui/components/DeferredRouteMount",
+        "../../src/utils/navigation"
+      ]
+    },
+    {
+      "route": "app\\settings\\about.tsx",
+      "components": [
+        "../../src/features/settings/AboutScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\account-deletion.tsx",
+      "components": [
+        "../../src/features/settings/AboutScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\accounts.tsx",
+      "components": [
+        "../../src/features/settings/SettingsRouteLaunchPreview",
+        "../../src/ui/components/DeferredRouteMount",
+        "../../src/features/settings/accountsScreenPreload",
+        "../../src/utils/navigation"
+      ]
+    },
+    {
+      "route": "app\\settings\\broker-detail.tsx",
+      "components": [
+        "../../src/features/auth/AuthEntryScreen",
+        "../../src/features/settings/BrokerDetailLaunchShell",
+        "../../src/features/settings/brokerDetailLaunchController",
+        "../../src/features/settings/brokersLaunchController",
+        "../../src/features/settings/registerLaunchController",
+        "../../src/features/settings/brokerDetailScreenPreload",
+        "../../src/ui/components/DeferredRouteMount",
+        "../../src/utils/navigation"
+      ]
+    },
+    {
+      "route": "app\\settings\\brokers.tsx",
+      "components": [
+        "../../src/features/settings/BrokersLaunchShell",
+        "../../src/features/settings/brokersLaunchController",
+        "../../src/features/settings/brokerDetailLaunchController",
+        "../../src/features/settings/BrokersScreen/brokerDirectoryRows",
+        "../../src/features/settings/BrokersScreen/selectedBrokerHealthGate",
+        "../../src/features/settings/BrokersScreen/brokersScreenPreload",
+        "../../src/ui/components/DeferredRouteMount",
+        "../../src/ui/components/sidebarDestinationHostController",
+        "../../src/utils/navigation",
+        "../../src/services/selectGuestBroker",
+        "../../src/ui/components/sidebarDestinationHostController"
+      ]
+    },
+    {
+      "route": "app\\settings\\charts.tsx",
+      "components": [
+        "../../src/features/settings/ChartPropertiesScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\contact-developer.tsx",
+      "components": [
+        "../../src/features/settings/AboutScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\economic-calendar.tsx",
+      "components": [
+        "../../src/features/settings/EconomicCalendarScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\help.tsx",
+      "components": [
+        "../../src/features/settings/HelpScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\interface.tsx",
+      "components": [
+        "../../src/features/settings/InterfaceScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\journal.tsx",
+      "components": [
+        "../../src/features/settings/JournalScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\legal.tsx",
+      "components": [
+        "../../src/features/settings/LegalDocumentScreen"
+      ]
+    },
+    {
+      "route": "app\\settings\\user-guide.tsx",
+      "components": [
+        "../../src/features/settings/UserGuideScreen"
+      ]
+    },
+    {
+      "route": "app\\trade\\bulk.tsx",
+      "components": [
+        "../../src/features/trade/BulkOperationScreen"
+      ]
+    },
+    {
+      "route": "app\\trade\\close-by.tsx",
+      "components": [
+        "../../src/features/trade/CloseByScreen"
+      ]
+    },
+    {
+      "route": "app\\trade\\close-position.tsx",
+      "components": [
+        "../../src/features/trade/ClosePositionScreen"
+      ]
+    },
+    {
+      "route": "app\\trade\\modify-position.tsx",
+      "components": [
+        "../../src/features/trade/ModifyPositionScreen"
+      ]
+    },
+    {
+      "route": "app\\trade\\one-click-terms.tsx",
+      "components": [
+        "../../src/features/trade/OneClickTermsScreen"
+      ]
+    },
+    {
+      "route": "app\\trade\\order-ticket.tsx",
+      "components": [
+        "../../src/features/trade/OrderTicketLaunchShell",
+        "../../src/features/trade/orderTicketLaunchController",
+        "../../src/features/trade/orderTicketScreenPreload",
+        "../../src/ui/components/DeferredRouteMount",
+        "../../src/utils/navigation"
+      ]
+    }
+  ],
+  "header_policy": "One real safe-area inset with at most8points of compact header spacing, matching Login. Existing smaller spacing retained.",
+  "removed": "Artificial20point minimum safe areas,12?14point header gaps, Add Symbol fallback top spacer, excess About/User Guide hero spacing.",
+  "preserved": "Safe-area insets, touch target sizes, bottom sheet/modal clearances, internal card/chart layout spacing."
+}

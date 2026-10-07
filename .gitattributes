@@ -1,0 +1,25 @@
+# Repository-wide checkout bytes. Expo runtime fingerprints hash raw file
+# content, so Git must not choose line endings from each developer's machine.
+* text=auto eol=lf
+
+# Windows command interpreters require their conventional line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets must never pass through text conversion.
+*.aab binary
+*.apk binary
+*.gif binary
+*.ico binary
+*.ipa binary
+*.jar binary
+*.jpeg binary
+*.jpg binary
+*.keystore binary
+*.otf binary
+*.pdf binary
+*.png binary
+*.so binary
+*.ttf binary
+*.webp binary
+*.zip binary

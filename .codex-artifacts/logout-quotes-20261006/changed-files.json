@@ -1,0 +1,97 @@
+[
+  {
+    "path": "src/api/ws/publicMarketSocketCore.test.ts",
+    "sha256": "126667d7315b43dcb76f93d3a7ee949d04d5562c0a61f5b1fbef9f7115218be8",
+    "baseline": true
+  },
+  {
+    "path": "src/api/ws/publicMarketSocketCore.ts",
+    "sha256": "991b1679d460c50323daa9b93428569b032df87135fd27758b4febd836b70119",
+    "baseline": true
+  },
+  {
+    "path": "src/api/ws/quotesSocket/QuotesWebSocketService.ts",
+    "sha256": "c85c28053e9fe2fb7df230bb6a655cd1db19aa32d68d8ad23116d2420a717f93",
+    "baseline": true
+  },
+  {
+    "path": "src/api/ws/socketLifecycleIntegritySource.test.ts",
+    "sha256": "7f2c60a58f78a471da06b39d652877eaf18e703e595a08d91ea72241650e74d9",
+    "baseline": true
+  },
+  {
+    "path": "src/features/auth/GuestFlowHost.tsx",
+    "sha256": "c3676b0cd0b9b8b3b5607aee23cd055f4cf6e26cbaf77927d740cbcaacdc5ab5",
+    "baseline": true
+  },
+  {
+    "path": "src/features/quotes/quoteSnapshotContinuity.test.ts",
+    "sha256": "b0a9b99638b4d0bb8397e8b1a040dbf236a0cdeace608aac96476326eca6e0f9",
+    "baseline": false
+  },
+  {
+    "path": "src/features/quotes/quoteSnapshotContinuity.ts",
+    "sha256": "2aa2ad510e015f0011de7461ca7c1a019ce67b2b48c3f9208c698ac1f233ad4c",
+    "baseline": false
+  },
+  {
+    "path": "src/features/quotes/quotesLiveFeedSource.test.ts",
+    "sha256": "681fdac966ced70153f9eba2cd8df36668232fad53bc4bb08b3e8f640f3a8250",
+    "baseline": true
+  },
+  {
+    "path": "src/features/quotes/resetQuoteRuntimeState.test.ts",
+    "sha256": "f700a67a4996aad07dd6736f695165866fd4c1a79ee31765bcc5f035178b0a10",
+    "baseline": true
+  },
+  {
+    "path": "src/features/quotes/useLiveQuotes.ts",
+    "sha256": "8cb879141d6b1f863407de9d9627887206db652289483731038cbb111bbc1f0a",
+    "baseline": true
+  },
+  {
+    "path": "src/features/settings/SettingsScreen/LogoutConfirmation.tsx",
+    "sha256": "b34dfb90ec12ce2a2b562d801d9fa39c034c1ed5e731499fcd840fe49be94300",
+    "baseline": true
+  },
+  {
+    "path": "src/features/settings/SettingsScreen/SettingsScreen.tsx",
+    "sha256": "78db9bf747a9f39969c033c6e64ebc5319e537d35946ded5046936c4121bd0b9",
+    "baseline": true
+  },
+  {
+    "path": "src/features/settings/SettingsScreen/logoutConfirmationController.test.ts",
+    "sha256": "c8aa33398f1e3ec25c3e6adde1e1aae95b3c7d26e93e44dd3c9ef482b94ccf37",
+    "baseline": false
+  },
+  {
+    "path": "src/features/settings/SettingsScreen/logoutConfirmationController.ts",
+    "sha256": "81803b5e5da4ec1e4d808a49666286f314ceaf789af3e82ff4124f8537d8a937",
+    "baseline": false
+  },
+  {
+    "path": "src/features/trade/tradeAuthGateSource.test.ts",
+    "sha256": "e738a8026dcff52b3f53405cfbaf0393b0abadaf669dc87427c785ab1f38d160",
+    "baseline": true
+  },
+  {
+    "path": "src/market/feedHealthPresentation.test.ts",
+    "sha256": "6a77c46e17e34436deebc40791339855767c1bac34dbaf53da74d9a631b1c7a1",
+    "baseline": true
+  },
+  {
+    "path": "src/market/feedHealthPresentation.ts",
+    "sha256": "63b585d481f783bc6afc2b9d88340b9ef4bc762dff86befeff2c054e68f59512",
+    "baseline": true
+  },
+  {
+    "path": "src/state/tradingState.test.ts",
+    "sha256": "12f64f6469401dc47f5d7e7c66cd7e35dfd5c4d5ccb5021eb6d2d7ceda163ee7",
+    "baseline": true
+  },
+  {
+    "path": "src/state/tradingState.ts",
+    "sha256": "4be9c0f119b450e512b4a37241b86b197437933bbb3ff88254bad897e853eb5d",
+    "baseline": true
+  }
+]

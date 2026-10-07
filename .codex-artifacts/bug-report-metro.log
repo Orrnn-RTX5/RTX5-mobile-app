@@ -1,0 +1,21 @@
+env: load .env.local .env
+env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL EXPO_PUBLIC_ADDITIONAL_BROKER_DIRECTORY_BASE_URL EXPO_PUBLIC_ADDITIONAL_BROKER_IDS EXPO_PUBLIC_DEMO_API_BASE_URL EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER EXPO_PUBLIC_CANDLE_HISTORY_PATH EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES EXPO_PUBLIC_TERMS_URL EXPO_PUBLIC_PRIVACY_POLICY_URL EXPO_PUBLIC_SENTRY_DSN EXPO_UNSTABLE_TUNNEL_V2 EXPO_NO_REDIRECT_PAGE
+Starting project at C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\rtx5-app
+Starting Metro Bundler
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Android src\utils\secureStorage.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Android Bundled 909ms src\utils\secureStorage.ts (620 modules)
+Android src\api\apiClient.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Android Bundled 38ms src\api\apiClient.ts (1 module)
+Android src\features\settings\BrokersScreen\BrokersScreen.tsx ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Android src\features\settings\BrokersScreen\BrokersScreen.tsx ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.2% (1134/1201)
+Android src\features\settings\JournalScreen\index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 82.3% (666/734)
+Android src\features\trade\OrderTicketScreen.tsx ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.2% (1482/1615)
+Android src\features\settings\BrokerDetailScreen.tsx ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 75.2% (1176/1363)
+Android src\features\settings\AccountsScreen.tsx ▓▓▓▓▓▓▓▓░░░░░░░░ 54.7% ( 879/1189)
+Android Bundled 5573ms src\features\settings\BrokersScreen\BrokersScreen.tsx (1556 modules)
+Android Bundled 5668ms src\features\trade\OrderTicketScreen.tsx (1885 modules)
+Android Bundled 5732ms src\features\settings\BrokerDetailScreen.tsx (1783 modules)
+Android Bundled 5771ms src\features\settings\JournalScreen\index.ts (734 modules)
+Android Bundled 5837ms src\features\settings\AccountsScreen.tsx (1948 modules)

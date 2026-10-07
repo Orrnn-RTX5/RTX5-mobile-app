@@ -1,0 +1,27 @@
+{
+  "source_files": [
+    "src/features/settings/SettingsScreen/LogoutConfirmation.tsx",
+    "src/features/settings/SettingsScreen/logoutDialogLayout.ts",
+    "src/features/settings/SettingsScreen/SettingsScreen.tsx",
+    "src/services/brokerSessionCoordinator.ts"
+  ],
+  "test_files": [
+    "src/features/settings/SettingsScreen/logoutDialogLayout.test.ts",
+    "src/features/settings/SettingsScreen/logoutConfirmationController.test.ts",
+    "src/features/trade/authFlowState.test.ts"
+  ],
+  "typecheck": "passed",
+  "focused_tests": {
+    "passed": 34,
+    "failed": 0
+  },
+  "full_regression": {
+    "test_files_passed": 429,
+    "batches_passed": 18
+  },
+  "device": "realme RMX3521 / 3568cce8 / Android 14 / Expo Go",
+  "physical_validation": "not completed; foreground screen changed during checks; no measured logout latency claimed",
+  "configuration_changes": false,
+  "dependencies_changed": false,
+  "published": false
+}

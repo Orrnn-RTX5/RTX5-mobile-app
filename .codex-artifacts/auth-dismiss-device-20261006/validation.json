@@ -1,0 +1,72 @@
+{
+  "task": "Fix Demo Account and logout disappearing while preserving UI",
+  "source_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree": "existing unrelated local changes preserved; no commit or publication",
+  "device": {
+    "model": "realme RMX3521",
+    "android": "14",
+    "serial": "3568cce8",
+    "runtime": "Expo Go using USB-connected Metro on 8081"
+  },
+  "changed_files": {
+    "src/features/auth/AuthEntryScreen.tsx": "2eec3cfb7b48331efef3dc28e6a75e322effd93dd295e89e3ff932d0878f086d",
+    "src/features/auth/GuestFlowHost.tsx": "1498d79ccd88ec5242236068c6ba908e08287156402d645fa271b39b231980be",
+    "src/features/trade/authFlowState.ts": "ed6ce40600d5ee403a5a9cedd4cded67fafd6cf4a38b1062f32293b30b7dd0d8",
+    "src/features/trade/authFlowState.test.ts": "97b83e8e7566048f096be0b045e2372c4fe370f3d5013578f655e8f64d24555f",
+    "src/features/trade/tradeAuthGateSource.test.ts": "4ddbbaf4bd8c9ad2c34a222c1233d6b80a8d895ac354f36a6e146f9ccf8ccaf2",
+    "src/ui/navigation/FastTabNavigator.tsx": "e797d9ad619d2ef5eb7085eee3ea2ef3f5bfd992ae40e64d6dce64e3d220615f",
+    "src/utils/tabNavigationPerformance.test.ts": "ce510eac4663218815bb4cab7a8fe0bab2671091a660bc853a926e7e2ef0cc49"
+  },
+  "fixes": [
+    "Bind authentication modal to its owned entry and Quotes replacement so route-effect ordering cannot dismiss it immediately.",
+    "Only focused authentication entry routes can open authentication or redirect; retained blurred entries cannot redirect Settings or reopen dismissed forms.",
+    "Provide actual navigation focus to tab press handlers while retained native layers continue the immediate visual handoff."
+  ],
+  "physical_checks": {
+    "Settings persists beyond 5-second fallback": "passed",
+    "Demo remains open for at least 9 seconds": "passed",
+    "Demo keyboard text entry retains screen": "passed using unsent DeviceCheck text",
+    "Demo reopened three times after Back": "passed screenshots demo-repeat-1/2/3.png",
+    "Demo to Login remains visible": "passed login-transition.png",
+    "Logout dialog remains open longer than 8 seconds": "passed logout-stable.png and logout-after.mp4",
+    "Logout Cancel and Android Back": "passed video shows dismissal only after explicit actions",
+    "Explicit Logout restores guest quotes": "passed logout-confirmed.png; device was already guest, so authenticated credential removal was not exercised"
+  },
+  "automated_validation": {
+    "typecheck": "passed",
+    "focused_tests": "29 passed",
+    "full_regression": "passed all 415 test files",
+    "android_ios_hermes_export": "passed; packaging only, not native builds",
+    "logs": [
+      "rtx5-app/.codex-auth-dismiss-typecheck.log",
+      "rtx5-app/.codex-auth-dismiss-focused.log",
+      "rtx5-app/.codex-auth-dismiss-regression.log",
+      "rtx5-app/.codex-auth-dismiss-bundle.log"
+    ]
+  },
+  "limitations": [
+    "No authenticated-account logout was tested on the phone. Existing secure logout regression tests cover credential cleanup.",
+    "No iOS device or production/native release build tested.",
+    "Built-in Android screenrecord crashes on this device. USB headless scrcpy captured before and after videos.",
+    "demo-repeat-after.mp4 did not finalize and is not used as evidence. demo-settings-reopen-after.mp4 is the verified completed replacement recording."
+  ],
+  "videos": [
+    "demo-and-logout-before.mp4 (Demo reproduction; logout is not shown despite the original filename)",
+    "logout-before.mp4",
+    "demo-after.mp4",
+    "logout-after.mp4",
+    "demo-settings-reopen-after.mp4 (Settings > Demo twice, with deliberate Android Back)"
+  ],
+  "export_directory": "../auth-dismiss-delivered-20261006",
+  "artifact_sha256": {
+    "demo-after.mp4": "0ccc47f641d2358196f7fe0dac0a9606d99ae7c85e999880144b51f3a3a19884",
+    "demo-and-logout-before.mp4": "fce1f215d0b51b4a25a55ddb29db1338455ca61302b2af0c256df6749c33180a",
+    "demo-settings-reopen-after.mp4": "7bf52858c3d7a3076e95b45a4d92146f6ac885020391e2c63fc50e707bc754cb",
+    "logout-after.mp4": "9127623372fa3d7b095b26c9076bce72fa9537c1cfae2d119b0cc3a16a7fec21",
+    "logout-before.mp4": "906a88078965bdec0d620329c4cc87969574351923083d654d329e3f6ba55e35"
+  },
+  "bundle_sha256": {
+    "_expo\\static\\js\\android\\entry-e7ac7d06de3c1457ffdd05e946b56678.hbc": "b21ee63f1c28fc2b3ae6de5397b6495dcb0e4363659859b581e8b07858c60e6d",
+    "_expo\\static\\js\\ios\\entry-28d32df52949862ec9445d9ab087f608.hbc": "c2c60035ec53ccfffc62c1648fd0eba13b50c1dec251f53bbdb4564b2bfab425"
+  }
+}

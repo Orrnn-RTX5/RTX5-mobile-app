@@ -1,0 +1,241 @@
+--- before/src\api\broker.ts
++++ after/src\api\broker.ts
+@@ -8,6 +8,7 @@
+ import { withPinnedBrokerEndpoints } from '../config/pinnedBrokerEndpoints';
+ import { timedFetch } from '../utils/apiLatency';
+ import { recordMarketDataEvent } from '../market/marketDataTelemetry';
++import { createBrokerDirectoryReadCache } from './brokerDirectoryReadCache';
+ import {
+   ADDITIONAL_BROKER_DIRECTORY_BASE_URL,
+   ADDITIONAL_BROKER_DIRECTORY_IDS,
+@@ -1017,6 +1018,11 @@
+   });
+ };
+ 
++const brokerDirectoryReadCache = createBrokerDirectoryReadCache<BrokerDirectoryResult>(30_000);
++
++/** Test seam; cached records are process-local and never stored as routing authority. */
++export const __clearBrokerDirectoryReadCacheForTests = () => brokerDirectoryReadCache.clear();
++
+ export async function getBrokerDirectory(): Promise<BrokerDirectoryResult> {
+   if (!PUBLIC_BROKER_DIRECTORY_BASE_URL) {
+     throw new BrokerConfigError(
+@@ -1025,7 +1031,12 @@
+     );
+   }
+ 
+-  const primary = await fetchBrokerDirectoryFromBase(PUBLIC_BROKER_DIRECTORY_BASE_URL);
++  // Full directory refreshes stay fresh while sharing any read already underway.
++  const primary = await brokerDirectoryReadCache.read(
++    PUBLIC_BROKER_DIRECTORY_BASE_URL,
++    () => fetchBrokerDirectoryFromBase(PUBLIC_BROKER_DIRECTORY_BASE_URL),
++    true,
++  );
+   if (
+     !ADDITIONAL_BROKER_DIRECTORY_BASE_URL
+     || ADDITIONAL_BROKER_DIRECTORY_IDS.length === 0
+@@ -1035,8 +1046,10 @@
+   }
+ 
+   try {
+-    const additional = await fetchBrokerDirectoryFromBase(
++    const additional = await brokerDirectoryReadCache.read(
+       ADDITIONAL_BROKER_DIRECTORY_BASE_URL,
++      () => fetchBrokerDirectoryFromBase(ADDITIONAL_BROKER_DIRECTORY_BASE_URL),
++      true,
+     );
+     return mergeAdditionalBrokerDirectory(
+       primary,
+@@ -1046,6 +1059,40 @@
+   } catch {
+     // The primary production directory remains usable if an optional,
+     // allowlisted broker source is temporarily unavailable.
++    return primary;
++  }
++}
++
++/** Revalidates one broker without waiting for an unrelated optional directory. */
++export async function getBrokerDirectoryForBroker(brokerId: string): Promise<BrokerDirectoryResult> {
++  if (!PUBLIC_BROKER_DIRECTORY_BASE_URL) {
++    throw new BrokerConfigError(0, 'Broker directory is not configured for this release.');
++  }
++  const primary = await brokerDirectoryReadCache.read(
++    PUBLIC_BROKER_DIRECTORY_BASE_URL,
++    () => fetchBrokerDirectoryFromBase(PUBLIC_BROKER_DIRECTORY_BASE_URL),
++  );
++  const requestedId = brokerId.trim().toLowerCase();
++  // Match merge precedence here; the session coordinator still requires the
++  // exact directory ID and approved endpoints before accepting credentials.
++  if (primary.selectableServers.some((server) => server.broker_id.toLowerCase() === requestedId)) {
++    return primary;
++  }
++  if (
++    !ADDITIONAL_BROKER_DIRECTORY_BASE_URL
++    || ADDITIONAL_BROKER_DIRECTORY_BASE_URL === PUBLIC_BROKER_DIRECTORY_BASE_URL
++    || !ADDITIONAL_BROKER_DIRECTORY_IDS.some((id) => id.trim().toLowerCase() === requestedId)
++  ) return primary;
++
++  try {
++    const additional = await brokerDirectoryReadCache.read(
++      ADDITIONAL_BROKER_DIRECTORY_BASE_URL,
++      () => fetchBrokerDirectoryFromBase(ADDITIONAL_BROKER_DIRECTORY_BASE_URL),
++    );
++    return mergeAdditionalBrokerDirectory(primary, additional, ADDITIONAL_BROKER_DIRECTORY_IDS);
++  } catch {
++    // A missing optional broker remains unsupported; it never replaces the
++    // primary source or authorizes saved endpoint addresses.
+     return primary;
+   }
+ }
+--- before/src\features\auth\GuestFlowHost.tsx
++++ after/src\features\auth\GuestFlowHost.tsx
+@@ -2,6 +2,7 @@
+ import { Keyboard, Modal } from 'react-native';
+ import { router, usePathname } from 'expo-router';
+ import { useBrokerDirectory } from '../../query/broker';
++import { getBrokerDirectoryForBroker } from '../../api/broker';
+ import { useUserPreferences } from '../../state/userPreferences';
+ import { createPublicBrokerContext, getPublicBrokerContext, setPublicBrokerContext, subscribePublicBrokerContext, publicBrokerFetch, isPublicBrokerContextCurrent } from '../../state/publicBrokerContext';
+ import { captureActiveBrokerSession, getActiveBrokerSessionProvenance } from '../../state/activeBrokerSession';
+@@ -44,6 +45,12 @@
+   const submitting = useRef(false);
+   const busy = flow.screen === 'submitting' || flow.screen === 'hydrating';
+   const visible = !['guest', 'ready'].includes(flow.screen);
++  useEffect(() => {
++    if (!visible || !flow.context) return;
++    // Warm only the selected broker's approved directory while the user types.
++    // The coordinator still validates exact identity/endpoints before activation.
++    void getBrokerDirectoryForBroker(flow.context.brokerId).catch(() => undefined);
++  }, [visible, flow.context]);
+   useEffect(() => subscribeAuthFlow(() => {
+     if (getAuthFlowState().screen === 'guest') cancelBrokerSessionCommitAuthorization(authorization.current);
+   }), []);
+@@ -110,9 +117,16 @@
+     submitting.current = true; setLocalError('');
+     const attempt = operation.state.attempt; const selected = operation.state.context!;
+     authorization.current = authorizeBrokerSessionCommit();
++    // If form entry outlived the short directory cache, overlap revalidation
++    // with authentication instead of adding another network wait afterward.
++    void getBrokerDirectoryForBroker(selected.brokerId).catch(() => undefined);
+     const submittedPassword = password; const submittedRemember = remember;
++    const traceStarted = Date.now();
++    const trace = (stage: string) => { if (__DEV__) console.info('[LoginTrace]', stage, Date.now() - traceStarted); };
++    trace('submit');
+     try {
+       const session = await authenticateGuest(selected, operation.state.form === 'demo' ? 'register' : 'login', body, operation.signal);
++      trace('authentication complete');
+       if (!isAuthAttemptCurrent(attempt)) return;
+       setAuthProgress(attempt, 'hydrating');
+       const capture = await commitBrokerSession({
+@@ -121,10 +135,12 @@
+         account: { name: String(session.metadata.name || name.trim() || 'Trader'), serverName: String(session.metadata.server || selected.name), accountType: 'unknown', accountEnvironmentSource: 'unknown' },
+         isCurrent: () => isAuthAttemptCurrent(attempt),
+       }, authorization.current);
++      trace('commit complete');
+       committedNamespace.current = capture.session.cacheNamespace;
+       if (!isAuthAttemptCurrent(attempt)) { await logoutBrokerSession(); return; }
+       const hydrated = await bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(capture.session), waitFor: 'trading' });
+       if (!isAuthAttemptCurrent(attempt)) return;
++      trace('hydration complete');
+       if (!acceptTradingHydration(capture.session.cacheNamespace, hydrated.me, hydrated.accounts, hydrated.instruments)) throw new Error('Account policy or authorized symbols could not be loaded. Trading remains disabled.');
+       if (operation.state.form === 'login') {
+         // Reuse the established secure saved-account password store.
+@@ -132,8 +148,10 @@
+         else await removeSavedAccountPassword(selected.brokerId, session.accountLogin).catch(() => undefined);
+         if (!isAuthAttemptCurrent(attempt)) return;
+       }
++      trace('password persistence complete');
+       const investor = captureActiveBrokerSession()?.session.investor === true;
+       const intent = completeAuthenticatedFlow(attempt, true, investor);
++      trace('flow complete');
+       committedNamespace.current = null; setPassword(''); setConfirmation('');
+       if (intent?.symbol && intent.side && !investor) {
+         const symbols = extractMarketSymbols(hydrated.instruments);
+--- before/src\services\brokerSessionCoordinator.ts
++++ after/src\services\brokerSessionCoordinator.ts
+@@ -1,6 +1,6 @@
+ import { InteractionManager } from 'react-native';
+ import { brokerApi } from '../api/brokerApi';
+-import { getBrokerDirectory } from '../api/broker';
++import { getBrokerDirectory, getBrokerDirectoryForBroker } from '../api/broker';
+ import { createPublicBrokerContext } from '../state/publicBrokerContext';
+ import { dismissAuthFlow } from '../features/trade/authFlowState';
+ import { accountWsService } from '../api/ws/accountSocket';
+@@ -319,21 +319,33 @@
+ const commitBrokerSessionInternal = async (
+   rawInput: CommitBrokerSessionInput,
+ ): Promise<ActiveBrokerSessionCapture> => {
++  const traceStartedAt = Date.now();
++  const trace = (phase: string) => {
++    if (typeof __DEV__ !== 'undefined' && __DEV__) {
++      console.info('[LoginTrace]', phase, Date.now() - traceStartedAt);
++    }
++  };
++  trace('commit.queue.entered');
+   const input = validateCommitInput(rawInput);
+   const startingEpoch = getActiveBrokerSessionEpoch();
+-  const directory = await getBrokerDirectory();
++  const directory = await getBrokerDirectoryForBroker(input.session.brokerId);
++  trace('commit.directory.done');
+   const supported = directory.selectableServers.find(row => row.broker_id === input.session.brokerId && row.market_api_url === input.session.apiBase);
+   if (!supported) throw new Error('This trading session is not supported by the current broker directory.');
+   const verified = createPublicBrokerContext(supported);
++  if (verified.configVersion !== input.session.configVersion) throw new Error('Broker configuration changed. Select the broker again before signing in.');
+   if (verified.apiBase !== input.session.apiBase || verified.feedWsBase !== input.session.feedWsBase || verified.feedStatusUrl !== input.session.feedStatusUrl || (verified.endpoints.tradeWsBase ?? '') !== (input.session.tradeWsBase ?? '')) throw new Error('Trading session endpoints do not match the broker directory.');
+   if (rawInput.isCurrent && !rawInput.isCurrent()) throw new Error('Authentication was cancelled.');
+   if (getActiveBrokerSessionEpoch() !== startingEpoch) throw new Error('Trading session changed during broker validation.');
+   const transition = beginActiveBrokerSessionTransition();
++  trace('commit.transition.done');
+   // Tear down previous runtime and clear prefs in parallel with credential
+   // persistence prep — sequential SecureStore + socket teardown was the bulk
+   // of post-auth wait before router.replace.
+   await teardownBrokerSessionRuntime();
++  trace('commit.teardown.done');
+   await pruneDisposableSessionStorage();
++  trace('commit.prune.done');
+   useUserPreferences.getState().logout();
+ 
+   try {
+@@ -347,7 +359,9 @@
+       }),
+       clearLegacySelectedBrokerSession(),
+     ]);
++    trace('commit.credentials.done');
+     await writeActiveBrokerSessionManifest(input.session);
++    trace('commit.manifest.done');
+ 
+     if (rawInput.isCurrent && !rawInput.isCurrent()) throw new Error('Authentication was cancelled before session activation.');
+ 
+@@ -357,6 +371,7 @@
+       expiresAt: credentials.expiresAt,
+     });
+     bindCommittedFeedHealthSession(capture);
++    trace('commit.activate.done');
+ 
+     useUserPreferences.getState().login(
+       String(input.session.accountLogin),
+@@ -376,6 +391,7 @@
+       },
+     );
+     await persistSessionPreferences();
++    trace('commit.preferences.done');
+     return capture;
+   } catch (error) {
+     if (captureActiveBrokerSession()) {
+--- before/src\services\brokerSessionCoordinatorSource.test.ts
++++ after/src\services\brokerSessionCoordinatorSource.test.ts
+@@ -100,3 +100,14 @@
+   );
+   assert.doesNotMatch(source, /isDemoAccount: input\.account|isDemoAccount: profile/);
+ });
++
++
++test('interactive commit validates the selected broker without awaiting unrelated directory sources', () => {
++  const commitBody = source.slice(source.indexOf('const commitBrokerSessionInternal'), source.indexOf('/** Commits credentials'));
++  assert.match(commitBody, /await getBrokerDirectoryForBroker\(input\.session\.brokerId\)/);
++  assert.match(commitBody, /row\.broker_id === input\.session\.brokerId && row\.market_api_url === input\.session\.apiBase/);
++  assert.match(commitBody, /verified\.feedWsBase !== input\.session\.feedWsBase/);
++  assert.match(commitBody, /verified\.configVersion !== input\.session\.configVersion/);
++  assert.match(commitBody, /rawInput\.isCurrent && !rawInput\.isCurrent\(\)/);
++  assert.ok(commitBody.indexOf('await getBrokerDirectoryForBroker') < commitBody.indexOf('activateBrokerSession('));
++});

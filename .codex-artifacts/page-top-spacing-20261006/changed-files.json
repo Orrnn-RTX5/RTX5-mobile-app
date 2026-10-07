@@ -1,0 +1,23 @@
+[
+  "src\\features\\chart\\ChartActionLaunchShell.tsx",
+  "src\\features\\chart\\ChartAnalyticsScreen.tsx",
+  "src\\features\\chart\\ChartMenuOrderScreen.tsx",
+  "src\\features\\chart\\ChartSettingsScreen.tsx",
+  "src\\features\\chart\\ChartSpecificationScreen.tsx",
+  "src\\features\\chart\\ChartTradingCalculatorScreen.tsx",
+  "src\\features\\chart\\IndicatorLevelScreen.tsx",
+  "src\\features\\chart\\IndicatorLineStyleScreen.tsx",
+  "src\\features\\chart\\IndicatorsScreen.tsx",
+  "src\\features\\quotes\\QuotesScreen.tsx",
+  "src\\features\\settings\\AboutScreen.tsx",
+  "src\\features\\settings\\ChartPropertiesScreen.tsx",
+  "src\\features\\settings\\HelpScreen.tsx",
+  "src\\features\\settings\\LegalDocumentScreen.tsx",
+  "src\\features\\settings\\UserGuideScreen.tsx",
+  "src\\features\\chart\\IndicatorConfigScreen\\ConfigBody.tsx",
+  "src\\features\\chart\\IndicatorConfigScreen\\IndicatorConfigScreen.tsx",
+  "src\\features\\chart\\ObjectsScreen\\ObjectsScreen.tsx",
+  "src/features/settings/AboutScreen.styles.ts",
+  "src/features/settings/UserGuideScreen.styles.ts",
+  "src\\features\\settings\\BugReportScreen.tsx"
+]

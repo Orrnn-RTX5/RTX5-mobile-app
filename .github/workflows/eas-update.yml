@@ -1,0 +1,92 @@
+name: RTX5 OTA Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: EAS Update channel
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - staging
+          - production
+      platform:
+        description: Target platform
+        required: true
+        default: all
+        type: choice
+        options:
+          - android
+          - ios
+          - all
+      base-ref:
+        description: Git commit SHA used by the installed binary build
+        required: true
+      message:
+        description: OTA message suffix
+        required: false
+        default: manual OTA
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rtx5-app
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      RTX5_OTA_BASE_REF: ${{ inputs.base-ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard production branch
+        run: |
+          if [ "${{ inputs.channel }}" = "production" ] && [ "${GITHUB_REF_NAME}" != "release" ]; then
+            echo "Production OTA must run from the release branch."
+            exit 2
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.1
+          cache: npm
+          cache-dependency-path: |
+            rtx5-app/package-lock.json
+            tools/js-toolchain/package-lock.json
+
+      - name: Install locked command-line tools
+        run: npm ci --prefix ../tools/js-toolchain
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Check EAS environment
+        run: node ./scripts/ota/check-eas-env.js ${{ inputs.channel }}
+
+      - name: Check OTA safety
+        run: node ./scripts/ota/check-ota-safety.js --base "${{ inputs.base-ref }}"
+
+      - name: Print OTA context
+        run: node ./scripts/ota/print-update-context.js --channel "${{ inputs.channel }}"
+
+      - name: Publish EAS Update
+        shell: bash
+        run: |
+          node ./scripts/run-eas-cli.js update \
+            --channel "${{ inputs.channel }}" \
+            --environment "${{ inputs.channel }}" \
+            --platform "${{ inputs.platform }}" \
+            --message "${{ inputs.channel }} ${{ github.sha }} ${{ inputs.message }}" \
+            --non-interactive

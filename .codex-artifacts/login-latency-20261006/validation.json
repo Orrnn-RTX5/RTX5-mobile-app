@@ -1,0 +1,53 @@
+{
+  "task": "Reduce Login client latency while preserving previous UI and session/trading gates",
+  "revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "dirty": true,
+  "source_sha256": {
+    "src/services/bootstrapApp.ts": "1296817af136c3b3410d4e2bb8d2f867eabaf4c4478337a7e4ccd46fd87f04db",
+    "src/services/bootstrapRequestCoordinator.ts": "26c3cb0e98a2c04a84835f43ee13139b37849b5ed126c99a7183a419518bfec7",
+    "src/services/bootstrapRequestCoordinator.test.ts": "9bc27243ca10af247f6f4cbea3544995c1f5ad94854577048fdc18c98c7e21d5",
+    "src/features/auth/GuestFlowHost.tsx": "49d7db82ae9252a2e73c48873f4991a9a254d97a5aa470b9f0835b5eb61179c3",
+    "src/features/auth/LoginAccountScreen.tsx": "b55618598448a77a1a04bf44e978fb7514bc44bed4e93204296187cc8cb1ddc2",
+    "src/services/bootstrapAppSource.test.ts": "cf5eb2ef8ff073acb237ca3e658f13700a5c34c86283eef4ee9db4c0fbac4064",
+    "src/features/trade/tradeAuthGateSource.test.ts": "9a0bb12504a5a3462f6b3fd5abacc7abf4df572b0b706bcc5aa25bd5b492e963"
+  },
+  "findings": [
+    "Login awaited six bootstrap endpoint results although readiness requires only auth/me, account detail/policy and account-authorized instruments.",
+    "Root layout, auth host and trade-facing hooks could duplicate the same session loading requests.",
+    "The isLoggedIn transition cleared entered form fields during account hydration."
+  ],
+  "changes": [
+    "Share in-flight bootstrap stages by session namespace and credential generation; default callers still wait for full data.",
+    "Login awaits the three authoritative readiness snapshots; ancillary account data continues with provenance-bound commits.",
+    "Preserve duplicate-submit/cancellation/trading permission checks and saved-password success semantics.",
+    "Login activates on press-in and dismisses the keyboard; reset form fields on broker change only."
+  ],
+  "checks": {
+    "focused": "37 tests passed",
+    "typecheck": "passed",
+    "regression": "all 417 test files passed",
+    "Android/iOS export": "passed final candidate"
+  },
+  "device": {
+    "model": "realme RMX3521",
+    "Android": "14",
+    "USB": "connected",
+    "success_login_timing": "not yet validated; disposable credentials requested but not supplied",
+    "runtime": "Expo Go",
+    "session_restore": "passed after reload; signed-in quotes shown without submitting an order"
+  },
+  "limitations": [
+    "No measured improvement in real successful-login latency claimed. Remote broker response time remains outside this client fix.",
+    "No release publication or dependency/native config changes."
+  ],
+  "logs": [
+    ".codex-login-latency-focused.log",
+    ".codex-login-latency-typecheck.log",
+    ".codex-login-latency-regression.log",
+    ".codex-login-latency-bundle-final.log"
+  ],
+  "bundle_sha256": {
+    "_expo\\static\\js\\android\\entry-c2ccd1db6b53437220e212ae31fd5d77.hbc": "b0c48ce2e2edf183c4f8cfe6124991c71149a94c95953c229d4e2d2e2b1029a3",
+    "_expo\\static\\js\\ios\\entry-135d338ca1572b81952d503244810d99.hbc": "fee6334289335e40f8189bd015fffc4eb92f6f81ceb1ab0d2a538f9eac9d00ba"
+  }
+}

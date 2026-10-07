@@ -1,0 +1,832 @@
+--- before/src\api\broker.ts
++++ after/src\api\broker.ts
+@@ -8,6 +8,7 @@
+ import { withPinnedBrokerEndpoints } from '../config/pinnedBrokerEndpoints';
+ import { timedFetch } from '../utils/apiLatency';
+ import { recordMarketDataEvent } from '../market/marketDataTelemetry';
++import { createBrokerDirectoryReadCache } from './brokerDirectoryReadCache';
+ import {
+   ADDITIONAL_BROKER_DIRECTORY_BASE_URL,
+   ADDITIONAL_BROKER_DIRECTORY_IDS,
+@@ -1017,6 +1018,11 @@
+   });
+ };
+ 
++const brokerDirectoryReadCache = createBrokerDirectoryReadCache<BrokerDirectoryResult>(30_000);
++
++/** Test seam; cached records are process-local and never stored as routing authority. */
++export const __clearBrokerDirectoryReadCacheForTests = () => brokerDirectoryReadCache.clear();
++
+ export async function getBrokerDirectory(): Promise<BrokerDirectoryResult> {
+   if (!PUBLIC_BROKER_DIRECTORY_BASE_URL) {
+     throw new BrokerConfigError(
+@@ -1025,7 +1031,12 @@
+     );
+   }
+ 
+-  const primary = await fetchBrokerDirectoryFromBase(PUBLIC_BROKER_DIRECTORY_BASE_URL);
++  // Full directory refreshes stay fresh while sharing any read already underway.
++  const primary = await brokerDirectoryReadCache.read(
++    PUBLIC_BROKER_DIRECTORY_BASE_URL,
++    () => fetchBrokerDirectoryFromBase(PUBLIC_BROKER_DIRECTORY_BASE_URL),
++    true,
++  );
+   if (
+     !ADDITIONAL_BROKER_DIRECTORY_BASE_URL
+     || ADDITIONAL_BROKER_DIRECTORY_IDS.length === 0
+@@ -1035,8 +1046,10 @@
+   }
+ 
+   try {
+-    const additional = await fetchBrokerDirectoryFromBase(
++    const additional = await brokerDirectoryReadCache.read(
+       ADDITIONAL_BROKER_DIRECTORY_BASE_URL,
++      () => fetchBrokerDirectoryFromBase(ADDITIONAL_BROKER_DIRECTORY_BASE_URL),
++      true,
+     );
+     return mergeAdditionalBrokerDirectory(
+       primary,
+@@ -1046,6 +1059,40 @@
+   } catch {
+     // The primary production directory remains usable if an optional,
+     // allowlisted broker source is temporarily unavailable.
++    return primary;
++  }
++}
++
++/** Revalidates one broker without waiting for an unrelated optional directory. */
++export async function getBrokerDirectoryForBroker(brokerId: string): Promise<BrokerDirectoryResult> {
++  if (!PUBLIC_BROKER_DIRECTORY_BASE_URL) {
++    throw new BrokerConfigError(0, 'Broker directory is not configured for this release.');
++  }
++  const primary = await brokerDirectoryReadCache.read(
++    PUBLIC_BROKER_DIRECTORY_BASE_URL,
++    () => fetchBrokerDirectoryFromBase(PUBLIC_BROKER_DIRECTORY_BASE_URL),
++  );
++  const requestedId = brokerId.trim().toLowerCase();
++  // Match merge precedence here; the session coordinator still requires the
++  // exact directory ID and approved endpoints before accepting credentials.
++  if (primary.selectableServers.some((server) => server.broker_id.toLowerCase() === requestedId)) {
++    return primary;
++  }
++  if (
++    !ADDITIONAL_BROKER_DIRECTORY_BASE_URL
++    || ADDITIONAL_BROKER_DIRECTORY_BASE_URL === PUBLIC_BROKER_DIRECTORY_BASE_URL
++    || !ADDITIONAL_BROKER_DIRECTORY_IDS.some((id) => id.trim().toLowerCase() === requestedId)
++  ) return primary;
++
++  try {
++    const additional = await brokerDirectoryReadCache.read(
++      ADDITIONAL_BROKER_DIRECTORY_BASE_URL,
++      () => fetchBrokerDirectoryFromBase(ADDITIONAL_BROKER_DIRECTORY_BASE_URL),
++    );
++    return mergeAdditionalBrokerDirectory(primary, additional, ADDITIONAL_BROKER_DIRECTORY_IDS);
++  } catch {
++    // A missing optional broker remains unsupported; it never replaces the
++    // primary source or authorizes saved endpoint addresses.
+     return primary;
+   }
+ }
+--- before/src\features\auth\GuestFlowHost.tsx
++++ after/src\features\auth\GuestFlowHost.tsx
+@@ -2,6 +2,7 @@
+ import { Keyboard, Modal } from 'react-native';
+ import { router, usePathname } from 'expo-router';
+ import { useBrokerDirectory } from '../../query/broker';
++import { getBrokerDirectoryForBroker } from '../../api/broker';
+ import { useUserPreferences } from '../../state/userPreferences';
+ import { createPublicBrokerContext, getPublicBrokerContext, setPublicBrokerContext, subscribePublicBrokerContext, publicBrokerFetch, isPublicBrokerContextCurrent } from '../../state/publicBrokerContext';
+ import { captureActiveBrokerSession, getActiveBrokerSessionProvenance } from '../../state/activeBrokerSession';
+@@ -44,6 +45,12 @@
+   const submitting = useRef(false);
+   const busy = flow.screen === 'submitting' || flow.screen === 'hydrating';
+   const visible = !['guest', 'ready'].includes(flow.screen);
++  useEffect(() => {
++    if (!visible || !flow.context) return;
++    // Warm only the selected broker's approved directory while the user types.
++    // The coordinator still validates exact identity/endpoints before activation.
++    void getBrokerDirectoryForBroker(flow.context.brokerId).catch(() => undefined);
++  }, [visible, flow.context]);
+   useEffect(() => subscribeAuthFlow(() => {
+     if (getAuthFlowState().screen === 'guest') cancelBrokerSessionCommitAuthorization(authorization.current);
+   }), []);
+@@ -110,20 +117,33 @@
+     submitting.current = true; setLocalError('');
+     const attempt = operation.state.attempt; const selected = operation.state.context!;
+     authorization.current = authorizeBrokerSessionCommit();
++    // If form entry outlived the short directory cache, overlap revalidation
++    // with authentication instead of adding another network wait afterward.
++    void getBrokerDirectoryForBroker(selected.brokerId).catch(() => undefined);
+     const submittedPassword = password; const submittedRemember = remember;
++    const authStartedAt = Date.now();
+     try {
+       const session = await authenticateGuest(selected, operation.state.form === 'demo' ? 'register' : 'login', body, operation.signal);
+       if (!isAuthAttemptCurrent(attempt)) return;
+       setAuthProgress(attempt, 'hydrating');
++      let hydration: ReturnType<typeof bootstrapApp> | undefined;
+       const capture = await commitBrokerSession({
+         session: { ...selected.endpoints, accountLogin: session.accountLogin, investor: session.investor },
+         credentials: { accessToken: session.accessToken, refreshToken: session.refreshToken, expiresAt: session.expiresAt },
+         account: { name: String(session.metadata.name || name.trim() || 'Trader'), serverName: String(session.metadata.server || selected.name), accountType: 'unknown', accountEnvironmentSource: 'unknown' },
+         isCurrent: () => isAuthAttemptCurrent(attempt),
++        onActivated: active => {
++          if (!isAuthAttemptCurrent(attempt)) return;
++          committedNamespace.current = active.session.cacheNamespace;
++          hydration = bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(active.session), waitFor: 'trading' });
++          // Commit still owns persistence/cancellation; observe an early read
++          // failure until the awaited handoff can report it to the form.
++          void hydration.catch(() => undefined);
++        },
+       }, authorization.current);
+       committedNamespace.current = capture.session.cacheNamespace;
+       if (!isAuthAttemptCurrent(attempt)) { await logoutBrokerSession(); return; }
+-      const hydrated = await bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(capture.session), waitFor: 'trading' });
++      const hydrated = await (hydration ?? bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(capture.session), waitFor: 'trading' }));
+       if (!isAuthAttemptCurrent(attempt)) return;
+       if (!acceptTradingHydration(capture.session.cacheNamespace, hydrated.me, hydrated.accounts, hydrated.instruments)) throw new Error('Account policy or authorized symbols could not be loaded. Trading remains disabled.');
+       if (operation.state.form === 'login') {
+@@ -134,6 +154,7 @@
+       }
+       const investor = captureActiveBrokerSession()?.session.investor === true;
+       const intent = completeAuthenticatedFlow(attempt, true, investor);
++      if (__DEV__) console.info('[AuthTiming] authentication ready', Date.now() - authStartedAt);
+       committedNamespace.current = null; setPassword(''); setConfirmation('');
+       if (intent?.symbol && intent.side && !investor) {
+         const symbols = extractMarketSymbols(hydrated.instruments);
+--- before/src\features\chart\ChartScreen.native.tsx
++++ after/src\features\chart\ChartScreen.native.tsx
+@@ -15,6 +15,7 @@
+ import { Ionicons } from '@expo/vector-icons';
+ import { AppMenuIcon } from '../../ui/components/AppMenuIcon';
+ import { useIsFocused } from '@react-navigation/native';
++import { useAuthMarketDemandAllowed } from '../trade/useAuthMarketVisibility';
+ import { router, useFocusEffect } from 'expo-router';
+ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+ import { ActivityIndicator, Alert, AppState, type AppStateStatus, Dimensions, Keyboard, PanResponder, Platform, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+@@ -714,9 +715,11 @@
+ const ChartScreenInner = React.memo(function ChartScreenInner({
+   isChartRouteActive,
+   isTradeExecutionFocused,
++  marketDemandAllowed,
+ }: {
+   isChartRouteActive: boolean;
+   isTradeExecutionFocused: () => boolean;
++  marketDemandAllowed: boolean;
+ }) {
+   const T = useTheme();
+   const { t } = useTranslation();
+@@ -742,7 +745,8 @@
+   // atomic candle+Bid WebView bridge and isolated Buy/Sell footer listener
+   // remain warm so the first revealed frame is complete and current.
+   const chartSurfaceActivated = useDeferredActiveFlag(isChartRouteActive, CHART_SURFACE_MOUNT_DELAY_MS);
+-  const chartSurfaceStartupBooted = useChartSurfaceStartupBoot(chartSurfaceActivated);
++  // Cancel pending startup boot under authentication; an already-mounted surface stays retained.
++  const chartSurfaceStartupBooted = useChartSurfaceStartupBoot(chartSurfaceActivated || !marketDemandAllowed);
+   const chartSurfaceReady = useLatchedFlag(chartSurfaceActivated || chartSurfaceStartupBooted);
+   // Derive login reactively from Zustand so the positions fetch re-triggers
+   // when auth completes (login goes from undefined → valid number).
+@@ -6380,7 +6384,7 @@
+   const startupChartPrefetchKeyRef = useRef('');
+ 
+   useEffect(() => {
+-    if (!preferencesHydrated || !chartSymbol || !chartTimeframe) {
++    if (!marketDemandAllowed || !preferencesHydrated || !chartSymbol || !chartTimeframe) {
+       return undefined;
+     }
+ 
+@@ -6443,6 +6447,7 @@
+     chartTimeframe,
+     isPublicDemoMarket,
+     isLoggedIn,
++    marketDemandAllowed,
+     preferencesHydrated,
+     prefetchChartTimeframeHistory,
+   ]);
+@@ -6463,7 +6468,7 @@
+     useCallback(() => {
+       // This focus signal is immediate; the prop intentionally reaches the
+       // retained Chart tree one frame later to protect tab-switch performance.
+-      isScreenFocusedRef.current = true;
++      isScreenFocusedRef.current = marketDemandAllowed;
+       return () => {
+         isScreenFocusedRef.current = false;
+         cancelPendingChartContextActivation();
+@@ -6474,6 +6479,7 @@
+       cancelPendingChartContextActivation,
+       cancelPendingSymbolUiReset,
+       chartContextCommitScheduler,
++      marketDemandAllowed,
+     ]),
+   );
+   useEffect(() => {
+@@ -9359,6 +9365,7 @@
+    */
+   useEffect(() => {
+     if (
++      !marketDemandAllowed ||
+       !chartSurfaceReady ||
+       (!isPublicDemoMarket && (!isLoggedIn || !activeChartSessionCacheNamespace))
+     ) {
+@@ -9680,6 +9687,7 @@
+     isLoggedIn,
+     isPublicDemoMarket,
+     isChartMarketClosed,
++    marketDemandAllowed,
+     issueChartDataPaintToken,
+     retainChartDataPaintRetryScript,
+     publishChartLiveOhlc,
+@@ -13084,17 +13092,19 @@
+  */
+ export function ChartScreen() {
+   const isScreenFocused = useIsFocused();
+-  const immediateFocusRef = useRef(isScreenFocused);
+-  immediateFocusRef.current = isScreenFocused;
++  const marketDemandAllowed = useAuthMarketDemandAllowed();
++  const immediateFocusRef = useRef(isScreenFocused && marketDemandAllowed);
++  immediateFocusRef.current = isScreenFocused && marketDemandAllowed;
+   const isTradeExecutionFocused = useCallback(
+     () => immediateFocusRef.current,
+     [],
+   );
+-  const deferredScreenFocused = useNextFrameValue(isScreenFocused);
++  const deferredScreenFocused = useNextFrameValue(isScreenFocused && marketDemandAllowed);
+   return (
+     <ChartScreenInner
+-      isChartRouteActive={deferredScreenFocused}
++      isChartRouteActive={marketDemandAllowed && deferredScreenFocused}
+       isTradeExecutionFocused={isTradeExecutionFocused}
++      marketDemandAllowed={marketDemandAllowed}
+     />
+   );
+ }
+--- before/src\features\chart\components\chartWindowsModularitySource.test.ts
++++ after/src\features\chart\components\chartWindowsModularitySource.test.ts
+@@ -163,9 +163,9 @@
+   assert.match(screenSource, /onClaimPane=\{chartWindows\.claimToolbarTarget\}/);
+ });
+ 
+-test('secondary trade ownership uses immediate route focus without rerendering the heavy screen', () => {
+-  assert.match(screenSource, /const immediateFocusRef = useRef\(isScreenFocused\)/);
+-  assert.match(screenSource, /immediateFocusRef\.current = isScreenFocused/);
++test('secondary trade ownership requires immediate route focus and uncovered authentication without rerendering the heavy screen', () => {
++  assert.match(screenSource, /const immediateFocusRef = useRef\(isScreenFocused && marketDemandAllowed\)/);
++  assert.match(screenSource, /immediateFocusRef\.current = isScreenFocused && marketDemandAllowed/);
+   assert.match(screenSource, /isTradeExecutionFocused=\{isTradeExecutionFocused\}/);
+   assert.match(layoutSource, /focusResolver\(\) === true/);
+   assert.match(layoutSource, /if \(!routeFocused \|\| !context\.paneId\) return false/);
+--- before/src\features\quotes\QuotesScreen.tsx
++++ after/src\features\quotes\QuotesScreen.tsx
+@@ -11,6 +11,7 @@
+ 
+ import { Ionicons } from '@expo/vector-icons';
+ import { useIsFocused } from '@react-navigation/native';
++import { useAuthMarketDemandAllowed } from '../trade/useAuthMarketVisibility';
+ import { useRouter } from 'expo-router';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import React, {
+@@ -3332,8 +3333,9 @@
+  */
+ export function QuotesScreen() {
+   const isScreenFocused = useIsFocused();
+-  const deferredScreenFocused = useNextFrameValue(isScreenFocused);
+-  return <QuotesScreenInner isScreenFocused={deferredScreenFocused} />;
++  const marketDemandAllowed = useAuthMarketDemandAllowed();
++  const deferredScreenFocused = useNextFrameValue(isScreenFocused && marketDemandAllowed);
++  return <QuotesScreenInner isScreenFocused={marketDemandAllowed && deferredScreenFocused} />;
+ }
+ 
+ /* ───── Styles ───── */
+--- before/src\features\trade\tradeAuthGateSource.test.ts
++++ after/src\features\trade\tradeAuthGateSource.test.ts
+@@ -179,3 +179,14 @@
+   assertGuardBefore(chartPending, 'ordersApi.placePendingOrder');
+ });
+ 
++
++
++test('login awaits both committed credentials and activation-started hydration before completing', () => {
++  const host = readSource('src/features/auth/GuestFlowHost.tsx');
++  const submit = sourceBetween(host, 'const submit = async', 'const changeBroker');
++  assert.match(submit, /onActivated: active => \{\s*if \(!isAuthAttemptCurrent\(attempt\)\) return/);
++  assert.match(submit, /hydration = bootstrapApp\([\s\S]*waitFor: 'trading'/);
++  assert.ok(submit.indexOf('await commitBrokerSession(') < submit.indexOf('const hydrated = await (hydration'));
++  assert.ok(submit.indexOf('const hydrated = await (hydration') < submit.indexOf('!acceptTradingHydration('));
++  assert.ok(submit.indexOf('!acceptTradingHydration(') < submit.indexOf('completeAuthenticatedFlow('));
++});
+--- before/src\services\brokerSessionCoordinator.ts
++++ after/src\services\brokerSessionCoordinator.ts
+@@ -1,6 +1,6 @@
+ import { InteractionManager } from 'react-native';
+ import { brokerApi } from '../api/brokerApi';
+-import { getBrokerDirectory } from '../api/broker';
++import { getBrokerDirectory, getBrokerDirectoryForBroker } from '../api/broker';
+ import { createPublicBrokerContext } from '../state/publicBrokerContext';
+ import { dismissAuthFlow } from '../features/trade/authFlowState';
+ import { accountWsService } from '../api/ws/accountSocket';
+@@ -81,6 +81,8 @@
+ 
+ export type CommitBrokerSessionInput = Readonly<{
+   isCurrent?: () => boolean;
++  /** Starts session-owned reads after secure activation, alongside preference persistence. */
++  onActivated?: (capture: ActiveBrokerSessionCapture) => void;
+   session: ActivateBrokerSessionInput;
+   credentials: ActiveBrokerCredentials;
+   account: BrokerSessionAccountProfile;
+@@ -321,17 +323,16 @@
+ ): Promise<ActiveBrokerSessionCapture> => {
+   const input = validateCommitInput(rawInput);
+   const startingEpoch = getActiveBrokerSessionEpoch();
+-  const directory = await getBrokerDirectory();
++  const directory = await getBrokerDirectoryForBroker(input.session.brokerId);
+   const supported = directory.selectableServers.find(row => row.broker_id === input.session.brokerId && row.market_api_url === input.session.apiBase);
+   if (!supported) throw new Error('This trading session is not supported by the current broker directory.');
+   const verified = createPublicBrokerContext(supported);
++  if (verified.configVersion !== input.session.configVersion) throw new Error('Broker configuration changed. Select the broker again before signing in.');
+   if (verified.apiBase !== input.session.apiBase || verified.feedWsBase !== input.session.feedWsBase || verified.feedStatusUrl !== input.session.feedStatusUrl || (verified.endpoints.tradeWsBase ?? '') !== (input.session.tradeWsBase ?? '')) throw new Error('Trading session endpoints do not match the broker directory.');
+   if (rawInput.isCurrent && !rawInput.isCurrent()) throw new Error('Authentication was cancelled.');
+   if (getActiveBrokerSessionEpoch() !== startingEpoch) throw new Error('Trading session changed during broker validation.');
+   const transition = beginActiveBrokerSessionTransition();
+-  // Tear down previous runtime and clear prefs in parallel with credential
+-  // persistence prep — sequential SecureStore + socket teardown was the bulk
+-  // of post-auth wait before router.replace.
++  // Clear the old runtime before persisting the new secure session authority.
+   await teardownBrokerSessionRuntime();
+   await pruneDisposableSessionStorage();
+   useUserPreferences.getState().logout();
+@@ -375,6 +376,7 @@
+         accountEnvironmentSource: input.account.accountEnvironmentSource,
+       },
+     );
++    rawInput.onActivated?.(capture);
+     await persistSessionPreferences();
+     return capture;
+   } catch (error) {
+--- before/src\services\brokerSessionCoordinatorSource.test.ts
++++ after/src\services\brokerSessionCoordinatorSource.test.ts
+@@ -100,3 +100,25 @@
+   );
+   assert.doesNotMatch(source, /isDemoAccount: input\.account|isDemoAccount: profile/);
+ });
++
++
++test('interactive commit validates the selected broker without awaiting unrelated directory sources', () => {
++  const commitBody = source.slice(source.indexOf('const commitBrokerSessionInternal'), source.indexOf('/** Commits credentials'));
++  assert.match(commitBody, /await getBrokerDirectoryForBroker\(input\.session\.brokerId\)/);
++  assert.match(commitBody, /row\.broker_id === input\.session\.brokerId && row\.market_api_url === input\.session\.apiBase/);
++  assert.match(commitBody, /verified\.feedWsBase !== input\.session\.feedWsBase/);
++  assert.match(commitBody, /verified\.configVersion !== input\.session\.configVersion/);
++  assert.match(commitBody, /rawInput\.isCurrent && !rawInput\.isCurrent\(\)/);
++  assert.ok(commitBody.indexOf('await getBrokerDirectoryForBroker') < commitBody.indexOf('activateBrokerSession('));
++});
++
++
++test('hydration starts after secure activation and before preference persistence finishes', () => {
++  const commitBody = source.slice(source.indexOf('const commitBrokerSessionInternal'), source.indexOf('/** Commits credentials'));
++  const notification = commitBody.indexOf('rawInput.onActivated?.(capture)');
++  assert.ok(notification > commitBody.indexOf('await writeActiveBrokerSessionManifest(input.session)'));
++  assert.ok(notification > commitBody.indexOf('activateBrokerSession('));
++  assert.ok(notification > commitBody.indexOf('useUserPreferences.getState().login('));
++  assert.ok(notification < commitBody.indexOf('await persistSessionPreferences()'));
++  assert.ok(commitBody.indexOf('await persistSessionPreferences()') < commitBody.indexOf('return capture'));
++});
+--- before/src\utils\hiddenScreenWorkContract.test.ts
++++ after/src\utils\hiddenScreenWorkContract.test.ts
+@@ -31,7 +31,7 @@
+   assert.doesNotMatch(quotesSource, /import \{[^}]*usePathname[^}]*\} from 'expo-router'/);
+   assert.doesNotMatch(quotesSource, /const sidebarOpen = useUIState\(\(s\) => s\.sidebarOpen\)/);
+   assert.match(quotesSource, /const QuotesScreenInner = React\.memo\(function QuotesScreenInner\(\{ isScreenFocused \}: \{ isScreenFocused: boolean \}\)/);
+-  assert.match(quotesSource, /export function QuotesScreen\(\) \{\s*const isScreenFocused = useIsFocused\(\);\s*const deferredScreenFocused = useNextFrameValue\(isScreenFocused\);\s*return <QuotesScreenInner isScreenFocused=\{deferredScreenFocused\} \/>;\s*\}/);
++  assert.match(quotesSource, /export function QuotesScreen\(\) \{\s*const isScreenFocused = useIsFocused\(\);\s*const marketDemandAllowed = useAuthMarketDemandAllowed\(\);\s*const deferredScreenFocused = useNextFrameValue\(isScreenFocused && marketDemandAllowed\);\s*return <QuotesScreenInner isScreenFocused=\{marketDemandAllowed && deferredScreenFocused\} \/>;\s*\}/);
+   assert.match(quotesSource, /const quoteRouteActive = isScreenFocused/);
+   assert.match(quotesSource, /const quoteCatalogActive = quoteRouteActive/);
+   assert.doesNotMatch(quotesSource, /quoteSheetRouteActionPending|setQuoteSheetRouteActionPending/);
+@@ -128,11 +128,11 @@
+   assert.doesNotMatch(chartSource, /import \{[^}]*usePathname[^}]*\} from 'expo-router'/);
+   assert.match(
+     chartSource,
+-    /const ChartScreenInner = React\.memo\(function ChartScreenInner\(\{\s*isChartRouteActive,\s*isTradeExecutionFocused,\s*\}: \{\s*isChartRouteActive: boolean;\s*isTradeExecutionFocused: \(\) => boolean;\s*\}\)/,
+-  );
+-  assert.match(
+-    chartSource,
+-    /export function ChartScreen\(\) \{\s*const isScreenFocused = useIsFocused\(\);\s*const immediateFocusRef = useRef\(isScreenFocused\);\s*immediateFocusRef\.current = isScreenFocused;\s*const isTradeExecutionFocused = useCallback\([\s\S]*?\(\) => immediateFocusRef\.current,[\s\S]*?\[\],[\s\S]*?\);\s*const deferredScreenFocused = useNextFrameValue\(isScreenFocused\);\s*return \([\s\S]*?<ChartScreenInner[\s\S]*?isChartRouteActive=\{deferredScreenFocused\}[\s\S]*?isTradeExecutionFocused=\{isTradeExecutionFocused\}[\s\S]*?\/>[\s\S]*?\);\s*\}/,
++    /const ChartScreenInner = React\.memo\(function ChartScreenInner\(\{\s*isChartRouteActive,\s*isTradeExecutionFocused,\s*marketDemandAllowed,\s*\}: \{\s*isChartRouteActive: boolean;\s*isTradeExecutionFocused: \(\) => boolean;\s*marketDemandAllowed: boolean;\s*\}\)/,
++  );
++  assert.match(
++    chartSource,
++    /export function ChartScreen\(\) \{\s*const isScreenFocused = useIsFocused\(\);\s*const marketDemandAllowed = useAuthMarketDemandAllowed\(\);\s*const immediateFocusRef = useRef\(isScreenFocused && marketDemandAllowed\);\s*immediateFocusRef\.current = isScreenFocused && marketDemandAllowed;\s*const isTradeExecutionFocused = useCallback\([\s\S]*?\(\) => immediateFocusRef\.current,[\s\S]*?\[\],[\s\S]*?\);\s*const deferredScreenFocused = useNextFrameValue\(isScreenFocused && marketDemandAllowed\);\s*return \([\s\S]*?<ChartScreenInner[\s\S]*?isChartRouteActive=\{marketDemandAllowed && deferredScreenFocused\}[\s\S]*?isTradeExecutionFocused=\{isTradeExecutionFocused\}[\s\S]*?marketDemandAllowed=\{marketDemandAllowed\}[\s\S]*?\/>[\s\S]*?\);\s*\}/,
+   );
+   assert.match(chartSource, /import \{ useDeferredActiveFlag \} from '\.\.\/\.\.\/hooks\/useDeferredActiveFlag'/);
+   assert.match(chartSource, /import \{ scheduleAfterFirstFrame, scheduleIdleWork \} from '\.\.\/\.\.\/utils\/startupScheduler'/);
+@@ -153,7 +153,7 @@
+   // display-price ref stay warm without waking React in the hidden footer.
+   const chartStartupBootSource = readSource('src/features/chart/useChartSurfaceStartupBoot.ts');
+   assert.match(chartSource, /const chartSurfaceActivated = useDeferredActiveFlag\(isChartRouteActive, CHART_SURFACE_MOUNT_DELAY_MS\)/);
+-  assert.match(chartSource, /const chartSurfaceStartupBooted = useChartSurfaceStartupBoot\(chartSurfaceActivated\)/);
++  assert.match(chartSource, /const chartSurfaceStartupBooted = useChartSurfaceStartupBoot\(chartSurfaceActivated \|\| !marketDemandAllowed\)/);
+   assert.match(chartSource, /const chartSurfaceReady = useLatchedFlag\(chartSurfaceActivated \|\| chartSurfaceStartupBooted\)/);
+   assert.match(chartStartupBootSource, /export const CHART_SURFACE_STARTUP_BOOT_DELAY_MS = 1000/);
+   assert.match(
+@@ -232,6 +232,11 @@
+   const retainedLivePaintSource = chartSource.slice(
+     retainedLivePaintStart,
+     retainedLivePaintEnd,
++  );
++  assert.match(
++    retainedLivePaintSource,
++    /if \(\s*!marketDemandAllowed \|\|\s*!chartSurfaceReady \|\|/,
++    'authentication must pause retained demand without changing normal hidden-tab warming',
+   );
+   assert.doesNotMatch(
+     retainedLivePaintSource,
+--- before/tests\chart-webview\switching-contracts.test.ts
++++ after/tests\chart-webview\switching-contracts.test.ts
+@@ -45,8 +45,8 @@
+   );
+   assertSourceContains(
+     source,
+-    /useFocusEffect\([\s\S]*isScreenFocusedRef\.current = true[\s\S]*return \(\) => \{[\s\S]*isScreenFocusedRef\.current = false[\s\S]*chartContextCommitScheduler\.cancelPending\(\);[\s\S]*cancelPendingSymbolUiReset\(\)/,
+-    'an immediate focus cleanup must cancel symbol work before the retained Chart prop updates',
++    /useFocusEffect\([\s\S]*isScreenFocusedRef\.current = marketDemandAllowed[\s\S]*return \(\) => \{[\s\S]*isScreenFocusedRef\.current = false[\s\S]*chartContextCommitScheduler\.cancelPending\(\);[\s\S]*cancelPendingSymbolUiReset\(\)/,
++    'an immediate blur or authentication coverage must cancel symbol work before the retained Chart prop updates',
+   );
+   assertSourceOmits(
+     source,
+--- /dev/null
++++ after/src/api/brokerDirectoryReadCache.ts
+@@ -0,0 +1,28 @@
++/** A short-lived process cache of successful reads from approved directory origins. */
++export function createBrokerDirectoryReadCache<T>(ttlMs: number, now = Date.now) {
++  const successful = new Map<string, { value: T; readAt: number }>();
++  const inFlight = new Map<string, Promise<T>>();
++
++  const read = (key: string, load: () => Promise<T>, forceRefresh = false): Promise<T> => {
++    const pending = inFlight.get(key);
++    if (pending) return pending;
++    const cached = successful.get(key);
++    const age = cached ? now() - cached.readAt : Infinity;
++    if (!forceRefresh && cached && age >= 0 && age < ttlMs) {
++      return Promise.resolve(cached.value);
++    }
++    successful.delete(key);
++    const request = Promise.resolve().then(load).then((value) => {
++      successful.set(key, { value, readAt: now() });
++      return value;
++    });
++    inFlight.set(key, request);
++    const release = () => {
++      if (inFlight.get(key) === request) inFlight.delete(key);
++    };
++    void request.then(release, release);
++    return request;
++  };
++
++  return { read, clear: () => successful.clear() };
++}
+--- /dev/null
++++ after/src/api/brokerDirectoryReadCache.test.ts
+@@ -0,0 +1,77 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { createBrokerDirectoryReadCache } from './brokerDirectoryReadCache';
++
++function deferred<T>() {
++  let resolve!: (value: T) => void;
++  let reject!: (error: unknown) => void;
++  const promise = new Promise<T>((onResolve, onReject) => { resolve = onResolve; reject = onReject; });
++  return { promise, resolve, reject };
++}
++
++test('successful directory reads are reused only within their short lifetime', async () => {
++  let now = 0; let calls = 0;
++  const cache = createBrokerDirectoryReadCache<string>(30_000, () => now);
++  const load = async () => `directory-${++calls}`;
++  assert.equal(await cache.read('primary', load), 'directory-1');
++  now = 29_999;
++  assert.equal(await cache.read('primary', load), 'directory-1');
++  now = 30_000;
++  assert.equal(await cache.read('primary', load), 'directory-2');
++  assert.equal(calls, 2);
++});
++
++test('full refreshes bypass cached values but join requests already underway', async () => {
++  const cache = createBrokerDirectoryReadCache<string>(30_000, () => 0);
++  await cache.read('primary', async () => 'old directory');
++  const pending = deferred<string>(); let calls = 0;
++  const load = () => { calls += 1; return pending.promise; };
++  const first = cache.read('primary', load, true);
++  const second = cache.read('primary', load, true);
++  const targeted = cache.read('primary', load);
++  assert.equal(first, second); assert.equal(first, targeted);
++  pending.resolve('fresh directory');
++  assert.deepEqual(await Promise.all([first, second, targeted]), ['fresh directory', 'fresh directory', 'fresh directory']);
++  assert.equal(calls, 1);
++});
++
++test('a backward device clock cannot extend the cached directory lifetime', async () => {
++  let now = 100_000; let calls = 0;
++  const cache = createBrokerDirectoryReadCache<string>(30_000, () => now);
++  const load = async () => `directory-${++calls}`;
++  assert.equal(await cache.read('primary', load), 'directory-1');
++  now = 99_999;
++  assert.equal(await cache.read('primary', load), 'directory-2');
++  assert.equal(await cache.read('primary', load), 'directory-2');
++  assert.equal(calls, 2);
++});
++
++test('each approved directory origin has an independent cache and in-flight request', async () => {
++  const cache = createBrokerDirectoryReadCache<string>(30_000, () => 0);
++  const primary = deferred<string>(); const additional = deferred<string>();
++  const first = cache.read('primary', () => primary.promise);
++  const second = cache.read('additional', () => additional.promise);
++  primary.resolve('primary'); additional.resolve('additional');
++  assert.deepEqual(await Promise.all([first, second]), ['primary', 'additional']);
++});
++
++test('rejected reads are not cached and cannot revive the previous directory', async () => {
++  const cache = createBrokerDirectoryReadCache<string>(30_000, () => 0);
++  await cache.read('primary', async () => 'old directory');
++  await assert.rejects(cache.read('primary', async () => { throw new Error('directory unavailable'); }, true), /directory unavailable/);
++  let calls = 0;
++  assert.equal(await cache.read('primary', async () => { calls += 1; return 'retried'; }), 'retried');
++  assert.equal(calls, 1);
++});
++
++test('concurrent callers observe the same failure and a later read can retry', async () => {
++  const cache = createBrokerDirectoryReadCache<string>(30_000, () => 0);
++  const pending = deferred<string>(); let calls = 0;
++  const load = () => { calls += 1; return pending.promise; };
++  const first = assert.rejects(cache.read('primary', load), /failed/);
++  const second = assert.rejects(cache.read('primary', load), /failed/);
++  pending.reject(new Error('failed'));
++  await Promise.all([first, second]);
++  assert.equal(calls, 1);
++  assert.equal(await cache.read('primary', async () => 'retry'), 'retry');
++});
+--- /dev/null
++++ after/src/api/brokerDirectoryLookup.test.ts
+@@ -0,0 +1,135 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++
++process.env.EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL = 'https://superadmin-prod.orrnn.com/api/v2';
++process.env.EXPO_PUBLIC_ADDITIONAL_BROKER_DIRECTORY_BASE_URL = 'https://nexa-terminal.orrnn.com/discovery-api/api/v2';
++process.env.EXPO_PUBLIC_ADDITIONAL_BROKER_IDS = 'Nexa';
++
++const primaryUrl = 'https://superadmin-prod.orrnn.com/api/v2/broker/servers';
++const additionalUrl = 'https://nexa-terminal.orrnn.com/discovery-api/api/v2/broker/servers';
++const originalFetch = globalThis.fetch;
++const row = (brokerId: string, host: string) => ({
++  id: brokerId === 'Orrnn' ? 1 : brokerId === 'Nexa' ? 2 : 3, broker_id: brokerId, broker_name: brokerId, created_at: 1,
++  protocol: 'https', server: `${host}:443`, server_ip: '66.23.232.22', server_port: 443,
++  server_url: `https://${host}`, market_api_url: `https://${host}`,
++  services_domain: host, feed_wss_url: `wss://${host}/ws/feed`,
++  feed_status_https_url: `https://${host}/ws/feed/status`,
++});
++const response = (rows: unknown[]) => new Response(JSON.stringify(rows), {
++  status: 200, headers: { 'Content-Type': 'application/json' },
++});
++
++test.beforeEach(async () => {
++  const { __clearBrokerDirectoryReadCacheForTests } = await import('./broker');
++  __clearBrokerDirectoryReadCacheForTests();
++});
++test.afterEach(() => { globalThis.fetch = originalFetch; });
++
++test('a primary broker resolves without requesting an unavailable optional source', async () => {
++  const { getBrokerDirectoryForBroker } = await import('./broker');
++  const urls: string[] = [];
++  globalThis.fetch = (async (input, init) => {
++    const url = String(input); urls.push(url);
++    assert.equal(new Headers(init?.headers).get('Authorization'), null);
++    assert.equal(new Headers(init?.headers).get('X-Broker-ID'), null);
++    if (url === additionalUrl) throw new Error('optional source timed out');
++    return response([row('Orrnn', 'service.orrnn.com')]);
++  }) as typeof globalThis.fetch;
++  const result = await getBrokerDirectoryForBroker('Orrnn');
++  assert.deepEqual(result.selectableServers.map((server) => server.broker_id), ['Orrnn']);
++  assert.deepEqual(urls, [primaryUrl]);
++});
++
++test('an optional source already pending in the full directory does not block a primary broker', async () => {
++  const { getBrokerDirectory, getBrokerDirectoryForBroker } = await import('./broker');
++  let resolveAdditional!: (value: Response) => void;
++  let markAdditionalStarted!: () => void;
++  const additional = new Promise<Response>((resolve) => { resolveAdditional = resolve; });
++  const started = new Promise<void>((resolve) => { markAdditionalStarted = resolve; });
++  const urls: string[] = [];
++  globalThis.fetch = (async (input) => {
++    const url = String(input); urls.push(url);
++    if (url === additionalUrl) { markAdditionalStarted(); return additional; }
++    return response([row('Orrnn', 'service.orrnn.com')]);
++  }) as typeof globalThis.fetch;
++  const full = getBrokerDirectory();
++  await started;
++  try {
++    const result = await getBrokerDirectoryForBroker('Orrnn');
++    assert.equal(result.selectableServers[0]?.broker_id, 'Orrnn');
++    assert.deepEqual(urls, [primaryUrl, additionalUrl]);
++  } finally {
++    resolveAdditional(response([])); await full;
++  }
++});
++
++test('only an allowlisted broker absent from primary uses the additional directory', async () => {
++  const { getBrokerDirectoryForBroker } = await import('./broker');
++  const urls: string[] = [];
++  globalThis.fetch = (async (input) => {
++    const url = String(input); urls.push(url);
++    return response(url === primaryUrl
++      ? [row('Orrnn', 'service.orrnn.com')]
++      : [row('Nexa', 'nexa.orrnn.com'), row('Other', 'other.orrnn.com')]);
++  }) as typeof globalThis.fetch;
++  const unsupported = await getBrokerDirectoryForBroker('Other');
++  assert.deepEqual(unsupported.selectableServers.map((server) => server.broker_id), ['Orrnn']);
++  assert.deepEqual(urls, [primaryUrl]);
++  const allowed = await getBrokerDirectoryForBroker('Nexa');
++  assert.deepEqual(allowed.selectableServers.map((server) => server.broker_id), ['Orrnn', 'Nexa']);
++  assert.deepEqual(urls, [primaryUrl, additionalUrl]);
++});
++
++test('primary source precedence is case-insensitive but returned broker identity remains exact', async () => {
++  const { getBrokerDirectoryForBroker } = await import('./broker');
++  const urls: string[] = [];
++  globalThis.fetch = (async (input) => {
++    urls.push(String(input)); return response([row('Nexa', 'primary-nexa.orrnn.com')]);
++  }) as typeof globalThis.fetch;
++  const result = await getBrokerDirectoryForBroker('nexa');
++  assert.equal(result.selectableServers[0]?.broker_id, 'Nexa');
++  assert.equal(result.selectableServers[0]?.server_url, 'https://primary-nexa.orrnn.com');
++  assert.deepEqual(urls, [primaryUrl]);
++});
++
++test('primary directory failure stays fail-closed and a subsequent attempt retries', async () => {
++  const { getBrokerDirectoryForBroker } = await import('./broker');
++  const urls: string[] = []; let primaryAttempts = 0;
++  globalThis.fetch = (async (input) => {
++    const url = String(input); urls.push(url);
++    if (++primaryAttempts === 1) throw new Error('primary unavailable');
++    return response([row('Orrnn', 'service.orrnn.com')]);
++  }) as typeof globalThis.fetch;
++  await assert.rejects(getBrokerDirectoryForBroker('Nexa'), /Network error/);
++  const result = await getBrokerDirectoryForBroker('Orrnn');
++  assert.equal(result.selectableServers[0]?.broker_id, 'Orrnn');
++  assert.deepEqual(urls, [primaryUrl, primaryUrl]);
++});
++
++test('failed additional reads remain unsupported and are retried when needed', async () => {
++  const { getBrokerDirectoryForBroker } = await import('./broker');
++  let additionalAttempts = 0;
++  globalThis.fetch = (async (input) => {
++    if (String(input) === primaryUrl) return response([]);
++    additionalAttempts += 1;
++    if (additionalAttempts === 1) throw new Error('optional source timed out');
++    return response([row('Nexa', 'nexa.orrnn.com')]);
++  }) as typeof globalThis.fetch;
++  assert.deepEqual((await getBrokerDirectoryForBroker('Nexa')).selectableServers, []);
++  assert.equal((await getBrokerDirectoryForBroker('Nexa')).selectableServers[0]?.broker_id, 'Nexa');
++  assert.equal(additionalAttempts, 2);
++});
++
++test('full directory refreshes still fetch fresh source data', async () => {
++  const { getBrokerDirectoryForBroker, getBrokerDirectory } = await import('./broker');
++  let primaryAttempts = 0;
++  globalThis.fetch = (async (input) => {
++    if (String(input) !== primaryUrl) return response([]);
++    primaryAttempts += 1;
++    return response(primaryAttempts === 1 ? [row('Orrnn', 'service.orrnn.com')] : []);
++  }) as typeof globalThis.fetch;
++  assert.equal((await getBrokerDirectoryForBroker('Orrnn')).selectableServers.length, 1);
++  assert.equal((await getBrokerDirectoryForBroker('Orrnn')).selectableServers.length, 1);
++  assert.deepEqual((await getBrokerDirectory()).selectableServers, []);
++  assert.equal(primaryAttempts, 2);
++});
+--- /dev/null
++++ after/src/features/trade/useAuthMarketVisibility.ts
+@@ -0,0 +1,17 @@
++import { useSyncExternalStore } from 'react';
++import { getAuthFlowState, subscribeAuthFlow } from './authFlowState';
++
++/** Native authentication covers retained tabs without changing navigation focus. */
++export function getAuthMarketDemandAllowed(): boolean {
++  const { screen } = getAuthFlowState();
++  return screen === 'guest' || screen === 'ready';
++}
++
++export function useAuthMarketDemandAllowed(): boolean {
++  // The boolean snapshot avoids reconciling retained tabs on every form/attempt update.
++  return useSyncExternalStore(
++    subscribeAuthFlow,
++    getAuthMarketDemandAllowed,
++    getAuthMarketDemandAllowed,
++  );
++}
+--- /dev/null
++++ after/src/features/trade/useAuthMarketVisibility.test.ts
+@@ -0,0 +1,107 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { setPublicBrokerContext } from '../../state/publicBrokerContext';
++import { publicBrokerFixture } from '../../testFixtures/publicBroker';
++import {
++  beginAuthSubmission,
++  completeAuthenticatedFlow,
++  dismissAuthFlow,
++  getAuthFlowState,
++  openAuthFlow,
++  setAuthProgress,
++  showAuthForm,
++  subscribeAuthFlow,
++} from './authFlowState';
++import { getAuthMarketDemandAllowed } from './useAuthMarketVisibility';
++
++test.beforeEach(() => {
++  setPublicBrokerContext(publicBrokerFixture());
++  dismissAuthFlow();
++});
++
++test.afterEach(() => {
++  dismissAuthFlow();
++  setPublicBrokerContext(null);
++});
++
++test('guest browsing resumes after the authentication choice and both forms are dismissed', () => {
++  assert.equal(getAuthMarketDemandAllowed(), true);
++  openAuthFlow();
++  assert.equal(getAuthFlowState().screen, 'choice');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++  showAuthForm('login');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++  showAuthForm('demo');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++  dismissAuthFlow();
++  assert.equal(getAuthMarketDemandAllowed(), true);
++});
++
++test('direct Login and Demo entries pause demand without requiring a trade intent', () => {
++  for (const form of ['login', 'demo'] as const) {
++    openAuthFlow(undefined, form);
++    assert.equal(getAuthFlowState().intent, null);
++    assert.equal(getAuthMarketDemandAllowed(), false);
++    dismissAuthFlow();
++    assert.equal(getAuthMarketDemandAllowed(), true);
++  }
++});
++
++test('submitting, hydration and recoverable errors keep covered market work paused', () => {
++  openAuthFlow(undefined, 'login');
++  const submission = beginAuthSubmission()!;
++  assert.equal(getAuthFlowState().screen, 'submitting');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++  setAuthProgress(submission.state.attempt, 'hydrating');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++  setAuthProgress(submission.state.attempt, 'recoverable-error', 'Try again');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++  showAuthForm('login');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++});
++
++test('only accepted hydration resumes demand, including an investor session', () => {
++  for (const investor of [false, true]) {
++    dismissAuthFlow();
++    openAuthFlow(undefined, 'login');
++    const submission = beginAuthSubmission()!;
++    setAuthProgress(submission.state.attempt, 'hydrating');
++    completeAuthenticatedFlow(submission.state.attempt, false, investor);
++    assert.equal(getAuthMarketDemandAllowed(), false);
++    completeAuthenticatedFlow(submission.state.attempt, true, investor);
++    assert.equal(getAuthFlowState().screen, 'ready');
++    assert.equal(getAuthMarketDemandAllowed(), true);
++  }
++});
++
++test('dismissal revokes stale results and a new flow cannot be resumed by the old attempt', () => {
++  openAuthFlow(undefined, 'login');
++  const previous = beginAuthSubmission()!;
++  setAuthProgress(previous.state.attempt, 'hydrating');
++  dismissAuthFlow();
++  assert.equal(previous.signal.aborted, true);
++  assert.equal(getAuthMarketDemandAllowed(), true);
++  openAuthFlow(undefined, 'demo');
++  completeAuthenticatedFlow(previous.state.attempt, true, false);
++  setAuthProgress(previous.state.attempt, 'ready');
++  assert.equal(getAuthFlowState().screen, 'demo');
++  assert.equal(getAuthMarketDemandAllowed(), false);
++});
++
++test('broker switching releases the old covered flow and notifies demand subscribers', () => {
++  const visibility: boolean[] = [];
++  const release = subscribeAuthFlow(() => visibility.push(getAuthMarketDemandAllowed()));
++  try {
++    openAuthFlow(undefined, 'login');
++    const submission = beginAuthSubmission()!;
++    setPublicBrokerContext(publicBrokerFixture('Other'));
++    assert.equal(submission.signal.aborted, true);
++    assert.equal(getAuthMarketDemandAllowed(), true);
++    assert.deepEqual(visibility, [false, false, true]);
++    release();
++    openAuthFlow(undefined, 'demo');
++    assert.deepEqual(visibility, [false, false, true], 'disposed subscribers receive no stale updates');
++  } finally {
++    release();
++  }
++});

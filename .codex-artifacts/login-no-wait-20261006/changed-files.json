@@ -1,0 +1,10 @@
+[
+  "src/features/auth/GuestFlowHost.tsx",
+  "src/services/brokerSessionCoordinator.ts",
+  "src/services/persistBrokerSessionAuthority.ts",
+  "src/services/persistBrokerSessionAuthority.test.ts",
+  "src/services/brokerSessionCoordinatorSource.test.ts",
+  "src/state/activeBrokerSessionStorage.ts",
+  "src/state/sessionCacheStorage.ts",
+  "src/state/sessionCacheStorage.test.ts"
+]

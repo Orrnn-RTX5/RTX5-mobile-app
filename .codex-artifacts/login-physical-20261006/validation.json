@@ -1,0 +1,41 @@
+{
+  "source_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree": "Existing local changes preserved; no commit or publication.",
+  "device": {
+    "model": "realme RMX3521",
+    "android": "14",
+    "runtime": "Expo Go USB Metro development build"
+  },
+  "broker": "Orrnn",
+  "account": "User-supplied existing account; credentials excluded from this report.",
+  "baseline": {
+    "video": "login-before.mp4",
+    "approximate_login_to_quotes_seconds": 25,
+    "login_request_ms": 1688,
+    "primary_directory_ms": 5516,
+    "unrelated_optional_directory_timeout_ms": 10068
+  },
+  "intermediate_directory_fix": {
+    "video": "login-after-directory-fix.mp4",
+    "authentication_ready_ms": 9646,
+    "approximate_video_seconds": 10
+  },
+  "final_changes": [
+    "Selected-broker directory lookup avoids unrelated optional-source waits.",
+    "Approved directory reads share requests and successful results for at most30seconds in memory.",
+    "Directory verification overlaps authentication and checks exact broker,endpoints,configuration version.",
+    "Core hydration starts after secure session activation while metadata persistence finishes.",
+    "Covered Quotes/Chart market work pauses during authentication and resumes on dismissal/readiness.",
+    "Original login,broker,demo layouts preserved."
+  ],
+  "validation": {
+    "typescript": "passed:finalcandidate,exit0",
+    "initial_full_regression": "419testfiles passed before final handoff/visibility changes",
+    "final_full_regression": "passed:420testfiles,18batches,exit0",
+    "final_device_recording": "incomplete:phone locked; user unlock requested",
+    "trades_placed_by_assistant": 0,
+    "ios_device": "not tested this task"
+  },
+  "changed_files": "changed-files.json",
+  "patch": "change.patch"
+}

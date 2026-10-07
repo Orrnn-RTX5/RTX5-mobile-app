@@ -1,0 +1,9 @@
+[
+  "src/services/brokerSessionCoordinator.ts",
+  "src/state/secureCredentialBundle.ts",
+  "src/features/auth/GuestFlowHost.tsx",
+  "src/services/brokerSessionCoordinatorSource.test.ts",
+  "src/state/secureCredentialBundle.test.ts",
+  "src/services/persistBrokerSessionAuthority.ts",
+  "src/services/persistBrokerSessionAuthority.test.ts"
+]

@@ -1,0 +1,18 @@
+{
+  "changed_source_files": [
+    "src/features/auth/DemoAccountScreen.tsx",
+    "src/features/auth/demoAccountStyles.ts",
+    "src/features/auth/GuestFlowHost.tsx"
+  ],
+  "typescript": "passed",
+  "focused_tests": {
+    "passed": 37,
+    "failed": 0
+  },
+  "android_layout": "verified top and bottom",
+  "keyboard_confirmation": "fix reviewed; final uninterrupted device recheck pending",
+  "registration_submitted": false,
+  "trade_submitted": false,
+  "dependencies_changed": false,
+  "native_configuration_changed": false
+}

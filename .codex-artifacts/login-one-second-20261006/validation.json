@@ -1,0 +1,32 @@
+{
+  "source_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree": "dirty; preserved existing changes",
+  "implemented": [
+    "Independent secure session writes, legacy routing cleanup, and disposable cache pruning overlap after runtime teardown",
+    "Credential bundle write and legacy token cleanup overlap",
+    "All writes settle before failure rollback; activation waits for successful persistence and cleanup",
+    "Development-only timing separates authentication response, directory validation, teardown, storage, activation and navigation"
+  ],
+  "preserved": [
+    "Login UI",
+    "Broker/configuration/attempt checks",
+    "Secure credentials before dashboard navigation",
+    "Account hydration and trading safety",
+    "No automatic order submission"
+  ],
+  "validation": {
+    "typescript": "passed exit 0",
+    "focused": "43 tests passed",
+    "regression": "all 425 test files passed, 18 batches, exit 0",
+    "diff_check": "passed"
+  },
+  "device": {
+    "model": "realme RMX3521 Android 14",
+    "runtime": "Expo Go development, local Metro restarted after prior process OOM; process heap limit increased only for this run",
+    "result": "New physical login timing incomplete: initial USB discovery timed out; USB recovered and latest bundle loaded, but UI automation timed out and subsequent capture showed splash screen",
+    "orders_submitted": 0,
+    "ios": "not tested"
+  },
+  "one_second_target": "Not verified. Prior run authentication POST alone was 1697 ms, before app handoff. Server/network/device speed determine whether total login can be below 1000 ms. No one-second timeout or simulated authentication introduced.",
+  "publication": "none"
+}

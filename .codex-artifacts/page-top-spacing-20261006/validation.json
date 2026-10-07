@@ -1,0 +1,11 @@
+{
+  "reviewed_routes": 48,
+  "changed_files": 21,
+  "safe_area": "preserved",
+  "header_spacing": "At most8points beyond actual safe area; no artificial minimum inset.",
+  "typescript": "passed, exit0",
+  "regression": "all424testfiles passed,18batches,exit0",
+  "device": "Android14realmeRMX3521 ExpoGo; page navigation spot-check incomplete because phone changed during capture.",
+  "ios": "not physically tested",
+  "production_publication": "none"
+}

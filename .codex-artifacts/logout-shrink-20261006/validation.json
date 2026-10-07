@@ -1,0 +1,17 @@
+{
+  "typecheck": "passed",
+  "focused_tests": {
+    "passed": 40,
+    "failed": 0
+  },
+  "changes": [
+    "Popup uses explicit window-bounded width and height; removes percentage-height nested scroll sizing.",
+    "Login route has no stack animation or extra native header.",
+    "Login modal presents without slide; native animation mode stays fixed during form switches."
+  ],
+  "device_validation": {
+    "result": "incomplete",
+    "reason": "Connected phone continued changing screens during attempted validation; no controlled popup dismissal captured. Native screenrecord crashes with exit139 even for --help."
+  },
+  "production_publication": false
+}

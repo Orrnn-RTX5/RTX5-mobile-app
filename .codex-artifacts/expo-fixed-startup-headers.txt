@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+expo-protocol-version: 0
+expo-sfv-version: 0
+cache-control: private, max-age=0
+content-type: application/expo+json
+Date: Mon, 05 Oct 2026 12:14:03 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Content-Length: 4306
+

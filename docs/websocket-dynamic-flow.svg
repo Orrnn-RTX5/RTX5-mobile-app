@@ -1,0 +1,347 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2600" height="2050" viewBox="0 0 2600 2050">
+  <defs>
+    <style>
+      .page { fill: #f7f9fc; }
+      .title { font: 800 42px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 20px Arial, sans-serif; fill: #475569; }
+      .section { fill: #ffffff; stroke: #d9e2ef; stroke-width: 2.5; rx: 26; }
+      .sectionTitle { font: 800 26px Arial, sans-serif; fill: #0f172a; }
+      .box { fill: #ffffff; stroke: #94a3b8; stroke-width: 2.3; rx: 18; }
+      .setupBox { fill: #eef6ff; stroke: #3b82f6; }
+      .quoteBox { fill: #ecfdf5; stroke: #10b981; }
+      .candleBox { fill: #fff7ed; stroke: #f97316; }
+      .accountBox { fill: #f5f3ff; stroke: #8b5cf6; }
+      .stateBox { fill: #f8fafc; stroke: #64748b; }
+      .decisionBox { fill: #fff1f2; stroke: #e11d48; }
+      .reconnectBox { fill: #fffbeb; stroke: #f59e0b; }
+      .boxTitle { font: 800 19px Arial, sans-serif; fill: #0f172a; }
+      .boxText { font: 500 15px Arial, sans-serif; fill: #475569; }
+      .mono { font: 700 14px Consolas, Monaco, monospace; fill: #334155; }
+      .tiny { font: 700 13px Arial, sans-serif; fill: #475569; }
+      .pill { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1.5; rx: 18; }
+      .pillText { font: 700 15px Arial, sans-serif; fill: #334155; }
+      .arrow { fill: none; stroke: #475569; stroke-width: 2.8; marker-end: url(#arrow); }
+      .arrowLight { fill: none; stroke: #64748b; stroke-width: 2.3; marker-end: url(#arrowLight); }
+      .arrowDash { fill: none; stroke: #64748b; stroke-width: 2.3; stroke-dasharray: 8 8; marker-end: url(#arrowLight); }
+      .legendText { font: 600 16px Arial, sans-serif; fill: #475569; }
+      .number { font: 800 16px Arial, sans-serif; fill: #ffffff; }
+      .numCircle { fill: #0f172a; }
+    </style>
+    <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#475569" />
+    </marker>
+    <marker id="arrowLight" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="page" width="2600" height="2050" />
+
+  <text x="80" y="75" class="title">RTX5 Dynamic WebSocket Flow</text>
+  <text x="80" y="112" class="subtitle">Clean end-to-end flow for dynamic broker routing, quote ticks, chart candles, account/position realtime, and reconnect behavior.</text>
+
+  <!-- Shared Setup Section -->
+  <rect x="70" y="150" width="2460" height="300" class="section" />
+  <text x="105" y="198" class="sectionTitle">1. Shared Broker + Session Inputs</text>
+
+  <rect x="105" y="240" width="300" height="120" class="box setupBox" />
+  <circle cx="132" cy="268" r="14" class="numCircle" />
+  <text x="127" y="274" class="number">1</text>
+  <text x="155" y="273" class="boxTitle">Broker selected</text>
+  <text x="130" y="305" class="boxText">User chooses broker on login</text>
+  <text x="130" y="332" class="mono">brokerId, serverUrl</text>
+
+  <rect x="475" y="240" width="330" height="120" class="box setupBox" />
+  <circle cx="502" cy="268" r="14" class="numCircle" />
+  <text x="497" y="274" class="number">2</text>
+  <text x="525" y="273" class="boxTitle">Persist broker session</text>
+  <text x="500" y="305" class="boxText">Stored in Zustand + secure storage</text>
+  <text x="500" y="332" class="mono">brokerServerUrl, logoUrl</text>
+
+  <rect x="875" y="240" width="330" height="120" class="box setupBox" />
+  <circle cx="902" cy="268" r="14" class="numCircle" />
+  <text x="897" y="274" class="number">3</text>
+  <text x="925" y="273" class="boxTitle">Login returns tokens</text>
+  <text x="900" y="305" class="boxText">Account auth response is stored</text>
+  <text x="900" y="332" class="mono">accessToken, refreshToken</text>
+
+  <rect x="1275" y="240" width="350" height="120" class="box setupBox" />
+  <circle cx="1302" cy="268" r="14" class="numCircle" />
+  <text x="1297" y="274" class="number">4</text>
+  <text x="1325" y="273" class="boxTitle">Build WS origins</text>
+  <text x="1300" y="305" class="boxText">Broker HTTP origin becomes WSS</text>
+  <text x="1300" y="332" class="mono">buildBrokerWsUrl()</text>
+
+  <rect x="1695" y="240" width="360" height="120" class="box setupBox" />
+  <circle cx="1722" cy="268" r="14" class="numCircle" />
+  <text x="1717" y="274" class="number">5</text>
+  <text x="1745" y="273" class="boxTitle">Runtime inputs are ready</text>
+  <text x="1720" y="305" class="boxText">Screens/services consume them</text>
+  <text x="1720" y="332" class="mono">broker URL + token + login</text>
+
+  <path d="M405 300 H475" class="arrow" />
+  <path d="M805 300 H875" class="arrow" />
+  <path d="M1205 300 H1275" class="arrow" />
+  <path d="M1625 300 H1695" class="arrow" />
+
+  <rect x="2120" y="238" width="360" height="124" class="box stateBox" />
+  <text x="2145" y="272" class="boxTitle">Dynamic values used below</text>
+  <text x="2145" y="304" class="boxText">No hardcoded runtime behavior</text>
+  <text x="2145" y="332" class="boxText">Values come from API, config, or user state</text>
+  <path d="M2055 300 H2120" class="arrowLight" />
+
+  <rect x="105" y="385" width="245" height="38" class="pill" />
+  <text x="128" y="410" class="pillText">brokerServerUrl</text>
+  <rect x="375" y="385" width="205" height="38" class="pill" />
+  <text x="398" y="410" class="pillText">accessToken</text>
+  <rect x="605" y="385" width="215" height="38" class="pill" />
+  <text x="628" y="410" class="pillText">accountLogin</text>
+  <rect x="845" y="385" width="220" height="38" class="pill" />
+  <text x="868" y="410" class="pillText">quoteSymbols</text>
+  <rect x="1090" y="385" width="285" height="38" class="pill" />
+  <text x="1113" y="410" class="pillText">chartSymbol + timeframe</text>
+
+  <!-- Quotes Section -->
+  <rect x="70" y="495" width="2460" height="390" class="section" />
+  <text x="105" y="543" class="sectionTitle">2. Quotes Live Bid/Ask WebSocket - /ws/feed</text>
+
+  <rect x="105" y="585" width="250" height="106" class="box quoteBox" />
+  <text x="130" y="619" class="boxTitle">Quotes route active</text>
+  <text x="130" y="650" class="boxText">Screen is mounted/visible</text>
+  <text x="130" y="676" class="mono">QuotesScreen</text>
+
+  <rect x="415" y="585" width="250" height="106" class="box quoteBox" />
+  <text x="440" y="619" class="boxTitle">Load watchlist</text>
+  <text x="440" y="650" class="boxText">User's persisted symbols</text>
+  <text x="440" y="676" class="mono">quoteSymbols</text>
+
+  <rect x="725" y="585" width="285" height="106" class="box quoteBox" />
+  <text x="750" y="619" class="boxTitle">Resolve feed symbols</text>
+  <text x="750" y="650" class="boxText">Match broker catalog names</text>
+  <text x="750" y="676" class="mono">resolveQuoteFeedSymbols()</text>
+
+  <rect x="1070" y="585" width="310" height="106" class="box quoteBox" />
+  <text x="1095" y="619" class="boxTitle">Set live subscriptions</text>
+  <text x="1095" y="650" class="boxText">Exact active watchlist override</text>
+  <text x="1095" y="676" class="mono">setSubscriptions(symbols)</text>
+
+  <rect x="1440" y="585" width="300" height="106" class="box quoteBox" />
+  <text x="1465" y="619" class="boxTitle">Merge active demand</text>
+  <text x="1465" y="650" class="boxText">Sticky + row + store consumers</text>
+  <text x="1465" y="676" class="mono">syncActiveSymbols()</text>
+
+  <rect x="1800" y="575" width="220" height="126" class="box decisionBox" />
+  <text x="1835" y="621" class="boxTitle">Any symbols?</text>
+  <text x="1835" y="653" class="boxText">No: close socket</text>
+  <text x="1835" y="680" class="boxText">Yes: connect</text>
+
+  <rect x="2080" y="585" width="310" height="106" class="box quoteBox" />
+  <text x="2105" y="619" class="boxTitle">Open quote socket</text>
+  <text x="2105" y="650" class="boxText">Resolved from broker URL</text>
+  <text x="2105" y="676" class="mono">wss://broker/ws/feed</text>
+
+  <path d="M355 638 H415" class="arrow" />
+  <path d="M665 638 H725" class="arrow" />
+  <path d="M1010 638 H1070" class="arrow" />
+  <path d="M1380 638 H1440" class="arrow" />
+  <path d="M1740 638 H1800" class="arrow" />
+  <path d="M2020 638 H2080" class="arrow" />
+
+  <rect x="105" y="740" width="295" height="94" class="box quoteBox" />
+  <text x="130" y="774" class="boxTitle">Send subscribe message</text>
+  <text x="130" y="805" class="mono">{ type: subscribe, symbols }</text>
+
+  <rect x="470" y="740" width="270" height="94" class="box quoteBox" />
+  <text x="495" y="774" class="boxTitle">Incoming tick payloads</text>
+  <text x="495" y="805" class="boxText">Array, data object, or tick object</text>
+
+  <rect x="810" y="740" width="290" height="94" class="box quoteBox" />
+  <text x="835" y="774" class="boxTitle">Normalize + validate</text>
+  <text x="835" y="805" class="mono">processIncomingPayload()</text>
+
+  <rect x="1170" y="740" width="295" height="94" class="box quoteBox" />
+  <text x="1195" y="774" class="boxTitle">Immediate listeners</text>
+  <text x="1195" y="805" class="boxText">Per-symbol row updates</text>
+
+  <rect x="1535" y="740" width="290" height="94" class="box stateBox" />
+  <text x="1560" y="774" class="boxTitle">Quote snapshots</text>
+  <text x="1560" y="805" class="mono">useLiveQuoteSnapshot()</text>
+
+  <rect x="1895" y="740" width="250" height="94" class="box stateBox" />
+  <text x="1920" y="774" class="boxTitle">Quote rows render</text>
+  <text x="1920" y="805" class="boxText">Fast live bid/ask UI</text>
+
+  <rect x="2195" y="740" width="260" height="94" class="box stateBox" />
+  <text x="2220" y="774" class="boxTitle">Batched store path</text>
+  <text x="2220" y="805" class="mono">useTradingState.quotes</text>
+
+  <path d="M2235 691 V716 H252 V740" class="arrow" />
+  <path d="M400 787 H470" class="arrow" />
+  <path d="M740 787 H810" class="arrow" />
+  <path d="M1100 787 H1170" class="arrow" />
+  <path d="M1465 787 H1535" class="arrow" />
+  <path d="M1825 787 H1895" class="arrow" />
+  <path d="M1100 812 H1140 V855 H2195 V834" class="arrowDash" />
+
+  <!-- Candle Section -->
+  <rect x="70" y="930" width="2460" height="390" class="section" />
+  <text x="105" y="978" class="sectionTitle">3. Chart Candle WebSocket - /ws/v2</text>
+
+  <rect x="105" y="1020" width="260" height="106" class="box candleBox" />
+  <text x="130" y="1054" class="boxTitle">Chart route active</text>
+  <text x="130" y="1085" class="boxText">Current chart settings</text>
+  <text x="130" y="1111" class="mono">symbol + timeframe</text>
+
+  <rect x="430" y="1020" width="265" height="106" class="box candleBox" />
+  <text x="455" y="1054" class="boxTitle">Subscribe hook</text>
+  <text x="455" y="1085" class="boxText">Runs on mount/change</text>
+  <text x="455" y="1111" class="mono">useLiveCandles()</text>
+
+  <rect x="760" y="1020" width="310" height="106" class="box candleBox" />
+  <text x="785" y="1054" class="boxTitle">Candle service demand</text>
+  <text x="785" y="1085" class="boxText">Dedupes consumers by key</text>
+  <text x="785" y="1111" class="mono">SYMBOL::TIMEFRAME</text>
+
+  <rect x="1135" y="1020" width="310" height="106" class="box candleBox" />
+  <text x="1160" y="1054" class="boxTitle">Resolve + authenticate</text>
+  <text x="1160" y="1085" class="boxText">Broker URL, token if available</text>
+  <text x="1160" y="1111" class="mono">/ws/v2?token=JWT</text>
+
+  <rect x="1510" y="1020" width="320" height="106" class="box candleBox" />
+  <text x="1535" y="1054" class="boxTitle">Send candle subscription</text>
+  <text x="1535" y="1085" class="boxText">Channel is built dynamically</text>
+  <text x="1535" y="1111" class="mono">candles.SYMBOL.TF</text>
+
+  <rect x="1895" y="1020" width="300" height="106" class="box candleBox" />
+  <text x="1920" y="1054" class="boxTitle">Incoming OHLC payloads</text>
+  <text x="1920" y="1085" class="boxText">Routed by channel/context</text>
+  <text x="1920" y="1111" class="mono">handlePayload()</text>
+
+  <path d="M365 1073 H430" class="arrow" />
+  <path d="M695 1073 H760" class="arrow" />
+  <path d="M1070 1073 H1135" class="arrow" />
+  <path d="M1445 1073 H1510" class="arrow" />
+  <path d="M1830 1073 H1895" class="arrow" />
+
+  <rect x="105" y="1175" width="320" height="94" class="box candleBox" />
+  <text x="130" y="1209" class="boxTitle">Quote tick extension</text>
+  <text x="130" y="1240" class="boxText">Bid/ask ticks move active candle</text>
+
+  <rect x="500" y="1175" width="360" height="94" class="box candleBox" />
+  <text x="525" y="1209" class="boxTitle">Canonical candle engine</text>
+  <text x="525" y="1240" class="mono">liveCandleStream.ingestLiveCandle()</text>
+
+  <rect x="935" y="1175" width="330" height="94" class="box stateBox" />
+  <text x="960" y="1209" class="boxTitle">Merge live + history</text>
+  <text x="960" y="1240" class="boxText">Preserves trusted REST history</text>
+
+  <rect x="1340" y="1175" width="300" height="94" class="box stateBox" />
+  <text x="1365" y="1209" class="boxTitle">Notify chart store</text>
+  <text x="1365" y="1240" class="boxText">Stable candle snapshots</text>
+
+  <rect x="1715" y="1175" width="260" height="94" class="box stateBox" />
+  <text x="1740" y="1209" class="boxTitle">Chart renders</text>
+  <text x="1740" y="1240" class="boxText">Current symbol/timeframe</text>
+
+  <path d="M2045 1126 V1148 H680 V1175" class="arrow" />
+  <path d="M425 1222 H500" class="arrowDash" />
+  <path d="M860 1222 H935" class="arrow" />
+  <path d="M1265 1222 H1340" class="arrow" />
+  <path d="M1640 1222 H1715" class="arrow" />
+
+  <!-- Account Section -->
+  <rect x="70" y="1365" width="2460" height="330" class="section" />
+  <text x="105" y="1413" class="sectionTitle">4. Account + Positions Realtime WebSocket - /ws/v2</text>
+
+  <rect x="105" y="1455" width="270" height="106" class="box accountBox" />
+  <text x="130" y="1489" class="boxTitle">Logged-in app</text>
+  <text x="130" y="1520" class="boxText">Boot, trade screen, foreground</text>
+  <text x="130" y="1546" class="mono">RootLayout / hook</text>
+
+  <rect x="445" y="1455" width="315" height="106" class="box accountBox" />
+  <text x="470" y="1489" class="boxTitle">Resolve authenticated URL</text>
+  <text x="470" y="1520" class="boxText">Reads broker URL and token</text>
+  <text x="470" y="1546" class="mono">brokerApi.getWebSocketUrl()</text>
+
+  <rect x="830" y="1455" width="300" height="106" class="box accountBox" />
+  <text x="855" y="1489" class="boxTitle">Open account socket</text>
+  <text x="855" y="1520" class="boxText">Broker-scoped WS</text>
+  <text x="855" y="1546" class="mono">wss://broker/ws/v2?token</text>
+
+  <rect x="1200" y="1455" width="300" height="106" class="box accountBox" />
+  <text x="1225" y="1489" class="boxTitle">Resolve login channels</text>
+  <text x="1225" y="1520" class="boxText">Uses current account login</text>
+  <text x="1225" y="1546" class="mono">account.LOGIN</text>
+
+  <rect x="1570" y="1455" width="300" height="106" class="box accountBox" />
+  <text x="1595" y="1489" class="boxTitle">Subscribe realtime</text>
+  <text x="1595" y="1520" class="boxText">Account + positions</text>
+  <text x="1595" y="1546" class="mono">positions.LOGIN</text>
+
+  <rect x="1940" y="1455" width="300" height="106" class="box accountBox" />
+  <text x="1965" y="1489" class="boxTitle">Incoming updates</text>
+  <text x="1965" y="1520" class="boxText">Metrics and position events</text>
+  <text x="1965" y="1546" class="mono">handleMessage()</text>
+
+  <path d="M375 1508 H445" class="arrow" />
+  <path d="M760 1508 H830" class="arrow" />
+  <path d="M1130 1508 H1200" class="arrow" />
+  <path d="M1500 1508 H1570" class="arrow" />
+  <path d="M1870 1508 H1940" class="arrow" />
+
+  <rect x="445" y="1605" width="330" height="64" class="box stateBox" />
+  <text x="470" y="1645" class="boxTitle">useLiveAccountState</text>
+
+  <rect x="850" y="1605" width="330" height="64" class="box stateBox" />
+  <text x="875" y="1645" class="boxTitle">usePositionsState</text>
+
+  <rect x="1255" y="1605" width="420" height="64" class="box stateBox" />
+  <text x="1280" y="1645" class="boxTitle">Trade / History / Settings UI update</text>
+
+  <path d="M2090 1561 V1637 H775" class="arrowLight" />
+  <path d="M2090 1561 V1590 H1015 V1605" class="arrowLight" />
+  <path d="M775 1637 H850" class="arrow" />
+  <path d="M1180 1637 H1255" class="arrow" />
+
+  <!-- Reconnect Section -->
+  <rect x="70" y="1740" width="2460" height="230" class="section" />
+  <text x="105" y="1788" class="sectionTitle">5. Dynamic Reconnect + Resubscribe Rules</text>
+
+  <rect x="105" y="1830" width="350" height="94" class="box reconnectBox" />
+  <text x="130" y="1864" class="boxTitle">Demand changes</text>
+  <text x="130" y="1895" class="boxText">Symbol list, screen active state, timeframe</text>
+
+  <rect x="520" y="1830" width="350" height="94" class="box reconnectBox" />
+  <text x="545" y="1864" class="boxTitle">Session changes</text>
+  <text x="545" y="1895" class="boxText">Token rotation, login/logout, broker URL</text>
+
+  <rect x="935" y="1830" width="350" height="94" class="box reconnectBox" />
+  <text x="960" y="1864" class="boxTitle">Network/app lifecycle</text>
+  <text x="960" y="1895" class="boxText">Offline pause, foreground reconnect</text>
+
+  <rect x="1350" y="1830" width="390" height="94" class="box reconnectBox" />
+  <text x="1375" y="1864" class="boxTitle">Socket action</text>
+  <text x="1375" y="1895" class="boxText">Close stale socket, rebuild URL, reopen</text>
+
+  <rect x="1805" y="1830" width="430" height="94" class="box reconnectBox" />
+  <text x="1830" y="1864" class="boxTitle">Subscription action</text>
+  <text x="1830" y="1895" class="boxText">Send current active symbols/channels again</text>
+
+  <path d="M455 1877 H520" class="arrow" />
+  <path d="M870 1877 H935" class="arrow" />
+  <path d="M1285 1877 H1350" class="arrow" />
+  <path d="M1740 1877 H1805" class="arrow" />
+
+  <!-- Legend -->
+  <rect x="1835" y="68" width="650" height="62" class="box stateBox" />
+  <rect x="1860" y="89" width="22" height="22" class="setupBox" />
+  <text x="1892" y="106" class="legendText">setup</text>
+  <rect x="1980" y="89" width="22" height="22" class="quoteBox" />
+  <text x="2012" y="106" class="legendText">quotes</text>
+  <rect x="2115" y="89" width="22" height="22" class="candleBox" />
+  <text x="2147" y="106" class="legendText">candles</text>
+  <rect x="2260" y="89" width="22" height="22" class="accountBox" />
+  <text x="2292" y="106" class="legendText">account</text>
+  <rect x="2405" y="89" width="22" height="22" class="stateBox" />
+  <text x="2437" y="106" class="legendText">state/UI</text>
+</svg>

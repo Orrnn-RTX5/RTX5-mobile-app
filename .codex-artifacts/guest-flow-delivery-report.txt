@@ -1,0 +1,166 @@
+LATEST UI FOLLOWUP - 2026-10-06
+Previous broker picker, login and broker account presentation restored; Demo Account styling and first/last-name layout retained with required password confirmation. New guest/auth/session logic stays active. TypeScript passed, all 415 regression test files passed, Android and iOS Hermes exports passed. Candidate directory: .codex-artifacts/auth-ui-delivered-20261006. Source hashes, artifact hashes, scope and validation limits: .codex-artifacts/auth-ui-restoration.json. Device and Nexa checks remain unverified. This UI evidence supersedes the earlier visual followup below.
+
+Follow-up 2026-10-06: Previous Demo Account presentation restored. Current source
+and bundle identities and focused validation are recorded in demo-screen-restoration.json.
+The implementation evidence below predates this visual follow-up.
+
+Guest, authentication and demo-account flow delivery
+Date: 2026-10-06
+
+Status
+The gateway-v2 mobile flow is implemented and automated validation passes.
+Device acceptance and deployed Nexa integration are incomplete. No production
+publication, backend change, real demo registration or real trade was performed.
+
+Implemented behavior
+- A fresh install requires a supported-directory broker selection. The selected
+  broker ID is a preference; endpoints are resolved and revalidated from the
+  directory rather than authorized by saved URLs or response labels.
+- Selected-broker anonymous instruments, snapshots, quotes and candle history
+  use a separate credential-free HTTP policy with X-Broker-ID. Exact catalog
+  identifiers and precision are retained; authenticated/public caches are scoped
+  separately. Context changes abort requests and invalidate authentication.
+- Anonymous /ws/feed quote subscriptions reconcile acknowledgments, availability,
+  opaque string sequences and quote timestamps. Heartbeats, bounded reconnect,
+  demand teardown and background/foreground lifecycle are implemented.
+- Anonymous /ws/v2 candles match complete channels, including dotted symbols.
+  Unacknowledged/rejected channels use cancellable latest-three-bar REST reads
+  every three seconds. History/live replacements retain finality and cumulative
+  volume without adding duplicate bars or volume.
+- One root native modal owns authentication choice, login, demo form, submission,
+  hydration and recoverable errors. Active legacy auth routes delegate to it;
+  old screen implementations remain inactive to preserve unrelated local work.
+- Buy/Sell retains the original in-memory intent and explains that authentication
+  will produce a reviewed draft, never an automatic order. Plain login, investor
+  login, mutations and generic New Order do not resume an order.
+- Login and demo registration use the verified extended API origin. Numeric
+  login identities and response account IDs retain precision. Registration sends
+  only name/email/username/password/exact broker_id, checks exact confirmation,
+  uses HTTP 201 directly, ignores api_key, and performs no second login, deposit
+  or account-create request.
+- Public signup capability flags and supplied legal/recovery links are used.
+  Duplicate submissions, rate limits, Retry-After and ambiguous creation results
+  are handled without automatic registration retries.
+- The existing secure session coordinator validates directory endpoints, replaces
+  credentials atomically, clears omitted refresh/expiry fields, migrates compatible
+  legacy identities, and rejects cancelled/late attempts. Back, dismissal,
+  navigation and context/account changes invalidate pending authentication.
+- /auth/me, account policy/details and account catalog hydrate before a draft is
+  opened. Investor verdicts from login or hydration remain read-only.
+- Central order/mutation transport guards require the current session and policy.
+  Submission requires an authorized exact symbol, enabled trade mode, valid
+  volume, fresh executable quote, open market and authoritative margin/risk.
+  Freshness is checked again after risk reads. Missing checks fail closed.
+- Logout, failed refresh and Continue as guest clear active credentials/private
+  work and restore the selected broker's guest market.
+
+Automated validation
+- Full regression runner: all 414 test files passed in 18 batches.
+  Command: node ./scripts/run-all-tests.js
+  Evidence: ../.codex-regression-guest-flow-delivered.log
+- TypeScript: node ./node_modules/typescript/bin/tsc --noEmit passed.
+  Evidence: ../.codex-guest-flow-typecheck-review.log
+- Focused auth/session/transport/protocol and routing checks passed, including
+  first-intent preservation, duplicate prevention, dismissal, broker isolation,
+  numeric precision, registration payload/201/error classes, investor permissions,
+  rejected candle polling, finality merging and unsafe-order rejection.
+  Order transport is mocked and counted: authentication/hydration produces zero
+  requests; an explicitly invoked valid order produces one. No live trade test.
+  Evidence: ../.codex-guest-flow-final-safety-tests.log,
+  ../.codex-guest-flow-final-permissions.log,
+  ../.codex-guest-flow-verification-final.log,
+  ../.codex-guest-flow-routing-final.log and behavioral test files in the manifest.
+- Android and iOS Hermes exports passed using the existing Expo dependencies.
+  Command: node ./node_modules/expo/bin/cli export --platform android --platform ios
+    --max-workers 2 --output-dir ../.codex-artifacts/guest-flow-review-20261006
+  Evidence: ../.codex-guest-flow-bundle-review.log
+  These are JavaScript exports, not APK/IPA/native build or device acceptance.
+
+Final bundle identities
+Android: guest-flow-review-20261006/_expo/static/js/android/
+  entry-1bfb15c1c930327597d8e8f8226f07f6.hbc
+  Bytes: 15005171
+  SHA256: 75f14401e06d856ffeda5d641e4283793cddf75ef9fbe941a015b699131575dc
+iOS: guest-flow-review-20261006/_expo/static/js/ios/
+  entry-20afe8735cb4227a858619faa5905cb3.hbc
+  Bytes: 15006055
+  SHA256: 5b1abcaf81f1ffbdc97c4081e2c9ebe67c1c08063a0c9bff59f64ab329ef2039
+Machine-readable identities: guest-flow-build-artifacts.json
+
+Source and changes
+Base HEAD: 31078cd5ceff6232a2d9345047a1e615a55c91b4
+App version from existing configuration: 1.1.30
+Working tree was already extensively modified before this task. Existing changes
+were preserved; this is not a clean committed revision or a published release.
+Task-touched paths and per-file SHA256: guest-flow-task-files.json (79 paths).
+Full app/source snapshot: guest-flow-source-snapshot.json (1148 files).
+Source digest: f99a2093ca983a91b2799fb1445d03e50d705a75a3b0e61aee97932446e3107f
+The source manifest includes existing local changes and excludes environment
+and credential files. Task paths overlap local changes; they are not an exclusive
+Git diff. No dependencies or native configuration were edited for this task.
+
+Primary implementation paths (relative to rtx5-app)
+  src/state/publicBrokerContext.ts
+  src/state/publicMarketStatus.ts
+  src/state/publicQuoteAvailability.ts
+  src/api/orrnnDemoPublicMarket.ts
+  src/api/ws/publicMarketSocketCore.ts
+  src/api/ws/publicMarketProtocol.ts
+  src/domain/candles/series/publicCandleMerge.ts
+  src/api/guestAuthentication.ts
+  src/features/auth/GuestFlowHost.tsx
+  src/features/auth/AuthEntryScreen.tsx
+  src/features/trade/authFlowState.ts
+  src/features/trade/tradeAuthPrompt.ts
+  src/services/selectGuestBroker.ts
+  src/services/brokerSessionCoordinator.ts
+  src/services/tradingAccess.ts
+  src/services/tradingPolicy.ts
+  src/services/bootstrapApp.ts
+  src/api/brokerApi.ts
+  src/features/trade/OrderTicketScreen.tsx
+  scripts/verify-guest-flow-nexa.ts
+See the task manifest for all adapters, entry routes, session stores and tests.
+
+Configuration and supplied references
+Existing configured discovery inputs were used without changing environment:
+  EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL=https://superadmin-prod.orrnn.com/api/v2
+  EXPO_PUBLIC_ADDITIONAL_BROKER_DIRECTORY_BASE_URL=https://nexa-terminal.orrnn.com/discovery-api/api/v2
+  EXPO_PUBLIC_ADDITIONAL_BROKER_IDS=Nexa
+Supplied reference SHAs (not confirmed deployed revisions):
+  Web: 4736f223abc5923396dd33ada8dd033c2b609783
+  Backend: 3d2d9597e2fc2794d9a65314c28013f90c6519ea
+  Admin: f00b8a48f6911bb6c1a8154e0091251387f01391
+
+Incomplete validation and implementation limits
+- Final read-only discovery returned achiever, Orrnn and trivanta-markets, but
+  no Nexa record. Nexa backend revision and a deployed candidate mobile build
+  could not be confirmed. See guest-flow-nexa-validation.json; discovery was
+  repeated after final source changes. No guessed endpoint was used.
+- Admin A then B, persisted group/leverage/currency, exactly one initial deposit,
+  unchanged existing A, Automatic/invalid groups, disabled signup, licensing,
+  policy and tampered-policy integration fixtures were NOT exercised. Admin
+  access and a working approved Nexa discovery/tunnel were unavailable.
+- Server-side anonymous WebSocket broker isolation was NOT verified. Client
+  broker filtering and mock isolation tests do not establish backend authorization.
+- Android ADB reported no attached devices. No iOS device/native build was
+  available. Keyboard, accessibility, orientation, offline startup and real
+  background/foreground acceptance remain unverified on both platforms.
+  Evidence: guest-flow-devices.txt
+- Gateway-v2 is implemented. Explicit bridge mode currently reports an
+  unverified-provider configuration error; a verified mt5-bridge-v1 adapter is
+  not implemented. No silent protocol switch or gateway probing is performed.
+- W1/monthly remain unavailable until the deployed provider is verified.
+- Readiness is deliberately disabled when account trade-mode/volume policy,
+  market status or margin/risk fields cannot be verified. Provider-specific
+  response compatibility still needs deployed Nexa validation.
+- No controlled backend configuration was changed, so none required restoration.
+  No production release, indicators/news changes or pending-order enablement.
+
+Next acceptance work
+Provide working approved Nexa discovery/tunnel/admin access and an installable
+candidate build tied to this source snapshot. Run the planned disposable-account
+A/B/Automatic/policy/deposit and server isolation checks, then Android/iOS device
+acceptance. Rebuild/revalidate affected checks after candidate changes.
+Production publication requires a separate release request.

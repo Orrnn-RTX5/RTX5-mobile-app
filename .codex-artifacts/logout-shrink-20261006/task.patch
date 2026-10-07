@@ -1,0 +1,166 @@
+--- before/app/_layout.tsx
++++ after/app/_layout.tsx
+@@ -147,7 +147,7 @@
+           <Stack.Screen name='trade/close-by' options={{ headerShown: false, animation: 'none' }} />
+           <Stack.Screen name='trade/modify-position' options={{ headerShown: false, animation: 'none' }} />
+           <Stack.Screen name='trade/bulk' options={{ headerShown: false }} />
+-          <Stack.Screen name='login' options={{ title: t('Login'), headerLeft: () => null }} />
++          <Stack.Screen name='login' options={brokerFlowScreenOptions} />
+           <Stack.Screen name='register-entry' options={registerScreenOptions} />
+           <Stack.Screen name='register' options={registerScreenOptions} />
+           <Stack.Screen name='chart/objects' options={chartPageScreenOptions} />
+--- before/src/features/auth/GuestFlowHost.tsx
++++ after/src/features/auth/GuestFlowHost.tsx
+@@ -53,6 +53,13 @@
+   const submitting = useRef<number | null>(null);
+   const busy = flow.screen === 'submitting' || flow.screen === 'hydrating';
+   const visible = !['guest', 'ready'].includes(flow.screen);
++  const presentation = useRef<{ visible: boolean; animation: 'none' | 'slide' }>({ visible: false, animation: 'none' });
++  if (visible && !presentation.current.visible) {
++    presentation.current.animation = flow.form === 'login' ? 'none' : 'slide';
++  }
++  // Android recreates its native dialog if animationType changes. Switching
++  // Login/Demo inside an open flow must keep the same presentation window.
++  presentation.current.visible = visible;
+   useEffect(() => subscribeAuthFlow(() => {
+     if (getAuthFlowState().screen !== 'guest') return;
+     cancelBrokerSessionCommitAuthorization(authorization.current);
+@@ -204,7 +211,7 @@
+       {!context ? <GuestBrokerPicker onBack={() => {}} selectionError={localError}
+         onSelectBroker={row => { void selectGuestBroker(row).catch(error => setLocalError(error.message)); }} /> : null}
+     </Modal>
+-    <Modal visible={visible && Boolean(context)} animationType={flow.screen === 'ready' ? 'none' : 'slide'} onRequestClose={close} presentationStyle="fullScreen">
++    <Modal visible={visible && Boolean(context)} animationType={flow.screen === 'ready' ? 'none' : presentation.current.animation} onRequestClose={close} presentationStyle="fullScreen">
+       {visible && context ? flow.form === 'demo' && flow.screen !== 'choice' ? <DemoAccountScreen
+         key={flow.context?.cacheNamespace}
+         name={name} email={identity} password={password} confirmation={confirmation}
+--- before/src/features/settings/SettingsScreen/LogoutConfirmation.tsx
++++ after/src/features/settings/SettingsScreen/LogoutConfirmation.tsx
+@@ -1,5 +1,5 @@
+-import { Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
++import { Modal, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
++import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { useTranslation } from '../../../i18n/useTranslation';
+ import { FastPressable } from '../../../ui/components/FastPressable';
+ import { OVERLAY_MODAL_PROPS } from '../../../ui/overlayModalProps';
+@@ -12,67 +12,71 @@
+   onConfirm: () => void;
+ }) {
+   const { t } = useTranslation();
++  const { width, height } = useWindowDimensions();
++  const insets = useSafeAreaInsets();
++  // Resolve both bounds before presenting the native window. A percentage
++  // maxHeight around an intrinsically-sized ScrollView can collapse/reflow
++  // while the modal measures its content or hands over to Login.
++  const dialogWidth = Math.max(0, Math.min(360, width - insets.left - insets.right - 40));
++  const dialogMaxHeight = Math.max(0, height - insets.top - insets.bottom - 40);
+   // Remove the native dialog before the Login modal is presented. Retaining a
+   // fading Modal across logout can leave its native layer above the new page.
+   if (!visible) return null;
+   return (
+     <Modal {...OVERLAY_MODAL_PROPS} visible transparent animationType="none" onRequestClose={onCancel}>
+-      <SafeAreaProvider>
+-        <SafeAreaView style={styles.overlay}>
+-          <FastPressable
+-            style={StyleSheet.absoluteFillObject}
+-            onPress={onCancel}
+-            accessible={false}
+-            importantForAccessibility="no"
+-          />
+-          <View
+-            accessibilityViewIsModal
+-            onAccessibilityEscape={onCancel}
+-            style={[styles.dialog, { backgroundColor: T.glass2, borderColor: T.border }]}
+-          >
+-            <ScrollView
+-              style={styles.scroll}
+-              contentContainerStyle={styles.content}
+-              keyboardShouldPersistTaps="always"
+-              canCancelContentTouches={Platform.OS === 'ios'}
+-              showsVerticalScrollIndicator={false}
++      <View style={[styles.overlay, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }]}>
++        <FastPressable
++          style={StyleSheet.absoluteFillObject}
++          onPress={onCancel}
++          accessible={false}
++          importantForAccessibility="no"
++        />
++        <ScrollView
++          testID="logout-confirmation-dialog"
++          accessibilityViewIsModal
++          onAccessibilityEscape={onCancel}
++          style={[styles.dialog, { width: dialogWidth, maxHeight: dialogMaxHeight, backgroundColor: T.glass2, borderColor: T.border }]}
++          contentContainerStyle={styles.content}
++          keyboardShouldPersistTaps="always"
++          canCancelContentTouches={Platform.OS === 'ios'}
++          showsVerticalScrollIndicator={false}
++          bounces={false}
++          contentInsetAdjustmentBehavior="never"
++          automaticallyAdjustContentInsets={false}
++        >
++          <View style={styles.heading}>
++            <Text accessibilityRole="header" style={[styles.title, { color: T.text }]}>{t('Logout')}</Text>
++          </View>
++          <Text style={[styles.message, { color: T.textSub }]}>
++            {t('Are you sure you want to logout? You will need to sign in again.')}
++          </Text>
++          <View style={styles.actions}>
++            <FastPressable
++              onPress={onCancel}
++              accessibilityRole="button"
++              latencyLabel="settings.logout.cancel"
++              style={({ pressed }) => [styles.button, { borderColor: T.border, backgroundColor: T.inputBg }, pressed && styles.pressed]}
+             >
+-              <View style={styles.heading}>
+-                <Text accessibilityRole="header" style={[styles.title, { color: T.text }]}>{t('Logout')}</Text>
+-              </View>
+-              <Text style={[styles.message, { color: T.textSub }]}>
+-                {t('Are you sure you want to logout? You will need to sign in again.')}
+-              </Text>
+-              <View style={styles.actions}>
+-                <FastPressable
+-                  onPress={onCancel}
+-                  accessibilityRole="button"
+-                  latencyLabel="settings.logout.cancel"
+-                  style={({ pressed }) => [styles.button, { borderColor: T.border, backgroundColor: T.inputBg }, pressed && styles.pressed]}
+-                >
+-                  <Text style={[styles.buttonText, { color: T.text }]}>{t('Cancel')}</Text>
+-                </FastPressable>
+-                <FastPressable
+-                  onPress={onConfirm}
+-                  accessibilityRole="button"
+-                  latencyLabel="settings.logout.confirm"
+-                  style={({ pressed }) => [styles.button, { borderColor: T.trading.loss, backgroundColor: T.trading.loss }, pressed && styles.pressed]}
+-                >
+-                  <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>{t('Logout')}</Text>
+-                </FastPressable>
+-              </View>
+-            </ScrollView>
++              <Text style={[styles.buttonText, { color: T.text }]}>{t('Cancel')}</Text>
++            </FastPressable>
++            <FastPressable
++              onPress={onConfirm}
++              accessibilityRole="button"
++              latencyLabel="settings.logout.confirm"
++              style={({ pressed }) => [styles.button, { borderColor: T.trading.loss, backgroundColor: T.trading.loss }, pressed && styles.pressed]}
++            >
++              <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>{t('Logout')}</Text>
++            </FastPressable>
+           </View>
+-        </SafeAreaView>
+-      </SafeAreaProvider>
++        </ScrollView>
++      </View>
+     </Modal>
+   );
+ }
+ 
+ const styles = StyleSheet.create({
+   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+-  dialog: { width: '100%', maxWidth: 360, maxHeight: '100%', borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+-  scroll: { flexGrow: 0, flexShrink: 1 },
++  dialog: { flexGrow: 0, flexShrink: 0, borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
+   content: { padding: 22, gap: 18 },
+   heading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+   title: { flex: 1, minWidth: 0, fontSize: 20, fontWeight: '600' },

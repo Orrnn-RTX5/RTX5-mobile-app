@@ -1,0 +1,80 @@
+{
+  "request": "Restore previous UI for all login, broker and Demo Account screens while retaining the new flow",
+  "source_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree_dirty": true,
+  "changed_files_this_followup": [
+    {
+      "path": "src/features/auth/GuestFlowHost.tsx",
+      "sha256": "833e191be9024bf1c9a960a37a80984ae9ef1dd8ed205555ae2f8e22f36fa105"
+    },
+    {
+      "path": "src/features/auth/LoginAccountScreen.tsx",
+      "sha256": "f38489275b16de4dcb41a855bbbe14729dc45b8044b4f8d82c2820cd9ee4c6af"
+    },
+    {
+      "path": "src/features/auth/loginAccountStyles.ts",
+      "sha256": "90cdc6555dfb5d46b718bede2c718a2c7001b27f9b4315586cb3ba41d2bd44e6"
+    },
+    {
+      "path": "src/features/auth/brokerAccountStyles.ts",
+      "sha256": "0d139652f46d7c5ae683a952e18d1979662b04f457a15f378bfaded77059c799"
+    },
+    {
+      "path": "src/features/auth/DemoAccountScreen.tsx",
+      "sha256": "2b2f2314939e22d6be922580d8a17bfdd66c64c89d58236f2dcb62a4fe384993"
+    },
+    {
+      "path": "src/features/auth/demoAccountStyles.ts",
+      "sha256": "68e17626d3599c174b4315f90c2ef6e6f98d5e4c92d7f8fe3463fa376bbf8d9f"
+    },
+    {
+      "path": "src/features/settings/BrokersScreen/BrokersScreen.tsx",
+      "sha256": "a1f94aed8909c870656bd63eb5ef1291006a655d4fbd9fd6fc0305d58ebb9f9a"
+    },
+    {
+      "path": "src/features/settings/BrokersScreen/brokersScreenSource.test.ts",
+      "sha256": "7b4dbd2e1d2bdbe4431892a0ca995bdcce14ff928c61ff8a8cb253b95ad2a8ce"
+    },
+    {
+      "path": "src/utils/appActionLatencyContract.test.ts",
+      "sha256": "8699ab11ec8c73607893c9aee80aa3c2873b9f7c4f8686480abfffdf9b9cb593"
+    }
+  ],
+  "presentation": {
+    "broker_picker": "Existing searchable BrokersScreen reused inside guest modal",
+    "login": "Previous standalone login and broker-account layouts and exact StyleSheet objects reused",
+    "demo": "34 prior style blocks, First name and optional Last name combined into v2 name, previous Register action",
+    "contract_adjustments": "Required confirmation remains; obsolete phone and policy override inputs are not restored; server controls select verified directory records",
+    "remember_password": "Existing secure saved-account storage used when selected; no additional credential store"
+  },
+  "checks": {
+    "typescript": "passed",
+    "full_regression": "All 415 test files passed.",
+    "focused_auth_and_broker_tests": "18 passed",
+    "navigation_and_ui_contract_tests": "33 passed",
+    "android_ios_exports": "passed",
+    "style_parity": "Login and broker account style objects exact; 34 demo style blocks exact"
+  },
+  "artifacts": [
+    {
+      "path": ".codex-artifacts\\auth-ui-delivered-20261006\\_expo\\static\\js\\android\\entry-27c2bdde747717f1e6e56908f007c053.hbc",
+      "sha256": "01986622720aacc18b33206d905148aee8727a7c0361edd313741fcd9cdd8928"
+    },
+    {
+      "path": ".codex-artifacts\\auth-ui-delivered-20261006\\_expo\\static\\js\\ios\\entry-bc9d2f9e400d570cef4b398376d66290.hbc",
+      "sha256": "78c999263dc0c0ea79100e0ef97a1813ab5ce3a04a2f834cfa6f10014b347cc6"
+    }
+  ],
+  "logs": [
+    ".codex-auth-ui-final-typecheck.log",
+    ".codex-auth-ui-final-regression.log",
+    ".codex-auth-ui-focused.log",
+    ".codex-auth-ui-contracts.log",
+    ".codex-auth-ui-delivered-bundle.log"
+  ],
+  "validation_limits": [
+    "Device visual/keyboard/orientation/accessibility validation not performed in this followup",
+    "Nexa admin/tunnel checks remain incomplete as recorded in existing delivery report",
+    "No production publication"
+  ]
+}

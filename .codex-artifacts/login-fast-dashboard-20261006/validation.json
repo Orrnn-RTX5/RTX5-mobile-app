@@ -1,0 +1,11 @@
+{
+  "authentication_request_ms": 1697,
+  "dashboard_navigation_requested_ms": 3610,
+  "measurement": "devAuthTiming on actual Android14 device; includes authentication plus secure commit, ends at router.replace call",
+  "first_dashboard_frame": "not independently timed",
+  "video": "login-final.mp4 capture started, scrcpy crashed during recording(finalizationincomplete,moovmissing); no usable video delivered",
+  "typescript": "passed",
+  "regression": "all424testfiles passed",
+  "orders_placed_by_assistant": 0,
+  "changes": "Normal login navigates after secure commit. Account/policy/catalog hydration and ordered metadata/password persistence run in background. Buy/Sell drafts remain hydration gated. Concurrent catalog reads share one request; bootstrap seeds dashboard caches; redundant root reads removed; transient snapshot GETs retryonce guarded by provenance."
+}

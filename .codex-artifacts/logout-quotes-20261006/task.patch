@@ -1,0 +1,1047 @@
+--- before/src/api/ws/publicMarketSocketCore.test.ts
++++ after/src/api/ws/publicMarketSocketCore.test.ts
+@@ -1,10 +1,11 @@
+ import assert from 'node:assert/strict';
+-import test from 'node:test';
++import test, { type TestContext } from 'node:test';
+ import { PublicMarketSocketService } from './publicMarketSocketCore';
+ import { publicBrokerFixture } from '../../testFixtures/publicBroker';
+ import { setPublicBrokerContext } from '../../state/publicBrokerContext';
+ import { useTradingState } from '../../state/tradingState';
+ import { subscribePublicQuoteInvalidation } from '../../state/publicQuoteAvailability';
++import { getPublicMarketStatus } from '../../state/publicMarketStatus';
+ class FakeSocket {
+   readyState = 0; sent: any[] = []; onopen: (() => void) | null = null; onmessage: ((event: any) => void) | null = null; onclose: (() => void) | null = null; onerror: (() => void) | null = null;
+   constructor(public url: string) {}
+@@ -14,6 +15,22 @@
+   close() { this.readyState = 3; this.onclose?.(); }
+ }
+ const settle = () => new Promise<void>(resolve => setImmediate(resolve));
++
++function quoteHarness(t: TestContext, quotes: unknown[] = [], beforeOpen?: (url: string) => void) {
++  const original = fetch;
++  setPublicBrokerContext(publicBrokerFixture());
++  useTradingState.getState().resetSessionMarketData();
++  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 1800000000000 } as any);
++  globalThis.fetch = (async url => new Response(JSON.stringify(String(url).endsWith('/instruments')
++    ? [{ symbol: 'EURUSD.pro', digits: 5 }, { symbol: 'GBPUSD.pro', digits: 5 }] : quotes))) as typeof fetch;
++  const sockets: FakeSocket[] = [];
++  const service = new PublicMarketSocketService({
++    initialActive: true, isGuest: () => true, subscribeGuest: () => () => {}, subscribeVisibility: () => () => {},
++    openSocket: url => { beforeOpen?.(url); const socket = new FakeSocket(url); sockets.push(socket); return socket as unknown as WebSocket; },
++  });
++  t.after(() => { service.dispose(); t.mock.timers.reset(); globalThis.fetch = original; setPublicBrokerContext(null); });
++  return { sockets, service };
++}
+ test('anonymous quotes validate catalog, preserve flags and sequence, heartbeat and resume after reconnect', async t => {
+   const original = fetch; setPublicBrokerContext(publicBrokerFixture());
+   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 1800000000000 } as any);
+@@ -30,7 +47,10 @@
+   sockets[0].message({ symbol: 'EURUSD.pro', bid: 1, ask: 1.1, time_ms: 1800000000000, sequence: '00090071992547409930001', tradable: false, stale: true, market_state: 'delayed' });
+   assert.equal(ticks[0].sequence, '00090071992547409930001'); assert.equal(ticks[0].marketState, 'delayed'); assert.equal(ticks[0].tradable, false);
+   assert.equal(ticks[0].digits, 5);
+-  sockets[0].message({ type: 'snapshot', symbols: [{ symbol: 'EURUSD.pro', has_quote: false }] }); assert.equal(Object.keys(useTradingState.getState().quotes).length, 0);
++  sockets[0].message({ type: 'snapshot', symbols: [{ symbol: 'EURUSD.pro', has_quote: false }] });
++  const retained = useTradingState.getState().quotes['EURUSD.PRO'];
++  assert.equal(retained.bid, 1); assert.equal(retained.ask, 1.1);
++  assert.equal(retained.stale, true); assert.equal(retained.tradable, false);
+   assert.deepEqual(unavailable, ['EURUSD.pro']);
+   t.mock.timers.tick(3000); assert.ok(sockets[0].sent.some(row => row.type === 'ping' && row.timestamp === 1800000003000));
+   sockets[0].close(); t.mock.timers.tick(750); await settle(); assert.equal(sockets.length, 2); sockets[1].open(); assert.deepEqual(sockets[1].sent[0].symbols, ['EURUSD.pro']);
+@@ -56,3 +76,89 @@
+   sockets[0].message({ type: 'error', channel: 'candles.EURUSD.pro.a.M1' }); await settle(); assert.equal(bars.length, 4);
+   unsubscribe(); const count = requests.length; t.mock.timers.tick(30000); await settle(); assert.equal(requests.length, count);
+ });
++
++test('duplicate listeners and changing symbol demand reuse one quote connection', async t => {
++  const { sockets, service } = quoteHarness(t);
++  const first: any[] = []; const second: any[] = [];
++  const stopFirst = service.subscribeToSymbol('EURUSD.pro', tick => first.push(tick));
++  const stopSecond = service.subscribeToSymbol('EURUSD.PRO', tick => second.push(tick));
++  await settle(); assert.equal(sockets.length, 1); const socket = sockets[0]; socket.open();
++  socket.message({ symbol: 'EURUSD.pro', bid: 1, ask: 1.1, time_ms: 1800000000000 });
++  assert.equal(first.length, 1); assert.equal(second.length, 1);
++  const stopThird = service.subscribeToSymbol('EURUSD.pro', () => {});
++  stopFirst(); stopThird(); await settle();
++  assert.equal(sockets.length, 1); assert.equal(socket.readyState, 1);
++  assert.equal(socket.sent.length, 1, 'same-symbol listeners must not resend subscriptions');
++  const stopGbp = service.subscribeToSymbol('GBPUSD.pro', () => {});
++  assert.deepEqual(socket.sent.at(-1), { type: 'subscribe', symbols: ['GBPUSD.pro'] });
++  socket.message({ symbol: 'GBPUSD.pro', bid: 1.3, ask: 1.4, tradable: true, stale: false });
++  stopGbp(); assert.deepEqual(socket.sent.at(-1), { type: 'unsubscribe', symbols: ['GBPUSD.pro'] });
++  assert.equal(useTradingState.getState().quotes['GBPUSD.PRO'].bid, 1.3);
++  assert.equal(useTradingState.getState().quotes['GBPUSD.PRO'].tradable, false);
++  assert.equal(sockets.length, 1); assert.equal(socket.readyState, 1);
++  socket.message({ symbol: 'EURUSD.pro', bid: 1.2, ask: 1.3, time_ms: 1800000001000 });
++  assert.equal(second.length, 2);
++  stopSecond(); assert.equal(socket.readyState, 3);
++});
++
++test('opening and closing candle listeners leaves the quote transport connected', async t => {
++  const { sockets, service } = quoteHarness(t);
++  service.subscribeToSymbol('EURUSD.pro', () => {}); await settle(); sockets[0].open();
++  const stopCandle = service.subscribeCandle('EURUSD.pro', 'M1', () => {});
++  assert.equal(sockets.length, 2); sockets[1].open();
++  const stopDuplicate = service.subscribeCandle('EURUSD.pro', 'M1', () => {});
++  stopDuplicate(); assert.equal(sockets.length, 2); assert.equal(sockets[1].readyState, 1);
++  assert.equal(sockets[1].sent.length, 1);
++  stopCandle(); assert.equal(sockets[1].readyState, 3);
++  assert.equal(sockets[0].readyState, 1); assert.equal(sockets[0].sent.length, 1);
++  t.mock.timers.tick(3000); assert.equal(sockets[0].sent.at(-1).type, 'ping');
++});
++
++test('reconnect retains the newest price without replaying the catalog snapshot or advancing freshness', async t => {
++  const { sockets, service } = quoteHarness(t, [{ symbol: 'EURUSD.pro', bid: 1, ask: 1.1, time_ms: 1799999999000 }]);
++  const ticks: any[] = []; service.subscribeToSymbol('EURUSD.pro', tick => ticks.push(tick)); await settle(); sockets[0].open();
++  assert.equal(ticks.length, 1);
++  sockets[0].message({ symbol: 'EURUSD.pro', bid: 1.2, ask: 1.3, time_ms: 1800000000000, stale: false, tradable: true });
++  const live = useTradingState.getState().quotes['EURUSD.PRO'];
++  sockets[0].close(); t.mock.timers.tick(750); await settle(); sockets[1].open();
++  assert.equal(getPublicMarketStatus(), 'reconnecting');
++  const retained = useTradingState.getState().quotes['EURUSD.PRO'];
++  assert.equal(ticks.length, 2); assert.equal(retained.bid, 1.2); assert.equal(retained.ask, 1.3);
++  assert.equal(retained.lastReceivedAt, live.lastReceivedAt); assert.equal(retained.feedTickAt, live.feedTickAt);
++  assert.equal(retained.stale, true); assert.equal(retained.tradable, false);
++  sockets[1].message({ symbol: 'EURUSD.pro', bid: 1.1, ask: 1.2, time_ms: 1799999999999 });
++  sockets[1].message({ symbol: 'EURUSD.pro', bid: 2, ask: 1, time_ms: 1800000001000 });
++  sockets[1].message({ symbol: 'EURUSD.pro', has_quote: false });
++  assert.equal(ticks.length, 2); assert.equal(useTradingState.getState().quotes['EURUSD.PRO'].bid, 1.2);
++  sockets[1].message({ symbol: 'EURUSD.pro', bid: 1.4, ask: 1.5, time_ms: 1800000001000, stale: false, tradable: true, degraded: false });
++  const fresh = useTradingState.getState().quotes['EURUSD.PRO'];
++  assert.equal(ticks.length, 3); assert.equal(fresh.bid, 1.4); assert.equal(fresh.tradable, true); assert.equal(fresh.stale, false);
++});
++
++test('a socket construction failure during new demand recovers without leaking partial transports', async t => {
++  let failCandleOnce = true;
++  const { sockets, service } = quoteHarness(t, [], url => {
++    if (url.endsWith('/ws/v2') && failCandleOnce) { failCandleOnce = false; throw new Error('temporary native socket failure'); }
++  });
++  service.subscribeToSymbol('EURUSD.pro', () => {}); await settle(); sockets[0].open();
++  assert.doesNotThrow(() => service.subscribeCandle('EURUSD.pro', 'M1', () => {}));
++  assert.equal(sockets[0].readyState, 3);
++  t.mock.timers.tick(750); await settle();
++  assert.equal(sockets.length, 3); assert.ok(sockets[2].url.endsWith('/ws/v2'));
++  sockets[1].open(); sockets[2].open();
++  assert.deepEqual(sockets[1].sent[0].symbols, ['EURUSD.pro']);
++  assert.equal(sockets[2].sent[0].channel, 'candles.EURUSD.pro.M1');
++});
++
++test('broker changes discard retained quotes and reject the old socket callback', async t => {
++  const { sockets, service } = quoteHarness(t);
++  const ticks: any[] = []; service.subscribeToSymbol('EURUSD.pro', tick => ticks.push(tick)); await settle(); sockets[0].open();
++  sockets[0].message({ symbol: 'EURUSD.pro', bid: 1, ask: 1.1, time_ms: 1800000000000 });
++  const lateMessage = sockets[0].onmessage;
++  setPublicBrokerContext(publicBrokerFixture('Other'));
++  assert.equal(sockets[0].readyState, 3); assert.deepEqual(useTradingState.getState().quotes, {});
++  lateMessage?.({ data: JSON.stringify({ symbol: 'EURUSD.pro', bid: 9, ask: 10 }) });
++  assert.equal(ticks.length, 1); assert.deepEqual(useTradingState.getState().quotes, {});
++  await settle(); assert.equal(sockets.length, 2);
++  assert.equal(new URL(sockets[1].url).searchParams.get('broker_id'), 'Other');
++});
+--- before/src/api/ws/publicMarketSocketCore.ts
++++ after/src/api/ws/publicMarketSocketCore.ts
+@@ -5,12 +5,12 @@
+   subscribeVisibility: (listener: (active: boolean) => void) => () => void;
+   openSocket: (url: string) => WebSocket;
+ };
+-import { getOrrnnDemoPublicMarketCatalog, getOrrnnDemoPublicCandles, getOrrnnDemoPublicQuotePayloads, resolvePublicWireSymbol, resolveOrrnnDemoPublicCandleTimeframe } from '../orrnnDemoPublicMarket';
++import { getOrrnnDemoPublicMarketCatalog, getOrrnnDemoPublicCandles, getOrrnnDemoPublicQuotePayloads, resolvePublicWireSymbol, resolveOrrnnDemoPublicCandleTimeframe, type OrrnnDemoPublicCatalog } from '../orrnnDemoPublicMarket';
+ import { normalizeQuoteTickPayload, type QuoteTickEvent } from './quoteTickNormalizer';
+ import { normalizeSymbol } from '../../domain/symbols';
+ import { normalizeLiveCandle } from '../../domain/candles/normalization/candleNormalizer';
+ import type { CandleParams } from '../../domain/candles/stream/liveCandleStream';
+-import { useTradingState, resetQuoteMarketData } from '../../state/tradingState';
++import { useTradingState, resetQuoteMarketData, markQuoteMarketDataUnavailable } from '../../state/tradingState';
+ import { getPublicBrokerContext, isPublicBrokerContextCurrent, subscribePublicBrokerContext, type PublicBrokerContext } from '../../state/publicBrokerContext';
+ import { quoteLatencyMonotonicNow } from '../../market/quoteLatencyMetrics';
+ import { candleChannel, acknowledgedChannels, quoteAcknowledgment } from './publicMarketProtocol';
+@@ -25,6 +25,7 @@
+   private feed: WebSocket | null = null;
+   private candles: WebSocket | null = null;
+   private context: PublicBrokerContext | null = null;
++  private catalog: OrrnnDemoPublicCatalog | null = null;
+   private wireSymbols = new Map<string, string>();
+   private instrumentMetadata = new Map<string, Record<string, unknown>>();
+   private acknowledged = new Set<string>();
+@@ -35,47 +36,82 @@
+   private catalogController: AbortController | null = null;
+   private lifecycle = 0;
+   private retries = 0;
++  private hasReceivedQuote = false;
+   private lastFeedMessage = 0;
+   private lastCandleMessage = 0;
+   private subscribedAt = 0;
+   private disposers: (() => void)[] = [];
+   constructor(private readonly runtime: PublicMarketSocketRuntime) {
+     this.active = runtime.initialActive;
+-    this.disposers.push(runtime.subscribeVisibility(active => { this.active = active; if (!active) setPublicMarketStatus('offline'); this.restart(); }));
+-    this.disposers.push(subscribePublicBrokerContext(() => { this.stop(); this.wireSymbols.clear(); resetQuoteMarketData(); void this.connect(); }));
+-    this.disposers.push(runtime.subscribeGuest(() => this.restart()));
++    this.disposers.push(runtime.subscribeVisibility(active => { if (active === this.active) return; this.active = active; if (!active) setPublicMarketStatus('offline'); this.restart(); }));
++    this.disposers.push(subscribePublicBrokerContext(() => { this.stop(); this.catalog = null; this.wireSymbols.clear(); this.retries = 0; this.hasReceivedQuote = false; resetQuoteMarketData(); void this.connect(); }));
++    this.disposers.push(runtime.subscribeGuest(() => this.reconcileDemand()));
+   }
+   private hasDemand() { return this.quoteListeners.size > 0 || this.candleListeners.size > 0; }
+   private eligible() { return this.active && this.runtime.isGuest() && Boolean(getPublicBrokerContext()) && this.hasDemand(); }
+   private restart() { this.stop(); void this.connect(); }
++  /** Listener changes update subscriptions in place; they are not transport failures. */
++  private reconcileDemand() {
++    try { this.updateDemand(); }
++    catch { this.stop(); setPublicMarketStatus('offline'); this.scheduleReconnect(); }
++  }
++  private updateDemand() {
++    if (!this.eligible()) { this.stop(); return; }
++    if (this.connecting || this.reconnect) return;
++    const context = this.context;
++    const catalog = this.catalog;
++    if (!context || !catalog || !isPublicBrokerContextCurrent(context)) { void this.connect(); return; }
++    const previous = new Set(this.wireSymbols.values());
++    this.wireSymbols.clear();
++    for (const symbol of this.quoteListeners.keys()) {
++      const wire = resolvePublicWireSymbol(symbol, catalog);
++      if (wire) this.wireSymbols.set(symbol, wire);
++    }
++    const next = new Set(this.wireSymbols.values());
++    const removed = [...previous].filter(symbol => !next.has(symbol));
++    const added = [...next].filter(symbol => !previous.has(symbol));
++    for (const symbol of removed) { this.acknowledged.delete(symbol); this.markUnavailable(symbol); }
++    if (!next.size) { this.closeSocket(this.feed); this.feed = null; }
++    else if (!this.feed) {
++      const url = new URL(context.feedWsBase); url.searchParams.set('broker_id', context.feedBrokerId);
++      this.subscribedAt = this.lastFeedMessage = Date.now();
++      this.feed = this.open(url.toString(), context, 'feed');
++    } else if (this.feed.readyState === 1) {
++      if (removed.length) this.feed.send(JSON.stringify({ type: 'unsubscribe', symbols: removed }));
++      if (added.length) { this.subscribedAt = Date.now(); this.feed.send(JSON.stringify({ type: 'subscribe', symbols: added })); }
++    }
++    const addedCandles: CandleDemand[] = [];
++    for (const demand of this.candleListeners.values()) {
++      if (demand.valid !== undefined) continue;
++      const wire = resolvePublicWireSymbol(demand.symbol, catalog);
++      demand.valid = Boolean(wire);
++      if (wire) { demand.symbol = wire; addedCandles.push(demand); }
++    }
++    if (![...this.candleListeners.values()].some(demand => demand.valid)) { this.closeSocket(this.candles); this.candles = null; }
++    else if (!this.candles) { this.lastCandleMessage = Date.now(); this.candles = this.open(context.candleWsBase, context, 'candles'); }
++    else for (const demand of addedCandles) this.sendCandle('subscribe', demand);
++    // The catalog snapshot only seeds missing prices, never replays over live data.
++    for (const row of catalog.quotes) this.publish(row, 'rest_snapshot');
++    if ((this.feed || this.candles) && !this.timer) this.timer = setInterval(() => this.watch(), 3000);
++    else if (!this.feed && !this.candles && this.timer) { clearInterval(this.timer); this.timer = null; }
++  }
+   connect = async (): Promise<void> => {
+     if (!this.eligible() || this.connecting || this.feed || this.candles) return;
+     const context = getPublicBrokerContext()!; this.context = context; this.connecting = true;
+-    setPublicMarketStatus(this.retries > 0 ? 'reconnecting' : 'loading');
++    setPublicMarketStatus(this.hasReceivedQuote || this.retries > 0 ? 'reconnecting' : 'loading');
+     const lifecycle = this.lifecycle;
+     const controller = new AbortController(); this.catalogController = controller;
+     try {
+       const catalog = await getOrrnnDemoPublicMarketCatalog(controller.signal);
+       if (!this.eligible() || !isPublicBrokerContextCurrent(context) || this.context !== context || lifecycle !== this.lifecycle) return;
+-      this.wireSymbols.clear();
++      this.catalog = catalog;
+       this.instrumentMetadata = new Map(catalog.instruments.map(row => [String(row.symbol), row]));
+-      for (const symbol of this.quoteListeners.keys()) { const wire = resolvePublicWireSymbol(symbol, catalog); if (wire) this.wireSymbols.set(symbol, wire); }
+-      for (const demand of this.candleListeners.values()) {
+-        const wire = resolvePublicWireSymbol(demand.symbol, catalog);
+-        demand.valid = Boolean(wire);
+-        if (wire) demand.symbol = wire;
+-      }
+-      this.subscribedAt = this.lastFeedMessage = this.lastCandleMessage = Date.now();
+-      // Snapshot delivery uses the same precision metadata and availability flags; never invent prices.
+-      for (const row of catalog.quotes) this.publish(row, 'rest_snapshot');
+-      if (this.wireSymbols.size) {
+-        const url = new URL(context.feedWsBase); url.searchParams.set('broker_id', context.feedBrokerId);
+-        this.feed = this.open(url.toString(), context, 'feed');
+-      }
+-      if ([...this.candleListeners.values()].some(demand => demand.valid)) this.candles = this.open(context.candleWsBase, context, 'candles');
+-      if (!this.feed && !this.candles) return;
+-      this.timer = setInterval(() => this.watch(), 3000);
+-    } catch { if (lifecycle === this.lifecycle) { setPublicMarketStatus('offline'); this.scheduleReconnect(); } } finally { if (this.catalogController === controller) this.catalogController = null; this.connecting = false; if (!this.feed && !this.candles && this.eligible()) this.scheduleReconnect(); }
++      this.connecting = false;
++      this.reconcileDemand();
++    } catch { if (lifecycle === this.lifecycle) { this.stop(); setPublicMarketStatus('offline'); this.scheduleReconnect(); } } finally {
++      if (this.catalogController === controller) this.catalogController = null;
++      if (lifecycle === this.lifecycle) this.connecting = false;
++    }
+   };
+   private open(url: string, context: PublicBrokerContext, kind: 'feed' | 'candles'): WebSocket {
+     const socket = this.runtime.openSocket(url);
+@@ -118,9 +154,7 @@
+     return socket;
+   }
+   private markUnavailable(symbol: string) {
+-    const store = useTradingState.getState();
+-    const key = normalizeSymbol(symbol);
+-    useTradingState.setState({ quotes: Object.fromEntries(Object.entries(store.quotes).filter(([candidate]) => normalizeSymbol(candidate) !== key)) });
++    markQuoteMarketDataUnavailable(symbol);
+     invalidatePublicQuote(symbol);
+   }
+   private publish(payload: unknown, transport: 'websocket' | 'rest_snapshot') {
+@@ -129,8 +163,13 @@
+     if (row.broker_id !== undefined && row.broker_id !== this.context?.feedBrokerId) return;
+     const raw = String(row.symbol ?? '');
+     if (![...this.wireSymbols.values()].includes(raw)) return;
++    const retained = useTradingState.getState().quotes[normalizeSymbol(raw)];
++    if (transport === 'rest_snapshot' && retained) return;
+     if (row.has_quote === false) { this.markUnavailable(raw); return; }
+     const result = normalizeQuoteTickPayload({ ...this.instrumentMetadata.get(raw), ...row }, Date.now()); if (!result.ok) return;
++    if (result.update.timestampSource === 'feed' && retained?.feedTickAt !== undefined &&
++        result.update.timestamp !== undefined && result.update.timestamp !== null && result.update.timestamp < retained.feedTickAt) return;
++    this.hasReceivedQuote = true;
+     if (transport === 'websocket' && this.acknowledged.has(raw)) setPublicMarketStatus('live');
+     const update = result.update;
+     const tick: QuoteTickEvent = { ...update, symbol: update.symbol, bid: update.bid, ask: update.ask,
+@@ -183,31 +222,36 @@
+   subscribeToSymbols(symbols: readonly string[], listener: QuoteListener): () => void {
+     const keys = [...new Set(symbols.map(normalizeSymbol).filter(Boolean))];
+     for (const key of keys) { const set = this.quoteListeners.get(key) ?? new Set(); set.add(listener); this.quoteListeners.set(key, set); }
+-    this.restart();
+-    return () => { for (const key of keys) { const set = this.quoteListeners.get(key); set?.delete(listener); if (!set?.size) this.quoteListeners.delete(key); } this.restart(); };
++    this.reconcileDemand();
++    return () => { for (const key of keys) { const set = this.quoteListeners.get(key); set?.delete(listener); if (!set?.size) this.quoteListeners.delete(key); } this.reconcileDemand(); };
+   }
+   subscribeToSymbol(symbol: string, listener: QuoteListener) { return this.subscribeToSymbols([symbol], listener); }
+   subscribeCandle(symbol: string, timeframe: string, listener: OrrnnDemoPublicCandleListener): () => void {
+     const tf = resolveOrrnnDemoPublicCandleTimeframe(timeframe); if (!tf) return () => {};
+     const key = normalizeSymbol(symbol) + '|' + tf;
+     const demand = this.candleListeners.get(key) ?? { symbol, tf, listeners: new Set(), ack: false, rejected: false };
+-    demand.listeners.add(listener); this.candleListeners.set(key, demand); this.restart();
+-    return () => { demand.listeners.delete(listener); if (!demand.listeners.size) { this.sendCandle('unsubscribe', demand); demand.controller?.abort(); this.candleListeners.delete(key); } this.restart(); };
++    demand.listeners.add(listener); this.candleListeners.set(key, demand); this.reconcileDemand();
++    return () => { demand.listeners.delete(listener); if (!demand.listeners.size) { this.sendCandle('unsubscribe', demand); demand.controller?.abort(); this.candleListeners.delete(key); } this.reconcileDemand(); };
+   }
+   dispose() { this.stop(); this.disposers.forEach(dispose => dispose()); this.quoteListeners.clear(); this.candleListeners.clear(); }
++  private closeSocket(socket: WebSocket | null) {
++    if (!socket) return;
++    socket.onopen = socket.onmessage = socket.onclose = socket.onerror = null;
++    if (socket.readyState === 1 || socket.readyState === 0) socket.close();
++  }
+   private stop() {
+     this.lifecycle += 1;
++    if (this.context && isPublicBrokerContextCurrent(this.context) && this.runtime.isGuest()) {
++      for (const wire of this.wireSymbols.values()) this.markUnavailable(wire);
++    }
+     this.context = null;
++    this.connecting = false;
+     this.catalogController?.abort(); this.catalogController = null;
+     if (this.timer) clearInterval(this.timer); this.timer = null;
+     if (this.reconnect) clearTimeout(this.reconnect); this.reconnect = null;
+     this.acknowledged.clear();
+-    for (const demand of this.candleListeners.values()) { demand.ack = false; demand.controller?.abort(); }
+-    for (const socket of [this.feed, this.candles]) {
+-      if (!socket) continue;
+-      socket.onopen = socket.onmessage = socket.onclose = socket.onerror = null;
+-      if (socket.readyState === 1 || socket.readyState === 0) socket.close();
+-    }
++    for (const demand of this.candleListeners.values()) { demand.ack = false; demand.valid = undefined; demand.controller?.abort(); }
++    for (const socket of [this.feed, this.candles]) this.closeSocket(socket);
+     this.feed = this.candles = null;
+   }
+ }
+--- before/src/api/ws/quotesSocket/QuotesWebSocketService.ts
++++ after/src/api/ws/quotesSocket/QuotesWebSocketService.ts
+@@ -78,7 +78,7 @@
+   setLiveQuoteSocketConnected,
+ } from '../../../market/marketDataTelemetry';
+ import { resolveNextReconnectAttempt } from '../reconnectBackoff';
+-import { resetQuoteMarketData } from '../../../state/tradingState';
++import { markQuoteMarketDataUnavailable } from '../../../state/tradingState';
+ import { redactMarketSocketUrl } from './quoteSocketDiagnostics';
+ 
+ const shouldLogCandleDiagnostics = (): boolean =>
+@@ -277,7 +277,8 @@
+       // A credential refresh advances the feed generation while keeping the
+       // account/session cache namespace. Old websocket quotes must become
+       // immediately ineligible until the replacement socket proves itself.
+-      resetQuoteMarketData();
++      // Keep their last prices and timestamps painted during that handoff.
++      markQuoteMarketDataUnavailable();
+       this.socketResolutionGeneration += 1;
+       this.isResolvingSocketUrl = false;
+       this.pendingBrokerMarketBlockReason = null;
+--- before/src/api/ws/socketLifecycleIntegritySource.test.ts
++++ after/src/api/ws/socketLifecycleIntegritySource.test.ts
+@@ -73,6 +73,8 @@
+   assert.match(quotes, /subscribeActiveBrokerSession/);
+   assert.match(quotes, /event\.type !== 'credentials_updated'/);
+   assert.match(quotes, /reportFeedCredentialsRefreshed\(identity\)/);
++  assert.match(quotes, /markQuoteMarketDataUnavailable\(\)/);
++  assert.doesNotMatch(quotes, /resetQuoteMarketData\(\)/);
+   assert.match(quotes, /this\.shouldReconnect = this\.hasActiveDemand\(\)/);
+   // Contract v3: /ws/feed has no token, so there is no rejected-URL latch and
+   // no forced access-token refresh from the quote socket.
+--- before/src/features/auth/GuestFlowHost.tsx
++++ after/src/features/auth/GuestFlowHost.tsx
+@@ -50,11 +50,17 @@
+   else if (flow.screen === 'guest' || flow.screen === 'ready') loginVariant.current = 'login';
+   const authorization = useRef<BrokerSessionCommitAuthorization | null>(null);
+   const committedNamespace = useRef<string | null>(null);
+-  const submitting = useRef(false);
++  const submitting = useRef<number | null>(null);
+   const busy = flow.screen === 'submitting' || flow.screen === 'hydrating';
+   const visible = !['guest', 'ready'].includes(flow.screen);
+   useEffect(() => subscribeAuthFlow(() => {
+-    if (getAuthFlowState().screen === 'guest') cancelBrokerSessionCommitAuthorization(authorization.current);
++    if (getAuthFlowState().screen !== 'guest') return;
++    cancelBrokerSessionCommitAuthorization(authorization.current);
++    authorization.current = null;
++    committedNamespace.current = null;
++    submitting.current = null;
++    setName(''); setIdentity(''); setPassword(''); setConfirmation('');
++    setLocalError(''); setAmbiguous(false);
+   }), []);
+   useEffect(() => () => { cancelBrokerSessionCommitAuthorization(authorization.current); dismissAuthFlow(); }, []);
+   useEffect(() => {
+@@ -63,8 +69,9 @@
+     // Child entry effects can open the modal before this route effect runs.
+     // Keep both steps of that owned handoff; unrelated navigation still cancels.
+     if (retainAuthEntryHandoff(pathname)) return;
++    const committed = committedNamespace.current;
+     dismissAuthFlow(); cancelBrokerSessionCommitAuthorization(authorization.current);
+-    if (committedNamespace.current) { committedNamespace.current = null; void logoutBrokerSession(); }
++    if (committed && captureActiveBrokerSession()?.session.cacheNamespace === committed) void logoutBrokerSession();
+   }, [pathname]);
+   useEffect(() => {
+     if (!directory.data) return;
+@@ -117,8 +124,8 @@
+     catch (error) { setLocalError((error as Error).message); return; }
+     const operation = beginAuthSubmission(); if (!operation) return;
+     Keyboard.dismiss();
+-    submitting.current = true; setLocalError('');
+     const attempt = operation.state.attempt; const selected = operation.state.context!;
++    submitting.current = attempt; setLocalError('');
+     authorization.current = authorizeBrokerSessionCommit();
+     const submittedPassword = passwordValue.current; const submittedRemember = rememberValue.current;
+     const authStartedAt = Date.now();
+@@ -160,8 +167,12 @@
+         },
+       }, authorization.current);
+       if (didNavigate) return;
++      if (!isAuthAttemptCurrent(attempt)) {
++        // A cancelled response must never sign out a newer account/login.
++        if (captureActiveBrokerSession()?.session.cacheNamespace === capture.session.cacheNamespace) await logoutBrokerSession();
++        return;
++      }
+       committedNamespace.current = capture.session.cacheNamespace;
+-      if (!isAuthAttemptCurrent(attempt)) { await logoutBrokerSession(); return; }
+       const hydrated = await (hydration ?? bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(capture.session), waitFor: 'trading' }));
+       if (!isAuthAttemptCurrent(attempt)) return;
+       if (!acceptTradingHydration(capture.session.cacheNamespace, hydrated.me, hydrated.accounts, hydrated.instruments)) throw new Error('Account policy or authorized symbols could not be loaded. Trading remains disabled.');
+@@ -181,7 +192,7 @@
+       if (!isAuthAttemptCurrent(attempt)) return;
+       if (error instanceof GuestAuthError) { setRetryAt(error.retryAt); setRateForm(operation.state.form); setAmbiguous(error.ambiguous); }
+       setAuthProgress(attempt, 'recoverable-error', error instanceof Error ? error.message : 'Authentication could not be completed.');
+-    } finally { submitting.current = false; }
++    } finally { if (submitting.current === attempt) submitting.current = null; }
+   };
+   const changeBroker = () => { close(); setPublicBrokerContext(null); useUserPreferences.getState().setBrokerConnection('', ''); };
+   const selectedRecord = directory.data?.selectableServers.find(row => row.broker_id === flow.context?.brokerId && row.market_api_url === flow.context?.apiBase)
+--- before/src/features/quotes/quoteSnapshotContinuity.test.ts
++++ after/src/features/quotes/quoteSnapshotContinuity.test.ts
+@@ -0,0 +1,71 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { resolveQuoteActionAvailability } from '../../market/quoteIntegrity';
++import { applyLiveQuoteTickToSnapshot, type LiveQuoteSnapshot } from './liveQuoteSnapshot';
++import { markQuoteSnapshotUnavailable, QuoteSnapshotContinuity } from './quoteSnapshotContinuity';
++
++const now = 1_800_000_000_000;
++const quote: LiveQuoteSnapshot = {
++  symbol: 'EURUSD.PRO', bid: 1.12, ask: 1.1202, digits: 5,
++  transport: 'websocket', stale: false, tradable: true, degraded: false,
++  lastReceivedAt: now, lastTickAt: now, feedTickAt: now, updateSeq: 17,
++};
++const scope = { sessionKey: 'broker:account:activation-1', credentialKey: 'token-1' };
++
++test('same-session token rotation retains actual prices but rejects execution until a new tick', () => {
++  const cache = new QuoteSnapshotContinuity();
++  cache.retain(scope, quote.symbol, quote);
++  assert.equal(cache.read(scope, quote.symbol), quote);
++  const rotated = { ...scope, credentialKey: 'token-2' };
++  const retained = cache.read(rotated, quote.symbol)!;
++  assert.equal(retained.bid, quote.bid);
++  assert.equal(retained.ask, quote.ask);
++  assert.equal(retained.lastReceivedAt, now);
++  assert.equal(retained.feedTickAt, now);
++  assert.equal(retained.updateSeq, 17);
++  assert.equal(retained.stale, true);
++  assert.equal(retained.tradable, false);
++  assert.equal(retained.degraded, true);
++  assert.equal(resolveQuoteActionAvailability(retained, now).allowed, false);
++  const fresh = applyLiveQuoteTickToSnapshot(quote.symbol, retained, {
++    symbol: quote.symbol, bid: 1.13, ask: 1.1302, transport: 'websocket',
++    tradable: true, stale: false, degraded: false, timestamp: now + 1,
++    feedTickAt: now + 1, receivedAt: now + 1,
++  }, 18)!;
++  cache.retain(rotated, quote.symbol, fresh);
++  assert.equal(cache.read(rotated, quote.symbol), fresh);
++  assert.equal(fresh.bid, 1.13);
++  assert.equal(fresh.stale, false);
++});
++
++test('broker/account activation changes, logout, and explicit reset discard retained prices', () => {
++  const cache = new QuoteSnapshotContinuity();
++  cache.retain(scope, quote.symbol, quote);
++  assert.equal(cache.read({ ...scope, sessionKey: 'another-activation' }, quote.symbol), undefined);
++  assert.equal(cache.read(scope, quote.symbol), undefined);
++  cache.retain(scope, quote.symbol, quote);
++  assert.equal(cache.read({ sessionKey: '', credentialKey: '' }, quote.symbol), undefined);
++  assert.equal(cache.read(scope, quote.symbol), undefined);
++  cache.retain(scope, quote.symbol, quote);
++  cache.clear();
++  assert.equal(cache.read(scope, quote.symbol), undefined);
++});
++
++test('invalid quote values cannot replace the retained valid price and exact symbols remain separate', () => {
++  const cache = new QuoteSnapshotContinuity();
++  cache.retain(scope, quote.symbol, quote);
++  for (const invalid of [undefined, { ...quote, bid: Number.NaN }, { ...quote, bid: 0 }, { ...quote, ask: 1 }]) {
++    cache.retain(scope, quote.symbol, invalid);
++    assert.equal(cache.read(scope, quote.symbol), quote);
++  }
++  assert.equal(cache.read(scope, 'EURUSD'), undefined);
++  assert.equal(cache.read(scope, 'EURUSD.PRO.A'), undefined);
++});
++
++test('an unavailable update changes flags without manufacturing or erasing any price or timestamp', () => {
++  assert.equal(markQuoteSnapshotUnavailable(undefined), undefined);
++  const retained = markQuoteSnapshotUnavailable(quote)!;
++  assert.deepEqual(retained, { ...quote, stale: true, tradable: false, degraded: true });
++  assert.equal(resolveQuoteActionAvailability(retained, now).allowed, false);
++  assert.equal(quote.stale, false);
++});
+--- before/src/features/quotes/quoteSnapshotContinuity.ts
++++ after/src/features/quotes/quoteSnapshotContinuity.ts
+@@ -0,0 +1,59 @@
++import type { LiveQuoteSnapshot } from './liveQuoteSnapshot';
++
++export type QuoteSnapshotDisplayScope = Readonly<{
++  sessionKey: string;
++  credentialKey: string;
++}>;
++
++/** Preserve the last real prices without renewing their execution eligibility. */
++export const markQuoteSnapshotUnavailable = (
++  quote: LiveQuoteSnapshot | undefined,
++): LiveQuoteSnapshot | undefined => quote && ({
++  ...quote,
++  stale: true,
++  tradable: false,
++  degraded: true,
++});
++
++/**
++ * Memory-only continuity for an in-place token rotation. Account, broker, and
++ * activation changes use another session key and can never reuse these prices.
++ */
++export class QuoteSnapshotContinuity {
++  private sessionKey = '';
++  private snapshots = new Map<string, {
++    credentialKey: string;
++    quote: LiveQuoteSnapshot;
++  }>();
++
++  private selectSession(scope: QuoteSnapshotDisplayScope): boolean {
++    if (this.sessionKey !== scope.sessionKey) {
++      this.clear();
++      this.sessionKey = scope.sessionKey;
++    }
++    return Boolean(scope.sessionKey && scope.credentialKey);
++  }
++
++  retain(scope: QuoteSnapshotDisplayScope, symbol: string, quote: LiveQuoteSnapshot | undefined): void {
++    if (!this.selectSession(scope) || !quote ||
++      typeof quote.bid !== 'number' || !Number.isFinite(quote.bid) || quote.bid <= 0 ||
++      typeof quote.ask !== 'number' || !Number.isFinite(quote.ask) || quote.ask < quote.bid) {
++      return;
++    }
++    this.snapshots.set(symbol, { credentialKey: scope.credentialKey, quote });
++  }
++
++  read(scope: QuoteSnapshotDisplayScope, symbol: string): LiveQuoteSnapshot | undefined {
++    if (!this.selectSession(scope)) return undefined;
++    const retained = this.snapshots.get(symbol);
++    if (!retained) return undefined;
++    return retained.credentialKey === scope.credentialKey
++      ? retained.quote
++      : markQuoteSnapshotUnavailable(retained.quote);
++  }
++
++  clear(): void {
++    this.sessionKey = '';
++    this.snapshots.clear();
++  }
++}
+--- before/src/features/quotes/quotesLiveFeedSource.test.ts
++++ after/src/features/quotes/quotesLiveFeedSource.test.ts
+@@ -146,7 +146,7 @@
+   assert.match(liveQuotesSource, /const notifySymbolImmediately = \(symbol: string\): void => \{[\s\S]*pendingNotifySymbols\.delete\(symbol\);[\s\S]*notifySymbol\(symbol\);[\s\S]*\}/);
+   assert.match(liveQuotesSource, /export const ingestLiveQuoteTick = \(tick: QuoteTickEvent, notifyImmediately = true\): void =>/);
+   assert.match(liveQuotesSource, /scheduleSymbolNotification\(scopedKey, notifyImmediately\)/);
+-  assert.match(liveQuotesSource, /export function useLiveQuoteSubscription\(symbol: string, active: boolean\): void \{[\s\S]*const socket = cacheNamespace === ORRNN_DEMO_PUBLIC_CACHE_NAMESPACE[\s\S]*socket\.subscribeToSymbol\(symbol, \(tick\) => \{[\s\S]*transport: 'websocket'/);
++  assert.match(liveQuotesSource, /export function useLiveQuoteSubscription\(symbol: string, active: boolean\): void \{[\s\S]*const socket = cacheNamespace === ORRNN_DEMO_PUBLIC_CACHE_NAMESPACE[\s\S]*socket\.subscribeToSymbol\(symbol, \(tick\) => \{[\s\S]*transport: tick\.transport \?\? 'websocket'/);
+   const watchlistHookStart = liveQuotesSource.indexOf('export function useWatchlistLiveQuotes');
+   const snapshotHookStart = liveQuotesSource.indexOf('export function useLiveQuoteSnapshot', watchlistHookStart);
+   assert.notEqual(watchlistHookStart, -1);
+@@ -162,7 +162,7 @@
+     /subscriptionSymbols\.map\(\(symbol\) =>[\s\S]*quotesWsService\.subscribeToSymbol\(symbol, listener\)/,
+   );
+   assert.match(watchlistHookSource, /unsubscribers\.forEach\(\(unsubscribe\) => unsubscribe\(\)\)/);
+-  assert.match(watchlistHookSource, /ingestLiveQuoteTick\(\{ \.\.\.tick, transport: 'websocket' \}, true\)/);
++  assert.match(watchlistHookSource, /ingestLiveQuoteTick\(\{ \.\.\.tick, transport: tick\.transport \?\? 'websocket' \}, true\)/);
+   assert.match(watchlistHookSource, /useRestQuoteSnapshotRepair\([\s\S]*normalizedSymbols,[\s\S]*cacheNamespace === ORRNN_DEMO_PUBLIC_CACHE_NAMESPACE[\s\S]*false[\s\S]*options\?\.restFallbackActive \?\? active,[\s\S]*cacheNamespace/);
+   assert.match(watchlistHookSource, /return active && cacheNamespace \? subscriptionSymbols : \[\]/);
+   assert.doesNotMatch(watchlistHookSource, /addTickListener/);
+--- before/src/features/quotes/resetQuoteRuntimeState.test.ts
++++ after/src/features/quotes/resetQuoteRuntimeState.test.ts
+@@ -12,6 +12,7 @@
+ 
+   assert.match(snapshotsSource, /export const resetLiveQuoteSnapshotRuntimeState/);
+   assert.match(snapshotsSource, /snapshotsBySymbol\.clear\(\)/);
++  assert.match(snapshotsSource, /quoteSnapshotContinuity\.clear\(\)/);
+   assert.match(snapshotsSource, /listenersBySymbol\.clear\(\)/);
+   assert.match(snapshotsSource, /pendingNotifySymbols\.clear\(\)/);
+   assert.match(snapshotsSource, /clearTimeout\(notifyTimer\)/);
+--- before/src/features/quotes/useLiveQuotes.ts
++++ after/src/features/quotes/useLiveQuotes.ts
+@@ -27,6 +27,7 @@
+ import { subscribeQuoteSnapshotReconcile } from '../../market/quoteSnapshotReconcileRuntime';
+ import { subscribePublicBrokerContext } from '../../state/publicBrokerContext';
+ import { subscribePublicQuoteInvalidation } from '../../state/publicQuoteAvailability';
++import { markQuoteSnapshotUnavailable, QuoteSnapshotContinuity } from './quoteSnapshotContinuity';
+ import {
+   applyLiveQuoteTickToSnapshot,
+   buildInitialLiveQuoteSnapshot,
+@@ -38,6 +39,7 @@
+ type SnapshotListener = () => void;
+ 
+ const snapshotsBySymbol = new Map<string, LiveQuoteSnapshot | undefined>();
++const quoteSnapshotContinuity = new QuoteSnapshotContinuity();
+ const listenersBySymbol = new Map<string, Set<SnapshotListener>>();
+ const pendingNotifySymbols = new Set<string>();
+ let updateSeq = 0;
+@@ -70,6 +72,16 @@
+     return '';
+   })();
+ 
++const getQuoteDisplayScope = () => ({
++  // The active namespace is unique to an activation; rotating its token is the
++  // only boundary allowed to retain display prices. Public configuration has
++  // its own generation-scoped namespace and never shares authenticated data.
++  sessionKey: isOrrnnDemoPublicMarketSelection(useUserPreferences.getState())
++    ? ORRNN_DEMO_PUBLIC_CACHE_NAMESPACE
++    : captureActiveBrokerSession()?.session.cacheNamespace ?? '',
++  credentialKey: getQuoteCacheNamespace(),
++});
++
+ const subscribeQuoteCacheNamespace = (listener: () => void): (() => void) => {
+   const unsubscribePublic = subscribePublicBrokerContext(listener);
+   const unsubscribeSession = subscribeActiveBrokerSession(() => listener());
+@@ -186,7 +198,11 @@
+   if (!isOrrnnDemoPublicMarketSelection(useUserPreferences.getState())) return;
+   for (const key of getSnapshotKeys(symbol)) {
+     const scopedKey = scopeQuoteSnapshotKey(key);
+-    snapshotsBySymbol.delete(scopedKey);
++    const retained = markQuoteSnapshotUnavailable(
++      snapshotsBySymbol.get(scopedKey) ?? getStateQuote(key),
++    );
++    snapshotsBySymbol.set(scopedKey, retained);
++    quoteSnapshotContinuity.retain(getQuoteDisplayScope(), key, retained);
+     notifySymbolImmediately(scopedKey);
+   }
+ });
+@@ -230,10 +246,14 @@
+   if (!normalizedSymbol || !scopedKey) return undefined;
+ 
+   if (!snapshotsBySymbol.has(scopedKey)) {
++    const displayScope = getQuoteDisplayScope();
++    const snapshot = quoteSnapshotContinuity.read(displayScope, normalizedSymbol)
++      ?? getStateQuote(normalizedSymbol);
+     snapshotsBySymbol.set(
+       scopedKey,
+-      getStateQuote(normalizedSymbol),
++      snapshot,
+     );
++    quoteSnapshotContinuity.retain(displayScope, normalizedSymbol, snapshot);
+   }
+ 
+   return snapshotsBySymbol.get(scopedKey);
+@@ -324,6 +344,7 @@
+   const nextUpdateSeq = ++updateSeq;
+   const next = applyLiveQuoteTickToSnapshot(symbol, previous, tick, nextUpdateSeq);
+   snapshotsBySymbol.set(scopedKey, next);
++  quoteSnapshotContinuity.retain(getQuoteDisplayScope(), symbol, next);
+   if (tick.transport === 'websocket' && next?.updateSeq === nextUpdateSeq) {
+     recordQuoteCacheCommit({
+       sessionKey: getQuoteCacheNamespace(),
+@@ -624,7 +645,7 @@
+       ? orrnnDemoPublicMarketSocket
+       : quotesWsService;
+     return socket.subscribeToSymbol(symbol, (tick) => {
+-      ingestLiveQuoteTick({ ...tick, transport: 'websocket' });
++      ingestLiveQuoteTick({ ...tick, transport: tick.transport ?? 'websocket' });
+     });
+   }, [active, cacheNamespace, symbol, symbolKeysKey]);
+ }
+@@ -661,7 +682,7 @@
+         return;
+       }
+ 
+-      ingestLiveQuoteTick({ ...tick, transport: 'websocket' }, true);
++      ingestLiveQuoteTick({ ...tick, transport: tick.transport ?? 'websocket' }, true);
+     };
+ 
+     if (cacheNamespace === ORRNN_DEMO_PUBLIC_CACHE_NAMESPACE) {
+@@ -829,6 +850,7 @@
+   snapshotPauseTimers.forEach((timer) => clearTimeout(timer));
+   snapshotPauseTimers.clear();
+   snapshotsBySymbol.clear();
++  quoteSnapshotContinuity.clear();
+   listenersBySymbol.clear();
+   pendingNotifySymbols.clear();
+   snapshotNotificationPauseDepth = 0;
+--- before/src/features/settings/SettingsScreen/LogoutConfirmation.tsx
++++ after/src/features/settings/SettingsScreen/LogoutConfirmation.tsx
+@@ -12,8 +12,11 @@
+   onConfirm: () => void;
+ }) {
+   const { t } = useTranslation();
++  // Remove the native dialog before the Login modal is presented. Retaining a
++  // fading Modal across logout can leave its native layer above the new page.
++  if (!visible) return null;
+   return (
+-    <Modal {...OVERLAY_MODAL_PROPS} visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
++    <Modal {...OVERLAY_MODAL_PROPS} visible transparent animationType="none" onRequestClose={onCancel}>
+       <SafeAreaProvider>
+         <SafeAreaView style={styles.overlay}>
+           <FastPressable
+--- before/src/features/settings/SettingsScreen/SettingsScreen.tsx
++++ after/src/features/settings/SettingsScreen/SettingsScreen.tsx
+@@ -22,7 +22,7 @@
+   View,
+ } from 'react-native';
+ import { LinearGradient } from 'expo-linear-gradient';
+-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
++import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+ import { useShallow } from 'zustand/shallow';
+ import { useNextFrameValue } from '../../../hooks/useNextFrameValue';
+ import { Screen } from '../../../ui/components/Screen';
+@@ -50,6 +50,8 @@
+ import { hasAuthenticatedAccountSession } from '../accountConnectionStatus';
+ import { SettingRow } from './SettingRow';
+ import { LogoutConfirmation } from './LogoutConfirmation';
++import { createLogoutConfirmationController } from './logoutConfirmationController';
++import { captureActiveBrokerSession, subscribeActiveBrokerSession } from '../../../state/activeBrokerSession';
+ import { makeSettingsStyles } from './styles';
+ import { resolveSettingsAccountEnvironment, SETTINGS_ACCOUNT_ENVIRONMENT_BADGES } from './accountEnvironmentBadge';
+ import { useDeferredActiveFlag } from '../../../hooks/useDeferredActiveFlag';
+@@ -263,35 +265,34 @@
+   const [searchQuery, setSearchQuery] = useState('');
+   const routeLockRef = useRef(false);
+   const routeUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+-  const [logoutConfirmationVisible, setLogoutConfirmationVisible] = useState(false);
+-  const logoutConfirmationActiveRef = useRef(false);
+-  const cancelLogout = () => {
+-    logoutConfirmationActiveRef.current = false;
+-    setLogoutConfirmationVisible(false);
+-  };
++  const [logoutConfirmation] = useState(createLogoutConfirmationController);
++  const logoutConfirmationSession = useSyncExternalStore(
++    logoutConfirmation.subscribe,
++    logoutConfirmation.getSnapshot,
++    logoutConfirmation.getSnapshot,
++  );
++  const cancelLogout = logoutConfirmation.dismiss;
+   useEffect(() => {
+-    if (!isScreenFocused) {
+-      logoutConfirmationActiveRef.current = false;
+-      setLogoutConfirmationVisible(false);
+-    }
+-  }, [isScreenFocused]);
++    if (!isScreenFocused || !isAccountConnected) logoutConfirmation.dismiss();
++  }, [isScreenFocused, isAccountConnected, logoutConfirmation]);
++  useEffect(() => subscribeActiveBrokerSession(event => {
++    logoutConfirmation.reconcileSession(event.activeSession?.cacheNamespace);
++  }), [logoutConfirmation]);
+ 
+   /**
+    * Callback triggered when the user requests to sign out of their current active account.
+    */
+   const handleLogout = () => {
+-    logoutConfirmationActiveRef.current = true;
+-    setLogoutConfirmationVisible(true);
++    if (!isScreenFocused || !isAccountConnected) return;
++    logoutConfirmation.open(captureActiveBrokerSession()?.session.cacheNamespace);
+   };
+ 
+   const confirmLogout = () => {
+-    if (!logoutConfirmationActiveRef.current) return;
+-    logoutConfirmationActiveRef.current = false;
+-    setLogoutConfirmationVisible(false);
++    if (!logoutConfirmation.consume(captureActiveBrokerSession()?.session.cacheNamespace)) return;
+     const accountLoginForJournal = accountDetails?.id;
+-    // Invalidate synchronously and restore the selected broker's guest market.
++    // Invalidate synchronously. Login must not wait for secure-storage cleanup.
+     const cleanup = logoutBrokerSession();
+-    router.replace('/(tabs)/quotes');
++    router.replace('/login');
+     void cleanup
+       .then(() => {
+         recordAccountJournalEvent('logged out from current account', {
+@@ -901,7 +902,7 @@
+               />
+             </View>
+ 
+-            <View style={styles.logoutContainer}>
++            {isAccountConnected ? <View style={styles.logoutContainer}>
+               <FastPressable
+                 style={({ pressed }) => [
+                   styles.singleRowCardLogout,
+@@ -917,11 +918,11 @@
+                 </View>
+                 <Text style={[styles.rowTitleSingle, { color: settingsDanger }]}>{t('Logout')}</Text>
+               </FastPressable>
+-            </View>
++            </View> : null}
+         </View>
+       </ScrollView>
+       <LogoutConfirmation
+-        visible={logoutConfirmationVisible && isScreenFocused}
++        visible={Boolean(logoutConfirmationSession) && isAccountConnected && isScreenFocused}
+         T={T}
+         onCancel={cancelLogout}
+         onConfirm={confirmLogout}
+--- before/src/features/settings/SettingsScreen/logoutConfirmationController.test.ts
++++ after/src/features/settings/SettingsScreen/logoutConfirmationController.test.ts
+@@ -0,0 +1,67 @@
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import test from 'node:test';
++import { createLogoutConfirmationController } from './logoutConfirmationController';
++
++test('guests cannot open logout and a confirmed dialog disappears before callbacks run', () => {
++  const dialog = createLogoutConfirmationController();
++  assert.equal(dialog.open(null), false);
++  assert.equal(dialog.getSnapshot(), null);
++  assert.equal(dialog.open('broker:account:session-1'), true);
++  assert.equal(dialog.consume('broker:account:session-1'), true);
++  assert.equal(dialog.getSnapshot(), null);
++  assert.equal(dialog.consume('broker:account:session-1'), false, 'duplicate confirm cannot log out twice');
++});
++
++test('external logout closes the prompt and returning to Settings cannot reopen it', () => {
++  const dialog = createLogoutConfirmationController();
++  const changes: Array<string | null> = [];
++  dialog.subscribe(() => changes.push(dialog.getSnapshot()));
++  dialog.open('session-1');
++  dialog.reconcileSession(null);
++  dialog.reconcileSession('session-2');
++  assert.equal(dialog.getSnapshot(), null);
++  assert.equal(dialog.consume('session-2'), false);
++  assert.deepEqual(changes, ['session-1', null]);
++});
++
++test('an old prompt cannot log out a replacement account or a new login of the same account', () => {
++  for (const replacement of ['other-broker:account:2', 'broker:account:2']) {
++    const dialog = createLogoutConfirmationController();
++    dialog.open('broker:account:1');
++    assert.equal(dialog.consume(replacement), false);
++    assert.equal(dialog.getSnapshot(), null);
++  }
++});
++
++test('cancel or losing focus consumes the old prompt without authorizing logout', () => {
++  const dialog = createLogoutConfirmationController();
++  dialog.open('session-1');
++  dialog.dismiss();
++  assert.equal(dialog.consume('session-1'), false);
++  dialog.open('session-1');
++  dialog.reconcileSession('session-1');
++  assert.equal(dialog.consume('session-1'), true, 'credential rotation retains the same session prompt');
++});
++
++test('Settings invalidates the session and opens Login without waiting for cleanup', () => {
++  const source = readFileSync(resolve(process.cwd(), 'src/features/settings/SettingsScreen/SettingsScreen.tsx'), 'utf8');
++  const confirm = source.slice(source.indexOf('const confirmLogout ='), source.indexOf('const searchInputRef'));
++  assert.ok(confirm.indexOf('logoutConfirmation.consume(') < confirm.indexOf('logoutBrokerSession()'));
++  assert.ok(confirm.indexOf('logoutBrokerSession()') < confirm.indexOf("router.replace('/login')"));
++  assert.ok(confirm.indexOf("router.replace('/login')") < confirm.indexOf('void cleanup'));
++  assert.doesNotMatch(confirm, /await|replace\('\/\(tabs\)\/quotes'\)/);
++  assert.match(source, /\{isAccountConnected \? <View style=\{styles\.logoutContainer\}/);
++  assert.match(source, /visible=\{Boolean\(logoutConfirmationSession\) && isAccountConnected && isScreenFocused\}/);
++});
++
++test('old auth completions cannot clear a new login lock or log out another namespace', () => {
++  const host = readFileSync(resolve(process.cwd(), 'src/features/auth/GuestFlowHost.tsx'), 'utf8');
++  assert.match(host, /finally \{ if \(submitting\.current === attempt\) submitting\.current = null;/);
++  assert.match(host, /captureActiveBrokerSession\(\)\?\.session\.cacheNamespace === capture\.session\.cacheNamespace\) await logoutBrokerSession/);
++  const cleanup = host.slice(host.indexOf('useEffect(() => subscribeAuthFlow'), host.indexOf('useEffect(() => () =>'));
++  assert.match(cleanup, /screen !== 'guest'\) return/);
++  assert.match(cleanup, /setPassword\(''\); setConfirmation\(''\)/);
++  assert.match(cleanup, /committedNamespace\.current = null/);
++});
+--- before/src/features/settings/SettingsScreen/logoutConfirmationController.ts
++++ after/src/features/settings/SettingsScreen/logoutConfirmationController.ts
+@@ -0,0 +1,32 @@
++/** A logout confirmation belongs to exactly one active account session. */
++export function createLogoutConfirmationController() {
++  let sessionNamespace: string | null = null;
++  const listeners = new Set<() => void>();
++  const publish = (next: string | null) => {
++    if (sessionNamespace === next) return;
++    sessionNamespace = next;
++    listeners.forEach(listener => listener());
++  };
++  return {
++    getSnapshot: () => sessionNamespace,
++    subscribe: (listener: () => void) => {
++      listeners.add(listener);
++      return () => { listeners.delete(listener); };
++    },
++    open: (activeNamespace: string | null | undefined) => {
++      if (!activeNamespace) return false;
++      publish(activeNamespace);
++      return true;
++    },
++    dismiss: () => publish(null),
++    reconcileSession: (activeNamespace: string | null | undefined) => {
++      if (sessionNamespace !== activeNamespace) publish(null);
++    },
++    consume: (activeNamespace: string | null | undefined) => {
++      const confirmedNamespace = sessionNamespace;
++      // Close synchronously before invalidation or navigation can render.
++      publish(null);
++      return Boolean(confirmedNamespace && confirmedNamespace === activeNamespace);
++    },
++  };
++}
+--- before/src/features/trade/tradeAuthGateSource.test.ts
++++ after/src/features/trade/tradeAuthGateSource.test.ts
+@@ -191,7 +191,9 @@
+   assert.ok(dashboard > submit.indexOf('await commitBrokerSession('));
+   assert.ok(dashboard < submit.indexOf('const hydrated = await (hydration'));
+   assert.ok(submit.indexOf("router.replace('/(tabs)/quotes')", dashboard) < submit.indexOf('hydration = Promise.resolve()'));
+-  assert.match(submit, /\}, authorization\.current\);\s*if \(didNavigate\) return;\s*committedNamespace\.current = capture\.session\.cacheNamespace/);
++  assert.match(submit, /\}, authorization\.current\);\s*if \(didNavigate\) return;/);
++  const committedHandoff = submit.slice(submit.indexOf('if (didNavigate) return;'));
++  assert.ok(committedHandoff.indexOf('if (!isAuthAttemptCurrent(attempt))') < committedHandoff.indexOf('committedNamespace.current = capture.session.cacheNamespace'));
+   assert.doesNotMatch(submit, /getBrokerDirectoryForBroker/);
+   assert.match(submit, /verifiedContext: selected/);
+   assert.doesNotMatch(submit, /await (?:setSavedAccountPassword|removeSavedAccountPassword)/);
+--- before/src/market/feedHealthPresentation.test.ts
++++ after/src/market/feedHealthPresentation.test.ts
+@@ -107,3 +107,12 @@
+   assert.equal(resolveCompactFeedStatusLabel('connecting', false), 'Connecting...');
+   assert.equal(resolveCompactFeedStatusLabel('healthy', true), 'LIVE');
+ });
++
++test('an established feed reports reconnecting or delayed without reverting to initial connecting', () => {
++  assert.equal(resolveCompactFeedStatusLabel('reconnecting', false), 'Reconnecting...');
++  assert.equal(resolveCompactFeedStatusLabel('reconnecting', true), 'Reconnecting...');
++  assert.equal(resolveCompactFeedStatusLabel('stale_or_degraded', false), 'Delayed');
++  assert.equal(resolveCompactFeedStatusLabel('stale_or_degraded', true), 'Delayed');
++  assert.equal(resolveCompactFeedStatusLabel('healthy', false), 'Delayed');
++  assert.equal(resolveCompactFeedStatusLabel('healthy', true), 'LIVE');
++});
+--- before/src/market/feedHealthPresentation.ts
++++ after/src/market/feedHealthPresentation.ts
+@@ -17,7 +17,7 @@
+   canRetry: boolean;
+ }>;
+ 
+-export type CompactFeedStatusLabel = 'LIVE' | 'Connecting...' | 'Unavailable';
++export type CompactFeedStatusLabel = 'LIVE' | 'Connecting...' | 'Reconnecting...' | 'Delayed' | 'Unavailable';
+ 
+ const TERMINAL_FEED_STATUSES = new Set<FeedHealthStatus>([
+   'disabled_unconfigured',
+@@ -37,6 +37,17 @@
+ ): CompactFeedStatusLabel => {
+   if (TERMINAL_FEED_STATUSES.has(status)) {
+     return 'Unavailable';
++  }
++  if (status === 'reconnecting') {
++    return 'Reconnecting...';
++  }
++  if (status === 'stale_or_degraded') {
++    return 'Delayed';
++  }
++  // A proven connection can be quiet while the header's narrower tick sample
++  // is warming. It has not returned to an initial connection attempt.
++  if (status === 'healthy' && !hasFreshTick) {
++    return 'Delayed';
+   }
+   return hasFreshTick ? 'LIVE' : 'Connecting...';
+ };
+--- before/src/state/tradingState.test.ts
++++ after/src/state/tradingState.test.ts
+@@ -2,6 +2,7 @@
+ import test from 'node:test';
+ 
+ import {
++  markQuoteMarketDataUnavailable,
+   resetQuoteMarketData,
+   resetSessionMarketData,
+   useTradingState,
+@@ -15,6 +16,27 @@
+     candles: {},
+   });
+ };
++
++test('connection interruption retains prices and original freshness while disabling execution', () => {
++  resetTradingState();
++  const quote = { symbol: 'EURUSD.PRO', bid: 1.2, ask: 1.3, stale: false, tradable: true,
++    degraded: false, feedTickAt: 1800000000000, lastReceivedAt: 1800000000001, lastPriceChangedAt: 1800000000001 } as any;
++  const other = { ...quote, symbol: 'EURUSD' };
++  useTradingState.setState({ quotes: { 'EURUSD.PRO': quote, EURUSD: other }, tickCount: 7 });
++  markQuoteMarketDataUnavailable('EURUSD.pro');
++  const retained = useTradingState.getState().quotes['EURUSD.PRO'];
++  assert.deepEqual(retained, { ...quote, stale: true, tradable: false, degraded: true });
++  assert.strictEqual(useTradingState.getState().quotes.EURUSD, other);
++  assert.equal(useTradingState.getState().tickCount, 7);
++  markQuoteMarketDataUnavailable('EURUSD.pro');
++  assert.strictEqual(useTradingState.getState().quotes['EURUSD.PRO'], retained);
++  markQuoteMarketDataUnavailable();
++  assert.equal(useTradingState.getState().quotes.EURUSD.tradable, false);
++  useTradingState.getState().setQuote('EURUSD.pro', { bid: 1.4, ask: 1.5,
++    stale: false, tradable: true, degraded: false, feedTickAt: 1800000001000 });
++  assert.equal(useTradingState.getState().quotes['EURUSD.PRO'].bid, 1.4);
++  assert.equal(useTradingState.getState().quotes['EURUSD.PRO'].tradable, true);
++});
+ 
+ test('backend quote digits replace stale cached quote precision', () => {
+   resetTradingState();
+@@ -82,7 +104,7 @@
+   assert.equal(state.tickCount, 0);
+ });
+ 
+-test('credential rotation clears quotes without discarding account or candle history', () => {
++test('full quote reset clears prices without discarding account or candle history', () => {
+   const candles = [{ time: 1, open: 1, high: 1, low: 1, close: 1 }] as any;
+   const account = { balance: 10 } as any;
+   useTradingState.setState({
+--- before/src/state/tradingState.ts
++++ after/src/state/tradingState.ts
+@@ -265,3 +265,20 @@
+ export const resetQuoteMarketData = (): void => {
+   useTradingState.getState().resetQuoteMarketData();
+ };
++
++/** Retain display prices while denying execution until the next valid feed update. */
++export const markQuoteMarketDataUnavailable = (symbol?: string): void => {
++  const key = symbol === undefined ? undefined : normalizeSymbol(symbol);
++  useTradingState.setState(state => {
++    let changed = false;
++    const quotes = Object.fromEntries(Object.entries(state.quotes).map(([candidate, quote]) => {
++      if ((key !== undefined && normalizeSymbol(candidate) !== key) ||
++          (quote.stale === true && quote.tradable === false && quote.degraded === true)) {
++        return [candidate, quote];
++      }
++      changed = true;
++      return [candidate, { ...quote, stale: true, tradable: false, degraded: true }];
++    }));
++    return changed ? { quotes } : state;
++  });
++};

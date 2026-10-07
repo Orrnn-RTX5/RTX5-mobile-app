@@ -1,0 +1,6 @@
+scrcpy 5.0 <https://github.com/Genymobile/scrcpy>
+INFO: ADB device found:
+INFO:     -->   (usb)  3568cce8                        device  RMX3521
+C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\.codex-artifacts\auth-dismiss-device-20261006\capture-tools\scrcpy-win64-v5.0\scrcpy-server: 1 file pushed, 0 skipped. 12.2 MB/s (733974 bytes in 0.057s)
+[server] INFO: Device: [realme] realme RMX3521 (Android 14)
+INFO: Recording started to mp4 file: C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\.codex-artifacts\login-fast-dashboard-20261006\login-final.mp4

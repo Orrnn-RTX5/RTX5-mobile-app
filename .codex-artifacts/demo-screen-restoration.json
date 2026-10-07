@@ -1,0 +1,40 @@
+{
+  "collectedAt": "2026-10-06T06:40:53.504539+00:00",
+  "baseHead": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "change": "Restore previous Demo Account presentation inside shared root authentication modal; registration and secure handoff unchanged.",
+  "files": [
+    {
+      "path": "rtx5-app/src/features/auth/GuestFlowHost.tsx",
+      "sha256": "acdf3b495c46718f8f3553420594fbee88412a4ec29a797a43a71a79a30bc225"
+    },
+    {
+      "path": "rtx5-app/src/features/auth/DemoAccountScreen.tsx",
+      "sha256": "b0cd094488ea2a6917932694b48d4520ac4cdf516c61580dc0cf2e031e61c5a2"
+    },
+    {
+      "path": "rtx5-app/src/features/auth/demoAccountStyles.ts",
+      "sha256": "0900bce65b410e3d95b4a5afd2b0969c3909588ad2e4b9b5aba987eca52d284c"
+    }
+  ],
+  "focusedTests": {
+    "passed": 23,
+    "failed": 0,
+    "log": ".codex-demo-screen-tests.log"
+  },
+  "fullRegression": "414 test files passed before this visual follow-up; focused checks run for this change.",
+  "deviceValidation": "Not performed; no Android/iOS device available.",
+  "typeScript": "Passed --noEmit",
+  "hermesExports": [
+    {
+      "path": "../.codex-artifacts/demo-screen-restored-20261006/_expo/static/js/android/entry-a03710a3b6c938511ea26f210367a660.hbc",
+      "bytes": 15018996,
+      "sha256": "a3b1803f1752d8d850e500a4c6372831d63bd35f2d11fdf271f1095bbaaf92d6"
+    },
+    {
+      "path": "../.codex-artifacts/demo-screen-restored-20261006/_expo/static/js/ios/entry-292a3abe49909120fff92c953ed1cdf0.hbc",
+      "bytes": 15020094,
+      "sha256": "fa1180bd30b8f79fde005a536b5adcbcf67348a7d8271ef0bfc4402ace6b3697"
+    }
+  ],
+  "bundleLog": ".codex-demo-screen-bundle.log"
+}

@@ -1,0 +1,321 @@
+{
+  "note": "Task-touched paths overlap existing local changes; not an exclusive Git diff or a clean commit.",
+  "files": [
+    {
+      "path": "rtx5-app/app/_layout.tsx",
+      "sha256": "8cf2e730d6cafe58bc3dec2893d37fc09b36be9f8b98c1eba04c3d43fb241d26"
+    },
+    {
+      "path": "rtx5-app/app/login.tsx",
+      "sha256": "2f1e074c61d0905c583516bcc43f98501812e8d10a6038b3c6407dc01aef35ff"
+    },
+    {
+      "path": "rtx5-app/app/register-entry.tsx",
+      "sha256": "8ded2279b58523a33df0c2e3369e4a32741dc3450186b41a6b0953494450cc47"
+    },
+    {
+      "path": "rtx5-app/app/register.tsx",
+      "sha256": "05aa28dc03eb433438c5030cea049154266fdcec8b7f5315c847849559fd771c"
+    },
+    {
+      "path": "rtx5-app/app/settings/broker-detail.tsx",
+      "sha256": "468ed5008251bd6f323b2711d3ab4a43dbea35a9a81ed8d1ddd79b4aea7da6a7"
+    },
+    {
+      "path": "rtx5-app/app/settings/brokers.tsx",
+      "sha256": "b2d6a04357ef1242633c8a1b6eb55ad17c016d88d0b043992b4b01060cbdfde2"
+    },
+    {
+      "path": "rtx5-app/scripts/verify-guest-flow-nexa.ts",
+      "sha256": "1b1e670b1b5aeac849f6e3ae843b5a2c72a43a7557c2220a1702aab8c426f1f4"
+    },
+    {
+      "path": "rtx5-app/src/api/auth.test.ts",
+      "sha256": "5531b887d00cdc7c01394aab7cd80fd8af13923e6c04630b5614faa9de82c066"
+    },
+    {
+      "path": "rtx5-app/src/api/auth.ts",
+      "sha256": "7cf36c5f36ed8ef9ef87a6c6f3733356d1034908bddbf3bc6d0176d66187b806"
+    },
+    {
+      "path": "rtx5-app/src/api/authSession.test.ts",
+      "sha256": "fb8648d461a8673e28c03216303756781fa437ea662f6cb2ff7db18425b02975"
+    },
+    {
+      "path": "rtx5-app/src/api/authSession.ts",
+      "sha256": "33299a52ac14e8e636c86639f3d2da39a32d866d560aedd428d8872e67ecf5cd"
+    },
+    {
+      "path": "rtx5-app/src/api/broker.ts",
+      "sha256": "c7e203f82fca1760af57a40adf58f9310ed44864438a0b6974ad7553ebf87899"
+    },
+    {
+      "path": "rtx5-app/src/api/brokerApi.sessionIsolation.test.ts",
+      "sha256": "b7112b39c9c3d9ebc3a1a8d75854236b3285e5de999e91657565e6d98474fa8c"
+    },
+    {
+      "path": "rtx5-app/src/api/brokerApi.ts",
+      "sha256": "0d361d9421b36d1aacac2d96c62addffe33b3eef9b26fed6dea1491c1458f3da"
+    },
+    {
+      "path": "rtx5-app/src/api/guestAuthentication.test.ts",
+      "sha256": "4d2eec66d14ef4bf780f034e72014441d74423f0eb7c33013735bb18c691e9ca"
+    },
+    {
+      "path": "rtx5-app/src/api/guestAuthentication.ts",
+      "sha256": "731cb4c006a62420b0d5e1b42f2fa5d79382e29123a7fb8bdcc961f7d5d3b558"
+    },
+    {
+      "path": "rtx5-app/src/api/instrumentMeta.ts",
+      "sha256": "a79a53efa7d056d5398a07aef586df007793b924a44ed55586840fef4011fb0e"
+    },
+    {
+      "path": "rtx5-app/src/api/orders/placeMarketOrder.test.ts",
+      "sha256": "dab39e34c4e3a05cf9e8814c01f190a3e2b414a88790e84e29f4a8de7d6e918c"
+    },
+    {
+      "path": "rtx5-app/src/api/orrnnDemoPublicMarket.test.ts",
+      "sha256": "8a3d30fbb1105869020eb8e01a5ff22e30f23b2bec2b0fba2d74298ae9db2b91"
+    },
+    {
+      "path": "rtx5-app/src/api/orrnnDemoPublicMarket.ts",
+      "sha256": "ccfad20cebee662e62e695f9dbf735e204210fd35bff68027f3521f489b9cd7e"
+    },
+    {
+      "path": "rtx5-app/src/api/ws/feedWebSocket.test.ts",
+      "sha256": "eb74d452b80246851d2d9e409977ff6fabfd45731f97dddd0498781b8837e690"
+    },
+    {
+      "path": "rtx5-app/src/api/ws/orrnnDemoPublicMarketSocket.ts",
+      "sha256": "ae8dc15f4f772097a2335221e5badf1455426b320c9ed9ca8959053a6676710d"
+    },
+    {
+      "path": "rtx5-app/src/api/ws/publicMarketProtocol.test.ts",
+      "sha256": "51385d8a3d8b534c5f734c20437d0ab0f3b0ad1995042ee303ecde67adec5629"
+    },
+    {
+      "path": "rtx5-app/src/api/ws/publicMarketProtocol.ts",
+      "sha256": "be647063e675cdaf2a48c65d077c62cbea4151516f6a5c38e80a10fecb98f8c2"
+    },
+    {
+      "path": "rtx5-app/src/api/ws/publicMarketSocketCore.test.ts",
+      "sha256": "3ece8e4cea19e33173d2cc99ed89a9727b8879e45068283d31348bcfbae0c414"
+    },
+    {
+      "path": "rtx5-app/src/api/ws/publicMarketSocketCore.ts",
+      "sha256": "1ce369d365f9a5c73d76af4edecda3c1a58d84f5502208943c268af5e65d9428"
+    },
+    {
+      "path": "rtx5-app/src/config/orrnnDemoPublicMarket.test.ts",
+      "sha256": "534f251aeb0a18d8efc1ca851970304ccf13575a54f76da79fe48858e9a7d6f6"
+    },
+    {
+      "path": "rtx5-app/src/config/orrnnDemoPublicMarket.ts",
+      "sha256": "f658f2d8fdd8a947bf2a2350c65ed942abb21b8011654e2565e4513169055b35"
+    },
+    {
+      "path": "rtx5-app/src/dev/mock/tradingData.ts",
+      "sha256": "79758eca32c824ecb0e0625db5545e8628742a480c80298a2840891eda9f66ef"
+    },
+    {
+      "path": "rtx5-app/src/domain/candles/hooks/useOrrnnDemoPublicCandles.ts",
+      "sha256": "ebe3e5b4013300fa6759fd7e9b6f40e506efed6fe275b6c8ccd3c0af88503f22"
+    },
+    {
+      "path": "rtx5-app/src/domain/candles/query/orrnnDemoPublicCandles.test.ts",
+      "sha256": "0bcd43bc001991124869f537ca19f9a06fcf56c677c681521c76bd0ef68888bf"
+    },
+    {
+      "path": "rtx5-app/src/domain/candles/query/orrnnDemoPublicCandles.ts",
+      "sha256": "59a0bac9a7ae7fee891d484797dcf3513c5d17494e69c6c35c46352ff8668e15"
+    },
+    {
+      "path": "rtx5-app/src/domain/candles/series/publicCandleMerge.test.ts",
+      "sha256": "134218e7a43ba56cae38a94d2e863d19215703dd7ad6bf2c70e8ae7d21306f76"
+    },
+    {
+      "path": "rtx5-app/src/domain/candles/series/publicCandleMerge.ts",
+      "sha256": "d8e28f28c791d8f83ee7be9e33674ffc1d4aefe71b9b4e834f028c50a7d2811b"
+    },
+    {
+      "path": "rtx5-app/src/features/auth/AuthEntryScreen.tsx",
+      "sha256": "b2f56399a86a5bcae7b184ca7857906e55318da6a1a294a18cd7245b5495a33b"
+    },
+    {
+      "path": "rtx5-app/src/features/auth/GuestFlowHost.tsx",
+      "sha256": "7e1b1e4befad08e16061348e57f01da471611a9084db5f797d15fb8d7e81620b"
+    },
+    {
+      "path": "rtx5-app/src/features/chart/chartPreferencesLatencySource.test.ts",
+      "sha256": "a3d2e4dcf12f932be8e79743de48162ef8ba12beb1ad9262db0987e62daee86e"
+    },
+    {
+      "path": "rtx5-app/src/features/quotes/QuotesScreen.tsx",
+      "sha256": "816326ef53d3a56264e672ad08307489ace145804abbad2a9e5e22f2ad656aee"
+    },
+    {
+      "path": "rtx5-app/src/features/quotes/liveQuoteSnapshot.ts",
+      "sha256": "2eb15c748a6e92eb7b8315da5c3ca69b061b3b09a7266397484c63cdf3b062c1"
+    },
+    {
+      "path": "rtx5-app/src/features/quotes/quoteInitialLoading.test.ts",
+      "sha256": "6de5d9cee9e21659a884623c06de42eeef7c38f3b79cadc923d781c7493c5ab2"
+    },
+    {
+      "path": "rtx5-app/src/features/quotes/quotesLiveFeedSource.test.ts",
+      "sha256": "fa668673ac9957695be396926079e7d93966e02fffa08db73791f8d530195dd2"
+    },
+    {
+      "path": "rtx5-app/src/features/quotes/useLiveQuotes.ts",
+      "sha256": "6761f5ebbf018c0e2fe93d4bd4a6b42d914b3519090798ce06f59b720e15b2dd"
+    },
+    {
+      "path": "rtx5-app/src/features/settings/AccountsScreen.tsx",
+      "sha256": "1c2f2fa46e910957330355a1db323cb4f281cbb0881af7dd6674e092e66829c3"
+    },
+    {
+      "path": "rtx5-app/src/features/settings/BrokersLaunchHost.tsx",
+      "sha256": "3ce8fe69d33258440e634f65cab0c0a0aaef22a8a315d404830fd5f66a10727e"
+    },
+    {
+      "path": "rtx5-app/src/features/settings/BrokersScreen/BrokersScreen.tsx",
+      "sha256": "fad8e8b44dc3a5671c7ef7c3cd06817b4e04366e2466af10fe344d4bd3f8bcf9"
+    },
+    {
+      "path": "rtx5-app/src/features/settings/BrokersScreen/brokersScreenSource.test.ts",
+      "sha256": "8f6fe972aae0611685c409b0d914f86dc81dc10391e9975ce89da30cfcb9ccca"
+    },
+    {
+      "path": "rtx5-app/src/features/settings/SettingsScreen/SettingsScreen.tsx",
+      "sha256": "74420b9a7875fa7dc3f53efd6c4f1d9b7daee1aa5abc3619694bb64110a05c78"
+    },
+    {
+      "path": "rtx5-app/src/features/settings/brokerSelectionPersistenceSource.test.ts",
+      "sha256": "2f3373ab9fe7c551490bf59d18d044d2a2aac3811c1df1289c102b92fbdcb695"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/OrderTicketScreen.tsx",
+      "sha256": "05fde0ac8af1ff64ba72b1dfa60b9109143631422a5ab5db8823bf9a2aea1ad4"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/authFlowState.test.ts",
+      "sha256": "ec6a6ed8d59f2935367688ec012d68424494f3fc2bfdd1ba17dee4b9dafef9c7"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/authFlowState.ts",
+      "sha256": "214b07408f0f4e1d6bf28532d135b6128de8a0cc48122d950ffb45df20ba3434"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/orderTicketPendingApiSource.test.ts",
+      "sha256": "dedc2f44682b8b1352d281f2cf255aff73bd3cc65d66fe86048bbb9743899781"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/tradeAuthGate.test.ts",
+      "sha256": "8d7bf33d442b23cbd787db0284977a1901bf4905dfa3183f7bcc1fb6f62e7627"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/tradeAuthGate.ts",
+      "sha256": "eadb6f4466ee59b04146a42fa6b2d26cabe03f991887ca3be9099aaf7b49dedb"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/tradeAuthGateSource.test.ts",
+      "sha256": "b03a7e10a1ac3e7074c9f5a534748317ed9492fb6f2575f00d4af9dbbf902800"
+    },
+    {
+      "path": "rtx5-app/src/features/trade/tradeAuthPrompt.ts",
+      "sha256": "7cbdef6e40ac25f67012c20a263c57216e8df651eec658ad531b983ff89913bf"
+    },
+    {
+      "path": "rtx5-app/src/market/quoteIntegrity.test.ts",
+      "sha256": "f90365aa69aff9b3105d10ca4493a9d3087914e433b1ce646c63fd7d92847c77"
+    },
+    {
+      "path": "rtx5-app/src/market/quoteIntegrity.ts",
+      "sha256": "877ea6d9f97da44a0d86a0dc6e487e07d67e38dc681b099a312e096ae907e914"
+    },
+    {
+      "path": "rtx5-app/src/services/bootstrapApp.ts",
+      "sha256": "cf0f3581bff847645d3090dcbfb3933391403adb5602e0ea50a4cdfeb3018eab"
+    },
+    {
+      "path": "rtx5-app/src/services/brokerSessionCoordinator.ts",
+      "sha256": "8a90342c9bb7602ea79234a7c991f76f0003457d93fdc513fcbd0ded625e0d34"
+    },
+    {
+      "path": "rtx5-app/src/services/selectGuestBroker.ts",
+      "sha256": "980cb51f4ef63d154686db79e3afa9085c93d1953a364ae8d1212aecffc658f7"
+    },
+    {
+      "path": "rtx5-app/src/services/tradingAccess.test.ts",
+      "sha256": "8a74c2d8e70a7279e3d889f7dbbda80e5c0a80ebdd8c33a3bd4083a4dbb647fd"
+    },
+    {
+      "path": "rtx5-app/src/services/tradingAccess.ts",
+      "sha256": "6d1c89e1484bc91d7354e81c4f2f21613fb8caef4cb919009f32f826b5e2f641"
+    },
+    {
+      "path": "rtx5-app/src/services/tradingPolicy.test.ts",
+      "sha256": "0368a609b0a5ade76f5185b42e36c7c31967b615b412742bca54bf2420f5e0c6"
+    },
+    {
+      "path": "rtx5-app/src/services/tradingPolicy.ts",
+      "sha256": "52df061f0226758fa997fcbc8f14fcbd5d03bf93fe64b1cf9ebacf74e5794853"
+    },
+    {
+      "path": "rtx5-app/src/state/activeBrokerSession.test.ts",
+      "sha256": "ee1d63d4c0747e98c962b1871386936ce88717b5acf36e5dc025aeb9ffbc4d41"
+    },
+    {
+      "path": "rtx5-app/src/state/activeBrokerSession.ts",
+      "sha256": "04acc41664f7fe724ffb2beb793e56d9fcdd72f7f2cd43a2e9543d44667deb9d"
+    },
+    {
+      "path": "rtx5-app/src/state/activeBrokerSessionStorage.test.ts",
+      "sha256": "eef7eaef7ab3be2cba3bb63675edfe8c5daed3cef42a667da1af9e20da1c34d5"
+    },
+    {
+      "path": "rtx5-app/src/state/activeBrokerSessionStorage.ts",
+      "sha256": "cecc9f32980b2e3efed51e5d89931561b9ae97e44910cd2a8203c3fca150b1c8"
+    },
+    {
+      "path": "rtx5-app/src/state/publicBrokerContext.ts",
+      "sha256": "7954f934597e93742dd3792d09d564887e2e03b38a9b0923d50183c783e544b7"
+    },
+    {
+      "path": "rtx5-app/src/state/publicMarketStatus.ts",
+      "sha256": "cb87718de0f904a06e553b73c356b6a9603bb18c6b5798c86f1b8d102711501d"
+    },
+    {
+      "path": "rtx5-app/src/state/publicQuoteAvailability.ts",
+      "sha256": "9bd288276a8e6f4e7d69c4c7cc2618e7904ff72df7af395d70f2a7c1e024ab78"
+    },
+    {
+      "path": "rtx5-app/src/state/secureCredentialBundle.test.ts",
+      "sha256": "8c81c5dfd9420e0d587d102d8d8ca5fd2e52366a1d4e8848da34a2ed63722495"
+    },
+    {
+      "path": "rtx5-app/src/state/secureCredentialBundle.ts",
+      "sha256": "0be7a9f1ab0de39fc9c2e0b1536cd1682bedc5b9e6d8842d71656f5ce834c450"
+    },
+    {
+      "path": "rtx5-app/src/state/userPreferences/store.test.ts",
+      "sha256": "3f33d42fa9cad7020caa718d444bcd32061e7f2d2308792fa3c051f5aa68dc2b"
+    },
+    {
+      "path": "rtx5-app/src/testFixtures/publicBroker.ts",
+      "sha256": "2576cb45c31a3e29b1b6690863443c73d8b45f8a8d8631ecf56d3e6e8518be80"
+    },
+    {
+      "path": "rtx5-app/src/utils/appActionLatencyContract.test.ts",
+      "sha256": "b2ec36ba274b3dd986b3968358cb8c13631a76f716c18c448e788659bc527f47"
+    },
+    {
+      "path": "rtx5-app/src/utils/sidebarNavigationPerformance.test.ts",
+      "sha256": "c4a696faf8d81a69e89fa7ee615219bec6607d20d33a7587c7e38aece743c508"
+    },
+    {
+      "path": "rtx5-app/src/utils/tabNavigationPerformance.test.ts",
+      "sha256": "f0a32f5adb50e0797fd78440b32ab4cbb2446a2343c502d723aa55c22b996747"
+    }
+  ]
+}

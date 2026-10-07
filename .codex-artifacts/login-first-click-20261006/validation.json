@@ -1,0 +1,56 @@
+{
+  "source_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree": "existing changes preserved; uncommitted candidate",
+  "file_sha256": {
+    "src/features/auth/GuestFlowHost.tsx": "069c81fca0b6ce12a0d4d3f4c1f0e85d9aa3c6d13e8831c1b9cec7ac795cdf37",
+    "src/services/brokerSessionCoordinator.ts": "8e7880e316583573fd417a00fad288708c827a2bece3449fadd00a833da4dc62",
+    "src/services/validatedLoginBrokerContext.ts": "e06f69d077d049bdc7d2950d14a0b93f612b3e643f3481f978dff400200c701b",
+    "src/services/validatedLoginBrokerContext.test.ts": "32c6472b67a6f6338cac11f37047eed58f07b35726c7a366fe187a6cd127545a",
+    "src/features/trade/tradeAuthGateSource.test.ts": "580bebd8aeed894ff135dd6ff77b03bd7e454aed8b8c43a3d08521d867d5a23f",
+    "src/services/brokerSessionCoordinatorSource.test.ts": "f304ab72addb0b5f49826914a9c298e3dedea74fd6e38e7624d83813bc83822e"
+  },
+  "changes": [
+    "Reuse exact current directory-approved broker context; recheck before activation, reject stale/cloned/tampered contexts",
+    "Ordinary login navigates once inside secure activation callback, before deferred bootstrap",
+    "Remove successful modal dismissal animation",
+    "Read latest native input values on first tap",
+    "Avoid a redundant logout epoch invalidation rejecting a subsequent login during cleanup",
+    "Directory reconciliation invalidates trade socket, feed status and services-domain changes even without a version change"
+  ],
+  "checks": {
+    "typecheck": "passed exit 0",
+    "full_regression": "426 test files passed before final endpoint-comparison correction; final affected 37 tests and TypeScript passed afterward",
+    "diff_check": "passed",
+    "final_focused": "37 tests passed, exit 0"
+  },
+  "android": {
+    "device": "realme RMX3521 Android 14 USB",
+    "runtime": "Expo Go development",
+    "observed_auth_response_ms": [
+      623,
+      612,
+      523
+    ],
+    "observed_dashboard_navigation_ms": [
+      1321,
+      1312,
+      994
+    ],
+    "measurement": "submission start to router.replace; not first rendered dashboard frame",
+    "directory_wait_ms": [
+      0,
+      0,
+      0
+    ],
+    "secure_persistence_ms": [
+      514,
+      498,
+      260
+    ],
+    "controlled_recording": "Not completed: phone kept changing screens; hands-off availability question received no answer before delivery. Reported measurements are actual device app logs, not video first-frame timing.",
+    "orders_submitted_by_assistant": 0,
+    "timing_candidate_note": "Timing samples preceded final endpoint-comparison correction; no latency-affecting operations changed afterward. Endpoint validation retested in focused tests."
+  },
+  "ios": "not physically tested",
+  "publication": "none"
+}

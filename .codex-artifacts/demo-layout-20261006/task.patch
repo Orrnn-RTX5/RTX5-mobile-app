@@ -1,0 +1,297 @@
+--- before/src/features/auth/DemoAccountScreen.tsx
++++ after/src/features/auth/DemoAccountScreen.tsx
+@@ -1,5 +1,5 @@
+ import React, { useEffect, useMemo, useRef, useState } from 'react';
+-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
++import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { LinearGradient } from 'expo-linear-gradient';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+@@ -8,13 +8,14 @@
+ import { useThemeMode } from '../../state/themeMode';
+ import { useTranslation } from '../../i18n/useTranslation';
+ import { makeDemoAccountStyles } from './demoAccountStyles';
++import { validateDemoForm } from '../../api/guestAuthentication';
+ 
+ type Field = 'firstName' | 'lastName' | 'email' | 'password' | 'confirmation';
+ type Props = {
+   name: string; email: string; password: string; confirmation: string;
+   onNameChange: (value: string) => void; onEmailChange: (value: string) => void;
+   onPasswordChange: (value: string) => void; onConfirmationChange: (value: string) => void;
+-  brokerName: string; explanation?: string; error?: string; retryMessage?: string;
++  brokerId: string; brokerName: string; explanation?: string; error?: string; retryMessage?: string;
+   busy: boolean; hydrating: boolean; disabled: boolean;
+   termsUrl?: unknown; privacyUrl?: unknown; recoveryUrl?: unknown;
+   onSubmit: () => void; onBack: () => void; onLogin: () => void; onChangeBroker: () => void;
+@@ -27,19 +28,49 @@
+   const insets = useSafeAreaInsets();
+   const { width, fontScale } = useWindowDimensions();
+   const { t } = useTranslation();
+-  const styles = useMemo(() => makeDemoAccountStyles(T, isDark, insets, width, fontScale), [T, isDark, insets, width, fontScale]);
++  const [keyboardVisible, setKeyboardVisible] = useState(false);
++  const styles = useMemo(() => makeDemoAccountStyles(T, isDark, insets, width, fontScale, keyboardVisible), [T, isDark, insets, width, fontScale, keyboardVisible]);
+   const [showPassword, setShowPassword] = useState(false);
+   const [firstName, setFirstName] = useState(() => props.name.split(/\s+/)[0] ?? '');
+   const [lastName, setLastName] = useState(() => props.name.split(/\s+/).slice(1).join(' '));
+   const [termsAccepted, setTermsAccepted] = useState(false);
++  const [confirmationRequested, setConfirmationRequested] = useState(false);
++  const [formError, setFormError] = useState('');
+   const scroll = useRef<ScrollView | null>(null);
+   const fieldPositions = useRef<Partial<Record<Field, number>>>({});
++  const focusedField = useRef<Field | null>(null);
+   const focusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
++  const revealFocusedField = () => {
++    const position = focusedField.current ? fieldPositions.current[focusedField.current] : undefined;
++    if (position === undefined) return;
++    scroll.current?.scrollTo({ y: Math.max(0, position - (Platform.OS === 'android' ? 232 : 176)), animated: true });
++  };
+   useEffect(() => () => { if (focusTimer.current) clearTimeout(focusTimer.current); }, []);
++  useEffect(() => {
++    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
++    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
++    return () => { show.remove(); hide.remove(); };
++  }, []);
++  useEffect(() => {
++    if (!keyboardVisible) return;
++    // A newly revealed confirmation input can focus before its first layout.
++    // Retry after the keyboard and bottom scroll space have been committed.
++    const frame = requestAnimationFrame(revealFocusedField);
++    return () => cancelAnimationFrame(frame);
++  }, [keyboardVisible, confirmationRequested]);
++  const requestRegistration = () => {
++    // Confirmation is an explicit second step so the initial form retains the
++    // reference layout. The authoritative validator still requires a match.
++    const error = validateDemoForm({ name: props.name, email: props.email, password: props.password, confirmation: props.password });
++    if (error) { setFormError(error); return; }
++    setFormError('');
++    if (!confirmationRequested) { props.onConfirmationChange(''); setConfirmationRequested(true); return; }
++    props.onSubmit();
++  };
+   const focusField = (field: Field) => {
+     if (focusTimer.current) clearTimeout(focusTimer.current);
+-    const reveal = () => scroll.current?.scrollTo({ y: Math.max(0, (fieldPositions.current[field] ?? 0) - (Platform.OS === 'android' ? 232 : 176)), animated: true });
+-    reveal(); focusTimer.current = setTimeout(reveal, Platform.OS === 'android' ? 260 : 80);
++    focusedField.current = field;
++    revealFocusedField(); focusTimer.current = setTimeout(revealFocusedField, Platform.OS === 'android' ? 260 : 80);
+   };
+   const legalUrl = (value: unknown) => typeof value === 'string' && /^https:\/\//.test(value) ? value : '';
+   const termsUrl = legalUrl(props.termsUrl); const privacyUrl = legalUrl(props.privacyUrl);
+@@ -52,14 +83,19 @@
+   const iconColor = isDark ? T.textSub : T.textMuted;
+   const accentColor = isDark ? T.accent : T.trading.buy.primary;
+   const field = (key: Field, label: string, placeholder: string, value: string, change: (value: string) => void, icon: React.ComponentProps<typeof Ionicons>['name'], secure = false) => (
+-    <View style={styles.inputRow} onLayout={event => { fieldPositions.current[key] = event.nativeEvent.layout.y; }}>
++    <View style={styles.inputRow} onLayout={event => {
++      fieldPositions.current[key] = event.nativeEvent.layout.y;
++      if (keyboardVisible && focusedField.current === key) revealFocusedField();
++    }}>
+       <Text style={styles.inputLabel}>{t(label)}{key === 'lastName' ? <Text style={styles.inputOptionalLabel}> ({t('optional')})</Text> : null}</Text>
+       <View style={styles.inputShell}>
+         <Ionicons name={icon} size={21} color={iconColor} style={styles.inputRowIcon} />
+         <TextInput
++          autoFocus={key === 'confirmation'}
+           accessibilityLabel={t(label)} style={styles.input} value={value} placeholder={t(placeholder)}
+           placeholderTextColor={T.textMuted} onChangeText={change} editable={!props.busy}
+           onFocus={() => focusField(key)} autoCapitalize={key === 'firstName' || key === 'lastName' ? 'words' : 'none'}
++          onBlur={() => { if (focusedField.current === key) focusedField.current = null; }}
+           autoCorrect={false} spellCheck={false} disableFullscreenUI secureTextEntry={secure && !showPassword}
+           keyboardType={key === 'email' ? 'email-address' : 'default'}
+           textContentType={secure ? 'newPassword' : key === 'email' ? 'emailAddress' : 'name'}
+@@ -73,11 +109,17 @@
+       {key === 'password' ? <>
+         <View style={styles.passwordStrengthRow}>{[0, 1, 2, 3].map(level => <View key={level} style={[styles.passwordStrengthBar, level < strength && { backgroundColor: strengthColor }]} />)}</View>
+         <Text style={styles.passwordStrengthText}>{t('Password strength:')} <Text style={{ color: strengthColor }}>{props.password ? t(passwordValid ? 'Strong' : strength >= 2 ? 'Medium' : 'Weak') : ''}</Text></Text>
+-        <Text style={styles.passwordStrengthText}>{t('Use at least 8 characters, including a letter and a number.')}</Text>
+       </> : null}
+     </View>
+   );
+-  const legalLink = (label: string, url: string) => <Text accessibilityRole="link" style={styles.linkText} onPress={() => { void Linking.openURL(url); }}>{t(label)}</Text>;
++  const legalLink = (label: string, url: string) => <Text accessibilityRole={url ? 'link' : undefined} style={styles.linkText} onPress={url ? () => { void Linking.openURL(url); } : undefined}>{t(label)}</Text>;
++  const policyField = (label: string, icon: React.ComponentProps<typeof Ionicons>['name'], value = '--', paired = false) => <View style={paired ? styles.halfColumn : styles.inputRow}>
++    <Text style={styles.inputLabel}>{t(label)}</Text>
++    <View style={styles.inputShell} accessible accessibilityLabel={`${t(label)}: ${value === '--' ? t('Assigned by your broker') : value}`}>
++      <Ionicons name={icon} size={21} color={iconColor} style={styles.inputRowIcon} />
++      <Text style={styles.selectValue} numberOfLines={1}>{value}</Text>
++    </View>
++  </View>;
+   return <View style={styles.bg}>
+     <View style={styles.headerRow}>
+       <Pressable accessibilityRole="button" accessibilityLabel={t('Back')} onPress={props.onBack} hitSlop={10} activateOnTouchStart latencyLabel="register.back" latencyBudgetMs={50} style={styles.headerBackButton}>
+@@ -87,29 +129,59 @@
+       <View style={styles.headerRightSpacer} />
+     </View>
+     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+-      <ScrollView ref={scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always" canCancelContentTouches={false} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
++      <ScrollView ref={scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always" canCancelContentTouches={false} showsVerticalScrollIndicator={false} keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}>
+         <View style={styles.formContainer}>
+           {props.explanation ? <Text style={[styles.passwordStrengthText, { marginBottom: 14 }]}>{props.explanation}</Text> : null}
+           {field('firstName', 'First name', 'Enter first name', firstName, value => { setFirstName(value); props.onNameChange(`${value} ${lastName}`.trim()); }, 'person-outline')}
+           {field('lastName', 'Last name', 'Enter last name', lastName, value => { setLastName(value); props.onNameChange(`${firstName} ${value}`.trim()); }, 'id-card-outline')}
+           {field('email', 'Email', 'Enter email address', props.email, props.onEmailChange, 'mail-outline')}
+-          {field('password', 'Master password', 'Enter password', props.password, props.onPasswordChange, 'lock-closed-outline', true)}
+-          {field('confirmation', 'Confirm password', 'Confirm password', props.confirmation, props.onConfirmationChange, 'lock-closed-outline', true)}
+-          {hasLegalLinks ? <View style={styles.termsRow}>
+-            <Pressable accessibilityRole="checkbox" accessibilityLabel={t('I agree to the terms and privacy policy')} accessibilityState={{ checked: termsAccepted, disabled: props.busy }} disabled={props.busy} onPress={() => setTermsAccepted(value => !value)} hitSlop={6}>
++          <View style={styles.inputRow}>
++            <Text style={styles.inputLabel}>{t('Phone')}</Text>
++            <View style={styles.inputShell} accessible accessibilityLabel={t('Phone: not required by this broker')}>
++              <Ionicons name="call-outline" size={21} color={iconColor} style={styles.inputRowIcon} />
++              <View style={styles.phoneCodeButton}>
++                <Text style={styles.phoneCodeText}>+1</Text>
++                <Ionicons name="chevron-down" size={14} color={iconColor} />
++              </View>
++              <View style={styles.phoneCodeDivider} />
++              <Text style={[styles.selectValue, { color: T.textMuted }]}>{t('Not required')}</Text>
++            </View>
++          </View>
++          {field('password', 'Master password', '', props.password, props.onPasswordChange, 'lock-closed-outline', true)}
++          <View style={styles.twoColumnRow}>
++            {policyField('Currency', 'cash-outline', '--', true)}
++            {policyField('Leverage', 'speedometer-outline', '--', true)}
++          </View>
++          {policyField('Initial balance', 'wallet-outline')}
++          {policyField('Origin broker', 'business-outline', props.brokerId || props.brokerName)}
++          <View style={styles.inputRow}>
++            <Text style={styles.inputLabel}>{t('Group')}</Text>
++            <View style={styles.inputShell} accessible accessibilityLabel={t('Group: assigned automatically by your broker')}>
++              <Ionicons name="shield-checkmark-outline" size={21} color={accentColor} style={styles.inputRowIcon} />
++              <Text style={styles.selectValue} numberOfLines={1}>{t('Assigned automatically')}</Text>
++              <Ionicons name="chevron-down" size={20} color={iconColor} />
++            </View>
++          </View>
++          {confirmationRequested ? field('confirmation', 'Confirm password', 'Confirm password', props.confirmation, props.onConfirmationChange, 'lock-closed-outline', true) : null}
++          <View style={styles.termsRow}>
++            <Pressable accessibilityRole="checkbox" accessibilityLabel={t('I agree to the terms and privacy policy')} accessibilityState={{ checked: termsAccepted, disabled: props.busy || !hasLegalLinks }} disabled={props.busy || !hasLegalLinks} onPress={() => setTermsAccepted(value => !value)} hitSlop={6}>
+               <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>{termsAccepted ? <Ionicons name="checkmark" size={17} color="#fff" /> : null}</View>
+             </Pressable>
+-            <Text style={styles.termsText}>{t('I agree to the')}{' '}{termsUrl ? legalLink('Terms and Conditions', termsUrl) : null}{termsUrl && privacyUrl ? ` ${t('and')} ` : ''}{privacyUrl ? legalLink('Privacy Policy', privacyUrl) : null}.</Text>
+-          </View> : null}
+-          {props.error ? <View style={[styles.inlineStatus, styles.inlineStatusError]}><Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.inlineStatusText}>{props.error}</Text></View> : null}
++            <Text style={styles.termsText}>{t('I agree to the')}{' '}{legalLink('Terms and Conditions', termsUrl)} {t('and')} {legalLink('Privacy Policy', privacyUrl)}.</Text>
++          </View>
++          {props.error || formError ? <View style={[styles.inlineStatus, styles.inlineStatusError]}><Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.inlineStatusText}>{props.error || formError}</Text></View> : null}
+           {props.retryMessage ? <Text accessibilityLiveRegion="polite" style={[styles.passwordStrengthText, { marginBottom: 12 }]}>{props.retryMessage}</Text> : null}
+-          <Pressable accessibilityRole="button" accessibilityLabel={t('Register demo account')} accessibilityState={{ disabled, busy: props.busy }} disabled={disabled} onPress={props.onSubmit} style={({ pressed }) => [styles.registerBtn, disabled && styles.registerBtnDisabled, pressed && !disabled && styles.registerBtnPressed]}>
++          <Pressable accessibilityRole="button" accessibilityLabel={t('Register demo account')} accessibilityState={{ disabled, busy: props.busy }} disabled={disabled} onPress={requestRegistration} style={({ pressed }) => [styles.registerBtn, disabled && styles.registerBtnDisabled, pressed && !disabled && styles.registerBtnPressed]}>
+             <LinearGradient colors={['#1597FF', '#006DFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.registerGradient}>
+               {props.busy ? <ActivityIndicator accessibilityLabel={t(props.hydrating ? 'Loading account and trading policy' : 'Submitting authentication')} color="#fff" /> : null}
+-              <Text style={styles.registerBtnText}>{t(props.busy ? props.hydrating ? 'Loading account…' : 'Submitting…' : 'Register')}</Text>
++              <Text style={styles.registerBtnText}>{t(props.busy ? props.hydrating ? 'Loading account…' : 'Submitting…' : 'Register a demo account')}</Text>
+             </LinearGradient>
+           </Pressable>
+-          <View style={styles.loginPromptContainer}><Text style={styles.loginPromptText}>{t('Already have an account?')} </Text><Pressable accessibilityRole="button" disabled={props.busy} onPress={props.onLogin}><Text style={styles.loginLinkText}>{t('Login')}</Text></Pressable></View>
++          {!props.busy && props.error ? <View style={styles.loginPromptContainer}>
++            <Pressable accessibilityRole="button" accessibilityLabel={t('Login to an existing account')} onPress={props.onLogin} hitSlop={10}>
++              <Text style={styles.loginLinkText}>{t('Login to an existing account')}</Text>
++            </Pressable>
++          </View> : null}
+           {recoveryUrl ? <View style={styles.loginPromptContainer}>{legalLink('Account recovery', recoveryUrl)}</View> : null}
+         </View>
+       </ScrollView>
+--- before/src/features/auth/demoAccountStyles.ts
++++ after/src/features/auth/demoAccountStyles.ts
+@@ -3,9 +3,10 @@
+ import type { ThemeColors } from '../../ui/theme/useTheme';
+ 
+ /** Preserve the previous Demo Account screen's chrome, fields and blue action. */
+-export function makeDemoAccountStyles(T: ThemeColors, isDark: boolean, insets: EdgeInsets, width: number, fontScale: number) {
++export function makeDemoAccountStyles(T: ThemeColors, isDark: boolean, insets: EdgeInsets, width: number, fontScale: number, keyboardVisible = false) {
+   const pageBg = isDark ? T.bg : '#F2F4F8';
+   const surface = isDark ? T.glass2 : '#FFFFFF';
++  const raisedSurface = isDark ? T.glass1 : 'rgba(15,23,42,0.04)';
+   const border = isDark ? T.border : '#DFE7F1';
+   const divider = isDark ? T.borderSubtle : 'rgba(15,23,42,0.07)';
+   const heroTitleColor = isDark ? '#FFFFFF' : T.text;
+@@ -15,6 +16,7 @@
+   const secondaryText = T.textSub;
+   const actionTintBg = isDark ? T.glass1 : 'rgba(37,99,235,0.08)';
+   const REGISTER_KEYBOARD_BOTTOM_PADDING = Platform.OS === 'android' ? 220 : 120;
++  const singleColumn = width - insets.left - insets.right < 360 || fontScale > 1.3;
+   return StyleSheet.create({
+     bg: {
+       flex: 1,
+@@ -58,7 +60,7 @@
+       height: 40,
+     },
+     scrollContent: {
+-      paddingBottom: REGISTER_KEYBOARD_BOTTOM_PADDING + insets.bottom,
++      paddingBottom: (keyboardVisible ? REGISTER_KEYBOARD_BOTTOM_PADDING : 12) + insets.bottom,
+       paddingTop: 16,
+     },
+     formContainer: {
+@@ -99,6 +101,58 @@
+       borderWidth: 1,
+       borderColor: border,
+       backgroundColor: surface,
++    },
++    phoneCodeButton: {
++      minWidth: 54,
++      minHeight: 36,
++      paddingVertical: 8,
++      flexDirection: 'row',
++      alignItems: 'center',
++      justifyContent: 'center',
++      gap: 3,
++      paddingHorizontal: 5,
++      borderRadius: 7,
++      backgroundColor: raisedSurface,
++    },
++    phoneCodeText: {
++      color: fieldText,
++      fontSize: 14,
++      fontWeight: '600',
++      includeFontPadding: false,
++    },
++    phoneCodeDivider: {
++      width: 1,
++      height: 28,
++      backgroundColor: border,
++    },
++    twoColumnRow: {
++      flexDirection: singleColumn ? 'column' : 'row',
++      gap: 8,
++      alignItems: 'flex-start',
++      marginBottom: 11,
++    },
++    halfColumn: {
++      flex: singleColumn ? undefined : 1,
++      alignSelf: 'stretch',
++      minWidth: 0,
++    },
++    selectShell: {
++      minHeight: 48,
++      flexDirection: 'row',
++      alignItems: 'center',
++      gap: 8,
++      paddingHorizontal: 12,
++      borderRadius: 8,
++      borderWidth: 1,
++      borderColor: border,
++      backgroundColor: surface,
++    },
++    selectValue: {
++      flex: 1,
++      color: fieldText,
++      fontSize: 14,
++      fontWeight: '500',
++      includeFontPadding: false,
+     },
+     input: {
+       flex: 1,
+--- before/src/features/auth/GuestFlowHost.tsx
++++ after/src/features/auth/GuestFlowHost.tsx
+@@ -211,12 +211,12 @@
+       {!context ? <GuestBrokerPicker onBack={() => {}} selectionError={localError}
+         onSelectBroker={row => { void selectGuestBroker(row).catch(error => setLocalError(error.message)); }} /> : null}
+     </Modal>
+-    <Modal visible={visible && Boolean(context)} animationType={flow.screen === 'ready' ? 'none' : presentation.current.animation} onRequestClose={close} presentationStyle="fullScreen">
++    <Modal visible={visible && Boolean(context)} animationType={flow.screen === 'ready' ? 'none' : presentation.current.animation} onRequestClose={close} presentationStyle="fullScreen" statusBarTranslucent navigationBarTranslucent>
+       {visible && context ? flow.form === 'demo' && flow.screen !== 'choice' ? <DemoAccountScreen
+         key={flow.context?.cacheNamespace}
+         name={name} email={identity} password={password} confirmation={confirmation}
+         onNameChange={setName} onEmailChange={setIdentity} onPasswordChange={setPassword} onConfirmationChange={setConfirmation}
+-        brokerName={flow.context?.name ?? ''} explanation={explanation}
++        brokerId={flow.context?.brokerId ?? ''} brokerName={flow.context?.name ?? ''} explanation={explanation}
+         error={localError || flow.error || (!demoAllowed ? 'Demo signup is disabled. Login and guest browsing are available.' : '')}
+         retryMessage={retryAt > now && rateForm === 'demo' ? `Try again in ${Math.ceil((retryAt - now) / 1000)} seconds.` : undefined}
+         busy={busy} hydrating={flow.screen === 'hydrating'} disabled={busy || retryAt > now && rateForm === 'demo' || !demoAllowed || ambiguous}

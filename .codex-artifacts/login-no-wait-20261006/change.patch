@@ -1,0 +1,374 @@
+--- before/src/features/auth/GuestFlowHost.tsx
++++ after/src/features/auth/GuestFlowHost.tsx
+@@ -90,7 +90,7 @@
+     return () => controller.abort();
+   }, [context]);
+   useEffect(() => {
+-    if (!context || isLoggedIn) return;
++    if (!context || isLoggedIn || visible) return;
+     const controller = new AbortController();
+     void getOrrnnDemoPublicMarketCatalog(controller.signal).then(catalog => {
+       if (!isPublicBrokerContextCurrent(context)) return;
+@@ -101,7 +101,7 @@
+       preferences.setQuoteSymbols(saved.length ? saved : catalog.symbols.slice(0, 6)); preferences.setHasSetInitialSymbols(true);
+     }).catch(() => {});
+     return () => controller.abort();
+-  }, [context, isLoggedIn]);
++  }, [context, isLoggedIn, visible]);
+   useEffect(() => { if (!retryAt) return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [retryAt]);
+   const demoAllowed = isDemoRegistrationEnabled(config);
+   const close = () => {
+--- before/src/services/brokerSessionCoordinator.ts
++++ after/src/services/brokerSessionCoordinator.ts
+@@ -1,5 +1,6 @@
+ import { InteractionManager } from 'react-native';
+ import { persistBrokerSessionAuthority } from './persistBrokerSessionAuthority';
++import { scheduleAfterFirstFrame } from '../utils/startupScheduler';
+ import { brokerApi } from '../api/brokerApi';
+ import { getBrokerDirectory, getBrokerDirectoryForBroker } from '../api/broker';
+ import { createPublicBrokerContext, type PublicBrokerContext } from '../state/publicBrokerContext';
+@@ -38,6 +39,7 @@
+ } from './brokerSessionCommitAuthorization';
+ import {
+   clearActiveBrokerSessionManifest,
++  clearLegacyActiveBrokerSessionManifest,
+   createActiveBrokerSessionManifest,
+   readActiveBrokerSessionManifest,
+   writeActiveBrokerSessionManifest,
+@@ -249,11 +251,26 @@
+ 
+ const pruneDisposableSessionStorage = async (): Promise<void> => {
+   try {
+-    await pruneObsoleteSessionCaches();
++    // Resolve ownership after asynchronous key enumeration. A login or switch
++    // may finish while cleanup is pending; never select its active namespace.
++    await pruneObsoleteSessionCaches(() => captureActiveBrokerSession()?.session.cacheNamespace);
+   } catch (error) {
+     // Cache cleanup is recovery/housekeeping. Secure session validation remains
+     // authoritative even if the device temporarily refuses this deletion.
+     console.error('[Session] Failed to prune obsolete session caches', error);
++  }
++};
++
++const cleanupLegacySessionMetadata = async (): Promise<void> => {
++  // These obsolete keys contain routing metadata only and are never accepted
++  // as session authority. Neither deletion can touch current credentials.
++  const results = await Promise.allSettled([
++    clearLegacySelectedBrokerSession(),
++    clearLegacyActiveBrokerSessionManifest(),
++    pruneDisposableSessionStorage(),
++  ]);
++  if (results.some(result => result.status === 'rejected')) {
++    console.error('[Session] Legacy metadata cleanup will retry on the next session transition');
+   }
+ };
+ 
+@@ -351,7 +368,6 @@
+   try {
+     // These touch separate keys. Wait for ALL writers even on failure so a
+     // late manifest write cannot recreate a session after rollback erased it.
+-    // Cache pruning finishes before activation creates a new cache namespace.
+     const credentials = await persistBrokerSessionAuthority({
+       writeCredentials: () => replaceAuthSessionCredentials({
+         brokerId: input.session.brokerId,
+@@ -360,9 +376,7 @@
+         refreshToken: input.credentials.refreshToken,
+         expiresAt: input.credentials.expiresAt,
+       }),
+-      clearLegacyRouting: clearLegacySelectedBrokerSession,
+       writeManifest: () => writeActiveBrokerSessionManifest(input.session),
+-      pruneCaches: pruneDisposableSessionStorage,
+     });
+     const persistedAt = Date.now();
+ 
+@@ -394,10 +408,9 @@
+       },
+     );
+     rawInput.onActivated?.(capture);
+-    // The secure bundle and manifest above are the session authority. UI
+-    // metadata already has an ordered persistence queue and must not hold the
+-    // Login button while AsyncStorage finishes writing unrelated preferences.
+-    void persistSessionPreferences();
++    // login() already schedules preference persistence after the next frame.
++    // Do not force serialization or cache/legacy cleanup ahead of that frame.
++    scheduleAfterFirstFrame(cleanupLegacySessionMetadata);
+     if (__DEV__) console.info('[AuthTiming] session commit', {
+       directoryMs: validatedAt - commitStartedAt,
+       teardownMs: runtimeClearedAt - validatedAt,
+--- before/src/services/persistBrokerSessionAuthority.ts
++++ after/src/services/persistBrokerSessionAuthority.ts
+@@ -1,15 +1,11 @@
+-/** Independent handoff writes overlap, but rollback must wait for every writer. */
++/** Only session authority gates activation; rollback waits for both secure writers. */
+ export async function persistBrokerSessionAuthority<T>(tasks: {
+   writeCredentials: () => Promise<T>;
+   writeManifest: () => Promise<unknown>;
+-  clearLegacyRouting: () => Promise<unknown>;
+-  pruneCaches: () => Promise<unknown>;
+ }): Promise<T> {
+   const results = await Promise.allSettled([
+     Promise.resolve().then(tasks.writeCredentials),
+     Promise.resolve().then(tasks.writeManifest),
+-    Promise.resolve().then(tasks.clearLegacyRouting),
+-    Promise.resolve().then(tasks.pruneCaches),
+   ]);
+   for (const result of results) {
+     if (result.status === 'rejected') throw result.reason;
+--- before/src/services/persistBrokerSessionAuthority.test.ts
++++ after/src/services/persistBrokerSessionAuthority.test.ts
+@@ -9,23 +9,21 @@
+   return { promise, resolve, reject };
+ }
+ 
+-test('all handoff operations start together and activation waits for every operation', async () => {
++test('secure writes start together and activation waits only for both authority records', async () => {
+   const credentials = deferred<string>();
+-  const manifest = deferred(); const routing = deferred(); const caches = deferred();
++  const manifest = deferred();
+   const started: string[] = [];
+   let complete = false;
+   const commit = persistBrokerSessionAuthority({
+     writeCredentials: () => { started.push('credentials'); return credentials.promise; },
+     writeManifest: () => { started.push('manifest'); return manifest.promise; },
+-    clearLegacyRouting: () => { started.push('routing'); return routing.promise; },
+-    pruneCaches: () => { started.push('caches'); return caches.promise; },
+   }).then(value => { complete = true; return value; });
+   await Promise.resolve();
+-  assert.deepEqual(started, ['credentials', 'manifest', 'routing', 'caches']);
+-  credentials.resolve('secure-credentials'); manifest.resolve(); routing.resolve();
++  assert.deepEqual(started, ['credentials', 'manifest']);
++  credentials.resolve('secure-credentials');
+   await new Promise(resolve => setImmediate(resolve));
+-  assert.equal(complete, false, 'pruning cannot erase caches created by early activation');
+-  caches.resolve();
++  assert.equal(complete, false, 'both credential bundle and routing manifest must be durable');
++  manifest.resolve();
+   assert.equal(await commit, 'secure-credentials');
+ });
+ 
+@@ -36,7 +34,6 @@
+   const commit = persistBrokerSessionAuthority({
+     writeCredentials: () => credentials.promise,
+     writeManifest: () => manifest.promise,
+-    clearLegacyRouting: async () => {}, pruneCaches: async () => {},
+   }).catch(reason => { rolledBack = true; assert.equal(reason, error); });
+   credentials.reject(error);
+   await new Promise(resolve => setImmediate(resolve));
+@@ -53,7 +50,6 @@
+   const commit = persistBrokerSessionAuthority({
+     writeCredentials: () => { throw error; },
+     writeManifest: () => manifest.promise,
+-    clearLegacyRouting: async () => {}, pruneCaches: async () => {},
+   }).catch(reason => { settled = true; assert.equal(reason, error); });
+   await new Promise(resolve => setImmediate(resolve));
+   assert.equal(settled, false);
+--- before/src/services/brokerSessionCoordinatorSource.test.ts
++++ after/src/services/brokerSessionCoordinatorSource.test.ts
+@@ -51,12 +51,14 @@
+ 
+ test('session transitions prune disposable caches without deleting user data keys', () => {
+   assert.match(source, /const pruneDisposableSessionStorage = async/);
+-  assert.match(source, /await pruneObsoleteSessionCaches\(\)/);
++  assert.match(source, /await pruneObsoleteSessionCaches\(\(\) => captureActiveBrokerSession\(\)\?\.session\.cacheNamespace\)/);
+   const commitBody = source.slice(
+     source.indexOf('const commitBrokerSessionInternal'),
+     source.indexOf('/** Commits credentials', source.indexOf('const commitBrokerSessionInternal')),
+   );
+-  assert.match(commitBody, /const credentials = await persistBrokerSessionAuthority\(\{[\s\S]*pruneCaches: pruneDisposableSessionStorage/);
++  assert.match(commitBody, /scheduleAfterFirstFrame\(cleanupLegacySessionMetadata\)/);
++  const successfulCommit = commitBody.slice(0, commitBody.indexOf('return capture'));
++  assert.doesNotMatch(successfulCommit, /await pruneDisposableSessionStorage|pruneCaches:|clearLegacyRouting:/);
+   assert.ok(commitBody.indexOf('await persistBrokerSessionAuthority') < commitBody.indexOf('activateBrokerSession('));
+ });
+ 
+@@ -121,6 +123,6 @@
+   assert.ok(notification > commitBody.indexOf('activateBrokerSession('));
+   assert.ok(notification > commitBody.indexOf('useUserPreferences.getState().login('));
+   const successfulCommit = commitBody.slice(0, commitBody.indexOf('return capture'));
+-  assert.ok(notification < successfulCommit.indexOf('void persistSessionPreferences()'));
+-  assert.doesNotMatch(successfulCommit, /await persistSessionPreferences\(\)/);
++  assert.ok(notification < successfulCommit.indexOf('scheduleAfterFirstFrame(cleanupLegacySessionMetadata)'));
++  assert.doesNotMatch(successfulCommit, /persistSessionPreferences\(\)/);
+ });
+--- before/src/state/activeBrokerSessionStorage.ts
++++ after/src/state/activeBrokerSessionStorage.ts
+@@ -116,9 +116,13 @@
+     ACTIVE_BROKER_SESSION_MANIFEST_KEY,
+     JSON.stringify(manifest),
+   );
++  return manifest;
++};
++
++/** V1 is never read or trusted. Its removal is housekeeping after login. */
++export const clearLegacyActiveBrokerSessionManifest = async (): Promise<void> => {
+   const { removeSecureItemAsync } = await import('../utils/secureStorage');
+   await removeSecureItemAsync(LEGACY_ACTIVE_BROKER_SESSION_MANIFEST_KEY);
+-  return manifest;
+ };
+ 
+ export const readActiveBrokerSessionManifest = async (): Promise<ActiveBrokerSessionManifest | null> => {
+--- before/src/state/sessionCacheStorage.ts
++++ after/src/state/sessionCacheStorage.ts
+@@ -43,15 +43,23 @@
+ 
+ /** Removes only cache namespaces that the active session can no longer use. */
+ export const pruneObsoleteSessionCaches = async (
+-  preserveCacheNamespace?: string | null,
++  preserveCacheNamespace?: string | null | (() => string | null | undefined),
++  storage: Pick<typeof AsyncStorage, 'getAllKeys' | 'multiRemove'> = AsyncStorage,
+ ): Promise<number> => {
+-  const storageKeys = await AsyncStorage.getAllKeys();
++  const storageKeys = await storage.getAllKeys();
++  // Background cleanup can outlive a login or account switch. Resolve the
++  // current namespace after enumeration, then select and queue removal in
++  // this same turn. Any later activation uses a new namespace that cannot
++  // appear in this snapshot, so its caches cannot be removed by this pass.
++  const currentNamespace = typeof preserveCacheNamespace === 'function'
++    ? preserveCacheNamespace()
++    : preserveCacheNamespace;
+   const obsoleteKeys = selectObsoleteSessionCacheKeys(
+     storageKeys,
+-    preserveCacheNamespace,
++    currentNamespace,
+   );
+   if (obsoleteKeys.length > 0) {
+-    await AsyncStorage.multiRemove(obsoleteKeys);
++    await storage.multiRemove(obsoleteKeys);
+   }
+   return obsoleteKeys.length;
+ };
+--- before/src/state/sessionCacheStorage.test.ts
++++ after/src/state/sessionCacheStorage.test.ts
+@@ -5,11 +5,19 @@
+   CANDLE_SESSION_CACHE_STORAGE_PREFIX,
+   OPEN_POSITIONS_SESSION_CACHE_STORAGE_PREFIX,
+   isAsyncStorageCapacityError,
++  pruneObsoleteSessionCaches,
+   selectObsoleteSessionCacheKeys,
+ } from './sessionCacheStorage';
+ 
+ const cacheKey = (prefix: string, namespace: string) =>
+   `${prefix}:${encodeURIComponent(namespace)}`;
++
++function deferred<T>() {
++  let resolve!: (value: T) => void;
++  let reject!: (reason: unknown) => void;
++  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
++  return { promise, resolve, reject };
++}
+ 
+ test('cache pruning selects stale candle and position namespaces only', () => {
+   const currentNamespace = 'achiever-financials:200002:new-session:7';
+@@ -48,6 +56,112 @@
+   assert.deepEqual(selectObsoleteSessionCacheKeys(keys), keys);
+ });
+ 
++test('background pruning preserves the session activated while storage enumeration was pending', async () => {
++  const enumeration = deferred<readonly string[]>();
++  const oldNamespace = 'broker-a:1:old-session';
++  const newNamespace = 'broker-b:2:new-session';
++  let currentNamespace = oldNamespace;
++  let removed: readonly string[] = [];
++  const oldKey = cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, oldNamespace);
++  const currentKeys = [
++    cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, newNamespace),
++    cacheKey(OPEN_POSITIONS_SESSION_CACHE_STORAGE_PREFIX, newNamespace),
++  ];
++  const pruning = pruneObsoleteSessionCaches(() => currentNamespace, {
++    getAllKeys: () => enumeration.promise,
++    multiRemove: async keys => { removed = keys; },
++  });
++
++  currentNamespace = newNamespace;
++  enumeration.resolve([oldKey, ...currentKeys, 'savedAccounts']);
++
++  assert.equal(await pruning, 1);
++  assert.deepEqual(removed, [oldKey]);
++});
++
++test('background pruning started while logged out preserves a newly logged-in account', async () => {
++  const enumeration = deferred<readonly string[]>();
++  let currentNamespace: string | null = null;
++  let removed: readonly string[] = [];
++  const oldKey = cacheKey(OPEN_POSITIONS_SESSION_CACHE_STORAGE_PREFIX, 'broker:1:old');
++  const currentKey = cacheKey(OPEN_POSITIONS_SESSION_CACHE_STORAGE_PREFIX, 'broker:1:new');
++  const pruning = pruneObsoleteSessionCaches(() => currentNamespace, {
++    getAllKeys: () => enumeration.promise,
++    multiRemove: async keys => { removed = keys; },
++  });
++
++  currentNamespace = 'broker:1:new';
++  enumeration.resolve([oldKey, currentKey]);
++
++  assert.equal(await pruning, 1);
++  assert.deepEqual(removed, [oldKey]);
++});
++
++test('an account activated after deletion is queued keeps its new cache namespace', async () => {
++  const deletion = deferred<void>();
++  const oldKey = cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, 'broker:1:old');
++  const activeKey = cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, 'broker:1:active');
++  const futureKey = cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, 'broker:2:future');
++  const stored = new Set([oldKey, activeKey, 'rtx5-user-preferences-v2']);
++  let currentNamespace = 'broker:1:active';
++  const pruning = pruneObsoleteSessionCaches(() => currentNamespace, {
++    getAllKeys: async () => [...stored],
++    multiRemove: async keys => {
++      // A subsequent login can finish while the native delete is pending.
++      currentNamespace = 'broker:2:future';
++      stored.add(futureKey);
++      await deletion.promise;
++      keys.forEach(key => stored.delete(key));
++    },
++  });
++  await Promise.resolve();
++  deletion.resolve();
++
++  assert.equal(await pruning, 1);
++  assert.deepEqual([...stored], [activeKey, 'rtx5-user-preferences-v2', futureKey]);
++});
++
++test('logout during enumeration makes all old session caches disposable', async () => {
++  const enumeration = deferred<readonly string[]>();
++  let currentNamespace: string | null = 'broker:1:active';
++  const oldKey = cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, currentNamespace);
++  let removed: readonly string[] = [];
++  const pruning = pruneObsoleteSessionCaches(() => currentNamespace, {
++    getAllKeys: () => enumeration.promise,
++    multiRemove: async keys => { removed = keys; },
++  });
++
++  currentNamespace = null;
++  enumeration.resolve([oldKey, 'savedAccounts']);
++
++  assert.equal(await pruning, 1);
++  assert.deepEqual(removed, [oldKey]);
++});
++
++test('failed cache deletion excludes active caches and reports the storage failure', async () => {
++  const currentNamespace = 'broker:1:active';
++  const currentKey = cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, currentNamespace);
++  const oldKey = cacheKey(CANDLE_SESSION_CACHE_STORAGE_PREFIX, 'broker:1:old');
++  const failure = new Error('cache storage is unavailable');
++  let attempted: readonly string[] = [];
++  await assert.rejects(pruneObsoleteSessionCaches(() => currentNamespace, {
++    getAllKeys: async () => [currentKey, oldKey],
++    multiRemove: async keys => { attempted = keys; throw failure; },
++  }), error => error === failure);
++
++  assert.deepEqual(attempted, [oldKey]);
++});
++
++test('failed enumeration does not attempt any cache removal', async () => {
++  const failure = new Error('cache storage is unavailable');
++  let removalAttempted = false;
++  await assert.rejects(pruneObsoleteSessionCaches(() => 'broker:1:active', {
++    getAllKeys: async () => { throw failure; },
++    multiRemove: async () => { removalAttempted = true; },
++  }), error => error === failure);
++  assert.equal(removalAttempted, false);
++});
++
+ test('AsyncStorage capacity errors are recognized without treating generic failures as full storage', () => {
+   assert.equal(
+     isAsyncStorageCapacityError(new Error('database or disk is full (code 13 SQLITE_FULL)')),

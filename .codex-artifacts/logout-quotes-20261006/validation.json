@@ -1,0 +1,22 @@
+{
+  "source_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree": "Existing local changes preserved; task.patch is relative to task snapshots.",
+  "typecheck": "passed",
+  "regression": {
+    "result": "passed",
+    "test_files": 428,
+    "batches": 18
+  },
+  "focused_socket_and_state": {
+    "result": "passed",
+    "tests": 13
+  },
+  "logout_behavior": "Session invalidated immediately; native confirmation unmounted; Login route opened without waiting for storage cleanup. Prompt is bound to its session and consumed once.",
+  "quotes_behavior": "Shared subscription changes reuse transports. Reconnect/unavailable/token rotation preserve last prices and original timestamps with execution disabled; validated new ticks replace them. Broker/account boundaries discard retained prices.",
+  "device_validation": {
+    "device": "Android USB 3568cce8",
+    "result": "incomplete",
+    "reason": "Device changed screens during controlled check; screenrecord exited 1. No successful logout/reconnect video is claimed."
+  },
+  "build_or_publication": "No production build, OTA publication, dependency or native configuration changes."
+}

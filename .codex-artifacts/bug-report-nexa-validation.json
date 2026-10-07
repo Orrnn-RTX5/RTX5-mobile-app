@@ -1,0 +1,27 @@
+{
+  "tested_at": "2026-10-01T13:44:10.786Z",
+  "mobile_revision": "31078cd5ceff6232a2d9345047a1e615a55c91b4",
+  "working_tree": "uncommitted",
+  "package_version": "1.1.30",
+  "expo_version": "1.1.30",
+  "ios_build": "1",
+  "execution": "Node diagnostic using app broker discovery and report API service; not a device UI test",
+  "backend_revision": "not exposed/verified",
+  "support_visibility": "not verified",
+  "requests": [
+    {
+      "method": "GET",
+      "url": "https://nexa.orrnn.com/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "url": "https://nexa.orrnn.com/api/v2/bug-reports/options",
+      "status": 401
+    }
+  ],
+  "gateway": "https://nexa.orrnn.com/api/v2",
+  "configuration_version": "v2:21:1789459348",
+  "authenticated": false,
+  "result": "Authenticated Nexa integration not completed. Inspect sanitized request statuses and supply an authorized trader test session if needed."
+}

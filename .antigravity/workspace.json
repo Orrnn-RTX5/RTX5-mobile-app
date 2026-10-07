@@ -1,0 +1,41 @@
+{
+    "version": "1.0",
+    "workspace_name": "RTX5 Mobile App — Multi-Agent Mode",
+    "agent_mode": {
+        "enabled": true,
+        "orchestrator_file": "_agents/ORCHESTRATOR.md",
+        "auto_pilot": true,
+        "parallel_agents": true,
+        "require_qa_before_devops": true,
+        "zero_permission": true
+    },
+    "ide": {
+        "show_agent_panel": true,
+        "show_agent_dispatch_log": true,
+        "show_mission_control_status": true,
+        "agent_panel_position": "right",
+        "auto_open_report": true
+    },
+    "shortcuts": {
+        "trigger_orchestrator": "Cmd+Shift+O",
+        "trigger_feature_workflow": "Cmd+Shift+F",
+        "trigger_bugfix_workflow": "Cmd+Shift+B",
+        "trigger_deploy_workflow": "Cmd+Shift+D",
+        "trigger_review_workflow": "Cmd+Shift+R",
+        "trigger_turbo_build": "Cmd+Shift+T"
+    },
+    "notifications": {
+        "agent_started": true,
+        "agent_completed": true,
+        "escalation_required": true,
+        "build_complete": true
+    },
+    "excluded_from_agents": [
+        "node_modules/",
+        "rtx5-app/node_modules/",
+        ".expo/",
+        "dist/",
+        "build/",
+        "screenshots/"
+    ]
+}

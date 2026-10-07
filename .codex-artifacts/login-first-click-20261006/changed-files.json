@@ -1,0 +1,8 @@
+[
+  "src/features/auth/GuestFlowHost.tsx",
+  "src/services/brokerSessionCoordinator.ts",
+  "src/services/validatedLoginBrokerContext.ts",
+  "src/services/validatedLoginBrokerContext.test.ts",
+  "src/features/trade/tradeAuthGateSource.test.ts",
+  "src/services/brokerSessionCoordinatorSource.test.ts"
+]

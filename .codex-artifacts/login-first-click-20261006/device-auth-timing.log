@@ -1,0 +1,16 @@
+ INFO  [AuthTiming] authentication response 5909
+ INFO  [AuthTiming] authentication response 1574
+ INFO  [AuthTiming] session commit {"activationMs": 58, "directoryMs": 8, "securePersistenceMs": 234, "teardownMs": 34}
+ INFO  [AuthTiming] dashboard navigation 3295
+ INFO  [AuthTiming] authentication response 623
+ INFO  [AuthTiming] coordinator queue 63
+ INFO  [AuthTiming] dashboard navigation 1321
+ INFO  [AuthTiming] session commit {"activationMs": 56, "directoryMs": 0, "securePersistenceMs": 514, "teardownMs": 55}
+ INFO  [AuthTiming] authentication response 612
+ INFO  [AuthTiming] coordinator queue 69
+ INFO  [AuthTiming] dashboard navigation 1312
+ INFO  [AuthTiming] session commit {"activationMs": 59, "directoryMs": 0, "securePersistenceMs": 498, "teardownMs": 57}
+ INFO  [AuthTiming] authentication response 523
+ INFO  [AuthTiming] coordinator queue 68
+ INFO  [AuthTiming] dashboard navigation 994
+ INFO  [AuthTiming] session commit {"activationMs": 66, "directoryMs": 0, "securePersistenceMs": 260, "teardownMs": 68}

@@ -1,0 +1,425 @@
+--- before/src/features/auth/GuestFlowHost.tsx
++++ after/src/features/auth/GuestFlowHost.tsx
+@@ -2,7 +2,6 @@
+ import { Keyboard, Modal } from 'react-native';
+ import { router, usePathname } from 'expo-router';
+ import { useBrokerDirectory } from '../../query/broker';
+-import { getBrokerDirectoryForBroker } from '../../api/broker';
+ import { useUserPreferences } from '../../state/userPreferences';
+ import { createPublicBrokerContext, getPublicBrokerContext, setPublicBrokerContext, subscribePublicBrokerContext, publicBrokerFetch, isPublicBrokerContextCurrent } from '../../state/publicBrokerContext';
+ import { captureActiveBrokerSession, getActiveBrokerSessionProvenance } from '../../state/activeBrokerSession';
+@@ -22,6 +21,15 @@
+ import { buildBrokerDirectoryRows } from '../settings/BrokersScreen/brokerDirectoryRows';
+ import { setSavedAccountPassword, removeSavedAccountPassword } from '../../state/savedAccounts';
+ 
++// Native text/autofill events update this ref before React commits a render,
++// so an immediate Login tap submits the latest value on its first attempt.
++function useImmediateField<T>(initial: T) {
++  const [value, update] = useState(initial);
++  const current = useRef(value);
++  const setValue = (next: T) => { current.current = next; update(next); };
++  return [value, setValue, current] as const;
++}
++
+ export function GuestFlowHost() {
+   const pathname = usePathname();
+   const previousPath = useRef(pathname);
+@@ -30,13 +38,13 @@
+   const brokerId = useUserPreferences(state => state.brokerId);
+   const isLoggedIn = useUserPreferences(state => state.isLoggedIn);
+   const directory = useBrokerDirectory();
+-  const [name, setName] = useState(''); const [identity, setIdentity] = useState('');
+-  const [password, setPassword] = useState(''); const [confirmation, setConfirmation] = useState('');
++  const [name, setName, nameValue] = useImmediateField(''); const [identity, setIdentity, identityValue] = useImmediateField('');
++  const [password, setPassword, passwordValue] = useImmediateField(''); const [confirmation, setConfirmation, confirmationValue] = useImmediateField('');
+   const [config, setConfig] = useState<any>(null); const [localError, setLocalError] = useState('');
+   const [retryAt, setRetryAt] = useState(0); const [now, setNow] = useState(Date.now());
+   const [rateForm, setRateForm] = useState<'login' | 'demo'>('demo');
+   const [ambiguous, setAmbiguous] = useState(false);
+-  const [remember, setRemember] = useState(true);
++  const [remember, setRemember, rememberValue] = useImmediateField(true);
+   const loginVariant = useRef<'login' | 'broker'>('login');
+   if (flow.screen === 'choice') loginVariant.current = 'broker';
+   else if (flow.screen === 'guest' || flow.screen === 'ready') loginVariant.current = 'login';
+@@ -45,12 +53,6 @@
+   const submitting = useRef(false);
+   const busy = flow.screen === 'submitting' || flow.screen === 'hydrating';
+   const visible = !['guest', 'ready'].includes(flow.screen);
+-  useEffect(() => {
+-    if (!visible || !flow.context) return;
+-    // Warm only the selected broker's approved directory while the user types.
+-    // The coordinator still validates exact identity/endpoints before activation.
+-    void getBrokerDirectoryForBroker(flow.context.brokerId).catch(() => undefined);
+-  }, [visible, flow.context]);
+   useEffect(() => subscribeAuthFlow(() => {
+     if (getAuthFlowState().screen === 'guest') cancelBrokerSessionCommitAuthorization(authorization.current);
+   }), []);
+@@ -73,8 +75,8 @@
+     try {
+       const verified = createPublicBrokerContext(selected);
+       const active = captureActiveBrokerSession();
+-      if (active && (active.session.brokerId !== verified.brokerId || active.session.configVersion !== verified.configVersion || active.session.apiBase !== verified.apiBase || active.session.feedWsBase !== verified.feedWsBase || active.session.tradeWsBase !== verified.endpoints.tradeWsBase)) void logoutBrokerSession();
+-      if (context?.brokerId === verified.brokerId && context.configVersion === verified.configVersion && context.apiBase === verified.apiBase && context.extendedApiBase === verified.extendedApiBase && context.feedWsBase === verified.feedWsBase && context.feedBrokerId === verified.feedBrokerId && context.feedStatusUrl === verified.feedStatusUrl) return;
++      if (active && (active.session.brokerId !== verified.brokerId || active.session.configVersion !== verified.configVersion || active.session.apiBase !== verified.apiBase || active.session.feedWsBase !== verified.feedWsBase || active.session.feedStatusUrl !== verified.feedStatusUrl || active.session.servicesDomain !== verified.endpoints.servicesDomain || active.session.tradeWsBase !== verified.endpoints.tradeWsBase)) void logoutBrokerSession();
++      if (context?.brokerId === verified.brokerId && context.configVersion === verified.configVersion && context.apiBase === verified.apiBase && context.extendedApiBase === verified.extendedApiBase && context.feedWsBase === verified.feedWsBase && context.feedBrokerId === verified.feedBrokerId && context.feedStatusUrl === verified.feedStatusUrl && context.endpoints.tradeWsBase === verified.endpoints.tradeWsBase && context.endpoints.servicesDomain === verified.endpoints.servicesDomain) return;
+       setPublicBrokerContext(selected);
+     } catch (error) { setPublicBrokerContext(null); setLocalError(error instanceof Error ? error.message : 'Invalid broker configuration.'); }
+   }, [directory.data, brokerId, context]);
+@@ -108,19 +110,17 @@
+     void logoutBrokerSession();
+   };
+   const submit = async () => {
+-    if (submitting.current || busy || retryAt > Date.now() && rateForm === flow.form || ambiguous && flow.form === 'demo' || !flow.context || flow.form === 'demo' && !demoAllowed) return;
++    const currentFlow = getAuthFlowState();
++    if (submitting.current || ['submitting', 'hydrating'].includes(currentFlow.screen) || retryAt > Date.now() && rateForm === currentFlow.form || ambiguous && currentFlow.form === 'demo' || !currentFlow.context || currentFlow.form === 'demo' && !demoAllowed) return;
+     let body: string | Record<string, unknown>;
+-    try { body = flow.form === 'demo' ? demoRegistrationBody({ name, email: identity, password, confirmation }, flow.context.brokerId) : loginRequestBody(identity, password, flow.context.brokerId); }
++    try { body = currentFlow.form === 'demo' ? demoRegistrationBody({ name: nameValue.current, email: identityValue.current, password: passwordValue.current, confirmation: confirmationValue.current }, currentFlow.context.brokerId) : loginRequestBody(identityValue.current, passwordValue.current, currentFlow.context.brokerId); }
+     catch (error) { setLocalError((error as Error).message); return; }
+     const operation = beginAuthSubmission(); if (!operation) return;
+     Keyboard.dismiss();
+     submitting.current = true; setLocalError('');
+     const attempt = operation.state.attempt; const selected = operation.state.context!;
+     authorization.current = authorizeBrokerSessionCommit();
+-    // If form entry outlived the short directory cache, overlap revalidation
+-    // with authentication instead of adding another network wait afterward.
+-    void getBrokerDirectoryForBroker(selected.brokerId).catch(() => undefined);
+-    const submittedPassword = password; const submittedRemember = remember;
++    const submittedPassword = passwordValue.current; const submittedRemember = rememberValue.current;
+     const authStartedAt = Date.now();
+     try {
+       const session = await authenticateGuest(selected, operation.state.form === 'demo' ? 'register' : 'login', body, operation.signal);
+@@ -128,7 +128,9 @@
+       if (!isAuthAttemptCurrent(attempt)) return;
+       setAuthProgress(attempt, 'hydrating');
+       let hydration: ReturnType<typeof bootstrapApp> | undefined;
++      let didNavigate = false;
+       const capture = await commitBrokerSession({
++        verifiedContext: selected,
+         session: { ...selected.endpoints, accountLogin: session.accountLogin, investor: session.investor },
+         credentials: { accessToken: session.accessToken, refreshToken: session.refreshToken, expiresAt: session.expiresAt },
+         account: { name: String(session.metadata.name || name.trim() || 'Trader'), serverName: String(session.metadata.server || selected.name), accountType: 'unknown', accountEnvironmentSource: 'unknown' },
+@@ -136,30 +138,30 @@
+         onActivated: active => {
+           if (!isAuthAttemptCurrent(attempt)) return;
+           committedNamespace.current = active.session.cacheNamespace;
+-          hydration = bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(active.session), waitFor: 'trading' });
++          // Finish the ordinary login in this same activation turn. Waiting
++          // for the coordinator Promise first permits a full intermediate
++          // authenticated render underneath the still-visible login modal.
++          if (completeAuthenticatedLogin(attempt)) {
++            didNavigate = true;
++            committedNamespace.current = null; setPassword(''); setConfirmation('');
++            router.replace('/(tabs)/quotes');
++            if (__DEV__) console.info('[AuthTiming] dashboard navigation', Date.now() - authStartedAt);
++          }
++          hydration = Promise.resolve().then(() => bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(active.session), waitFor: 'trading' }));
+           // Commit still owns persistence/cancellation; observe an early read
+           // failure until the awaited handoff can report it to the form.
+           void hydration.catch(() => undefined);
++          if (operation.state.form === 'login') {
++            const passwordWrite = submittedRemember
++              ? setSavedAccountPassword(selected.brokerId, session.accountLogin, submittedPassword)
++              : removeSavedAccountPassword(selected.brokerId, session.accountLogin);
++            void passwordWrite.catch(() => undefined);
++          }
+         },
+       }, authorization.current);
++      if (didNavigate) return;
+       committedNamespace.current = capture.session.cacheNamespace;
+       if (!isAuthAttemptCurrent(attempt)) { await logoutBrokerSession(); return; }
+-      if (operation.state.form === 'login') {
+-        // Remember-password bookkeeping uses the ordered secure account store;
+-        // it does not gate navigation or account-policy hydration.
+-        const passwordWrite = submittedRemember
+-          ? setSavedAccountPassword(selected.brokerId, session.accountLogin, submittedPassword)
+-          : removeSavedAccountPassword(selected.brokerId, session.accountLogin);
+-        void passwordWrite.catch(() => undefined);
+-      }
+-      if (completeAuthenticatedLogin(attempt)) {
+-        // bootstrapApp already owns background hydration and rejects trading
+-        // until verified policy and authorized instruments have been accepted.
+-        committedNamespace.current = null; setPassword(''); setConfirmation('');
+-        router.replace('/(tabs)/quotes');
+-        if (__DEV__) console.info('[AuthTiming] dashboard navigation', Date.now() - authStartedAt);
+-        return;
+-      }
+       const hydrated = await (hydration ?? bootstrapApp({ accountLogin: session.accountLogin, expectedProvenance: getActiveBrokerSessionProvenance(capture.session), waitFor: 'trading' }));
+       if (!isAuthAttemptCurrent(attempt)) return;
+       if (!acceptTradingHydration(capture.session.cacheNamespace, hydrated.me, hydrated.accounts, hydrated.instruments)) throw new Error('Account policy or authorized symbols could not be loaded. Trading remains disabled.');
+@@ -191,7 +193,7 @@
+       {!context ? <GuestBrokerPicker onBack={() => {}} selectionError={localError}
+         onSelectBroker={row => { void selectGuestBroker(row).catch(error => setLocalError(error.message)); }} /> : null}
+     </Modal>
+-    <Modal visible={visible && Boolean(context)} animationType="slide" onRequestClose={close} presentationStyle="fullScreen">
++    <Modal visible={visible && Boolean(context)} animationType={flow.screen === 'ready' ? 'none' : 'slide'} onRequestClose={close} presentationStyle="fullScreen">
+       {visible && context ? flow.form === 'demo' && flow.screen !== 'choice' ? <DemoAccountScreen
+         key={flow.context?.cacheNamespace}
+         name={name} email={identity} password={password} confirmation={confirmation}
+--- before/src/services/brokerSessionCoordinator.ts
++++ after/src/services/brokerSessionCoordinator.ts
+@@ -2,7 +2,8 @@
+ import { persistBrokerSessionAuthority } from './persistBrokerSessionAuthority';
+ import { brokerApi } from '../api/brokerApi';
+ import { getBrokerDirectory, getBrokerDirectoryForBroker } from '../api/broker';
+-import { createPublicBrokerContext } from '../state/publicBrokerContext';
++import { createPublicBrokerContext, type PublicBrokerContext } from '../state/publicBrokerContext';
++import { validateLoginBrokerContext } from './validatedLoginBrokerContext';
+ import { dismissAuthFlow } from '../features/trade/authFlowState';
+ import { accountWsService } from '../api/ws/accountSocket';
+ import { brokerRealtimeService } from '../api/ws/BrokerRealtimeService';
+@@ -82,6 +83,8 @@
+ 
+ export type CommitBrokerSessionInput = Readonly<{
+   isCurrent?: () => boolean;
++  /** In-memory, directory-approved selection used for this authentication request. */
++  verifiedContext?: PublicBrokerContext;
+   /** Starts session-owned reads after secure activation, alongside preference persistence. */
+   onActivated?: (capture: ActiveBrokerSessionCapture) => void;
+   session: ActivateBrokerSessionInput;
+@@ -325,10 +328,15 @@
+   const input = validateCommitInput(rawInput);
+   const commitStartedAt = Date.now();
+   const startingEpoch = getActiveBrokerSessionEpoch();
+-  const directory = await getBrokerDirectoryForBroker(input.session.brokerId);
+-  const supported = directory.selectableServers.find(row => row.broker_id === input.session.brokerId && row.market_api_url === input.session.apiBase);
+-  if (!supported) throw new Error('This trading session is not supported by the current broker directory.');
+-  const verified = createPublicBrokerContext(supported);
++  let verified: PublicBrokerContext;
++  if (rawInput.verifiedContext) {
++    verified = validateLoginBrokerContext(rawInput.verifiedContext, input.session);
++  } else {
++    const directory = await getBrokerDirectoryForBroker(input.session.brokerId);
++    const supported = directory.selectableServers.find(row => row.broker_id === input.session.brokerId && row.market_api_url === input.session.apiBase);
++    if (!supported) throw new Error('This trading session is not supported by the current broker directory.');
++    verified = createPublicBrokerContext(supported);
++  }
+   if (verified.configVersion !== input.session.configVersion) throw new Error('Broker configuration changed. Select the broker again before signing in.');
+   if (verified.apiBase !== input.session.apiBase || verified.feedWsBase !== input.session.feedWsBase || verified.feedStatusUrl !== input.session.feedStatusUrl || (verified.endpoints.tradeWsBase ?? '') !== (input.session.tradeWsBase ?? '')) throw new Error('Trading session endpoints do not match the broker directory.');
+   if (rawInput.isCurrent && !rawInput.isCurrent()) throw new Error('Authentication was cancelled.');
+@@ -359,6 +367,7 @@
+     const persistedAt = Date.now();
+ 
+     if (rawInput.isCurrent && !rawInput.isCurrent()) throw new Error('Authentication was cancelled before session activation.');
++    if (rawInput.verifiedContext) validateLoginBrokerContext(rawInput.verifiedContext, input.session);
+ 
+     const capture = activateBrokerSession(transition, input.session, {
+       accessToken: credentials.accessToken,
+@@ -417,8 +426,9 @@
+ export const commitBrokerSession = (
+   input: CommitBrokerSessionInput,
+   authorization: BrokerSessionCommitAuthorization,
+-): Promise<ActiveBrokerSessionCapture> =>
+-  enqueueMutation(() => {
++): Promise<ActiveBrokerSessionCapture> => {
++  const queuedAt = Date.now();
++  return enqueueMutation(() => {
+     // This check deliberately runs inside the mutation queue. A logout,
+     // completed switch, or newer login that wins while auth is in flight has
+     // already changed either the epoch or the active attempt by this point.
+@@ -426,8 +436,10 @@
+       authorization,
+       getActiveBrokerSessionEpoch(),
+     );
++    if (__DEV__) console.info('[AuthTiming] coordinator queue', Date.now() - queuedAt);
+     return commitBrokerSessionInternal(input);
+   });
++};
+ 
+ export const restoreBrokerSession = (): Promise<BrokerSessionRestoreResult> =>
+   enqueueMutation(async () => {
+@@ -548,7 +560,11 @@
+         resolve();
+       });
+     });
+-    beginActiveBrokerSessionTransition();
++    // The synchronous logout already invalidated the old epoch. Only a
++    // restore/commit that actually reactivated a session needs invalidating
++    // again; an unconditional bump would reject a new Login tapped while
++    // this queued storage cleanup was finishing.
++    if (captureActiveBrokerSession()) beginActiveBrokerSessionTransition();
+     await teardownBrokerSessionRuntime();
+     await pruneDisposableSessionStorage();
+     useUserPreferences.getState().logout();
+--- before/src/services/validatedLoginBrokerContext.ts
++++ after/src/services/validatedLoginBrokerContext.ts
+@@ -0,0 +1,33 @@
++import type { ActivateBrokerSessionInput } from '../state/activeBrokerSession';
++import {
++  isPublicBrokerContextCurrent,
++  type PublicBrokerContext,
++} from '../state/publicBrokerContext';
++
++/** Reuse only the live directory context that authorized this login request. */
++export function validateLoginBrokerContext(
++  context: PublicBrokerContext,
++  session: ActivateBrokerSessionInput,
++): PublicBrokerContext {
++  // Identity is deliberate: matching persisted fields or a cloned context do
++  // not establish directory provenance, even if their generation is current.
++  if (!isPublicBrokerContextCurrent(context)) {
++    throw new Error('Broker selection changed. Select the broker again before signing in.');
++  }
++  if (
++    context.brokerId !== session.brokerId ||
++    context.configVersion !== session.configVersion
++  ) {
++    throw new Error('Broker configuration changed. Select the broker again before signing in.');
++  }
++  if (
++    context.apiBase !== session.apiBase ||
++    context.feedWsBase !== session.feedWsBase ||
++    context.feedStatusUrl !== session.feedStatusUrl ||
++    (context.endpoints.tradeWsBase ?? '') !== (session.tradeWsBase ?? '') ||
++    context.endpoints.servicesDomain !== session.servicesDomain
++  ) {
++    throw new Error('Trading session endpoints do not match the verified broker context.');
++  }
++  return context;
++}
+--- before/src/services/validatedLoginBrokerContext.test.ts
++++ after/src/services/validatedLoginBrokerContext.test.ts
+@@ -0,0 +1,100 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import type { ActivateBrokerSessionInput } from '../state/activeBrokerSession';
++import {
++  createPublicBrokerContext,
++  setPublicBrokerContext,
++  type PublicBrokerContext,
++} from '../state/publicBrokerContext';
++import { publicBrokerFixture } from '../testFixtures/publicBroker';
++import { validateLoginBrokerContext } from './validatedLoginBrokerContext';
++
++const sessionFor = (context: PublicBrokerContext): ActivateBrokerSessionInput => ({
++  ...context.endpoints,
++  accountLogin: '200003',
++});
++
++test.afterEach(() => setPublicBrokerContext(null));
++
++test('the exact current directory context authorizes handoff without another network request', () => {
++  const context = setPublicBrokerContext(publicBrokerFixture())!;
++  const originalFetch = globalThis.fetch;
++  let requests = 0;
++  globalThis.fetch = (() => {
++    requests += 1;
++    throw new Error('Validation must not fetch the directory again.');
++  }) as typeof fetch;
++  try {
++    assert.equal(validateLoginBrokerContext(context, sessionFor(context)), context);
++    assert.equal(requests, 0);
++    assert.equal(Object.isFrozen(context), true);
++    assert.equal(Object.isFrozen(context.endpoints), true);
++  } finally {
++    globalThis.fetch = originalFetch;
++  }
++});
++
++test('cloned and independently constructed contexts cannot authorize the fast handoff', () => {
++  const context = setPublicBrokerContext(publicBrokerFixture())!;
++  for (const supplied of [
++    { ...context },
++    Object.freeze({ ...context }),
++    createPublicBrokerContext(publicBrokerFixture()),
++  ]) {
++    assert.throws(() => validateLoginBrokerContext(supplied, sessionFor(context)), /selection changed/);
++  }
++});
++
++test('broker selection, configuration refresh, and clearing selection invalidate earlier login contexts', () => {
++  for (const next of [
++    publicBrokerFixture('Other'),
++    publicBrokerFixture('Nexa', { config_version: 'test-2' }),
++    publicBrokerFixture(),
++    null,
++  ]) {
++    const context = setPublicBrokerContext(publicBrokerFixture())!;
++    const session = sessionFor(context);
++    setPublicBrokerContext(next);
++    assert.throws(() => validateLoginBrokerContext(context, session), /selection changed/);
++  }
++});
++
++test('broker identity and configuration must match exactly without case folding or numeric coercion', () => {
++  const context = setPublicBrokerContext(publicBrokerFixture('Nexa', { config_version: '1' }))!;
++  for (const change of [
++    { brokerId: 'nexa' },
++    { brokerId: 'NEXA' },
++    { brokerId: 'Nexa ' },
++    { configVersion: '2' },
++    { configVersion: 1 },
++  ]) {
++    assert.throws(() => validateLoginBrokerContext(context, { ...sessionFor(context), ...change }), /configuration changed/);
++  }
++});
++
++test('each session routing field must equal the authorized directory value', () => {
++  const context = setPublicBrokerContext(publicBrokerFixture())!;
++  const changes: Partial<ActivateBrokerSessionInput>[] = [
++    { apiBase: 'https://other.example.com/api/v2' },
++    { apiBase: `${context.apiBase}/` },
++    { feedWsBase: 'wss://other.example.com/ws/feed' },
++    { feedStatusUrl: 'https://other.example.com/ws/feed/status' },
++    { tradeWsBase: 'wss://other.example.com/ws/v2' },
++    { tradeWsBase: undefined },
++    { servicesDomain: 'other.example.com' },
++    { servicesDomain: 'SERVICES.EXAMPLE.COM' },
++  ];
++  for (const change of changes) {
++    assert.throws(() => validateLoginBrokerContext(context, { ...sessionFor(context), ...change }), /endpoints do not match/);
++  }
++});
++
++test('a directory-derived trade endpoint must also match when the record omits it', () => {
++  const context = setPublicBrokerContext(publicBrokerFixture('Nexa', { trade_wss_url: undefined }))!;
++  const session = sessionFor(context);
++  assert.equal(context.endpoints.tradeWsBase, 'wss://services.example.com/ws/v2');
++  assert.equal(validateLoginBrokerContext(context, session), context);
++  for (const tradeWsBase of [null, undefined, '', 'wss://other.example.com/ws/v2']) {
++    assert.throws(() => validateLoginBrokerContext(context, { ...session, tradeWsBase }), /endpoints do not match/);
++  }
++});
+--- before/src/features/trade/tradeAuthGateSource.test.ts
++++ after/src/features/trade/tradeAuthGateSource.test.ts
+@@ -64,8 +64,8 @@
+   const submit = sourceBetween(host, 'const submit = async', 'const changeBroker');
+   assert.ok(submit.indexOf('Keyboard.dismiss()') < submit.indexOf('await authenticateGuest'));
+   assert.ok(submit.indexOf('await commitBrokerSession(') < submit.indexOf('setSavedAccountPassword('));
+-  assert.match(submit, /const submittedPassword = password; const submittedRemember = remember/);
+-  assert.match(submit, /submitting.current \|\| busy/);
++  assert.match(submit, /const submittedPassword = passwordValue\.current; const submittedRemember = rememberValue\.current/);
++  assert.match(submit, /submitting.current \|\| \['submitting', 'hydrating'\]\.includes\(currentFlow.screen\)/);
+ });
+ 
+ test('primary trade entry points guard before navigation, prefetch, or execution', () => {
+@@ -185,12 +185,15 @@
+   const host = readSource('src/features/auth/GuestFlowHost.tsx');
+   const submit = sourceBetween(host, 'const submit = async', 'const changeBroker');
+   assert.match(submit, /onActivated: active => \{\s*if \(!isAuthAttemptCurrent\(attempt\)\) return/);
+-  assert.match(submit, /hydration = bootstrapApp\([\s\S]*waitFor: 'trading'/);
++  assert.match(submit, /hydration = Promise\.resolve\(\)\.then\(\(\) => bootstrapApp\([\s\S]*waitFor: 'trading'/);
+   assert.ok(submit.indexOf('await commitBrokerSession(') < submit.indexOf('const hydrated = await (hydration'));
+   const dashboard = submit.indexOf('if (completeAuthenticatedLogin(attempt))');
+   assert.ok(dashboard > submit.indexOf('await commitBrokerSession('));
+   assert.ok(dashboard < submit.indexOf('const hydrated = await (hydration'));
+-  assert.match(submit.slice(dashboard, submit.indexOf('const hydrated = await (hydration')), /router.replace\('\/\(tabs\)\/quotes'\);[\s\S]*return;/);
++  assert.ok(submit.indexOf("router.replace('/(tabs)/quotes')", dashboard) < submit.indexOf('hydration = Promise.resolve()'));
++  assert.match(submit, /\}, authorization\.current\);\s*if \(didNavigate\) return;\s*committedNamespace\.current = capture\.session\.cacheNamespace/);
++  assert.doesNotMatch(submit, /getBrokerDirectoryForBroker/);
++  assert.match(submit, /verifiedContext: selected/);
+   assert.doesNotMatch(submit, /await (?:setSavedAccountPassword|removeSavedAccountPassword)/);
+   assert.ok(submit.indexOf('const hydrated = await (hydration') < submit.indexOf('!acceptTradingHydration('));
+   assert.ok(submit.indexOf('!acceptTradingHydration(') < submit.indexOf('completeAuthenticatedFlow('));
+--- before/src/services/brokerSessionCoordinatorSource.test.ts
++++ after/src/services/brokerSessionCoordinatorSource.test.ts
+@@ -108,6 +108,9 @@
+   assert.match(commitBody, /verified\.configVersion !== input\.session\.configVersion/);
+   assert.match(commitBody, /rawInput\.isCurrent && !rawInput\.isCurrent\(\)/);
+   assert.ok(commitBody.indexOf('await getBrokerDirectoryForBroker') < commitBody.indexOf('activateBrokerSession('));
++  assert.match(commitBody, /if \(rawInput\.verifiedContext\) \{\s*verified = validateLoginBrokerContext\(rawInput\.verifiedContext, input\.session\);\s*\} else \{\s*const directory = await getBrokerDirectoryForBroker/);
++  const persisted = commitBody.indexOf('const persistedAt');
++  assert.ok(commitBody.indexOf('validateLoginBrokerContext(rawInput.verifiedContext, input.session)', persisted) < commitBody.indexOf('activateBrokerSession('));
+ });
+ 
+ 

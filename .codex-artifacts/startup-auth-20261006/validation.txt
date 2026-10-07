@@ -1,0 +1,41 @@
+Startup, Search Broker and authentication optimization
+Date: 2026-10-06
+Source base: 31078cd5ceff6232a2d9345047a1e615a55c91b4
+Candidate: current working tree, including prior local changes. Not committed or published.
+
+Startup
+- Removed the additional fixed 100 ms splash delay; reveal follows the first committed visual frame.
+- Start the shared anonymous broker-directory request while fonts and secure storage load.
+- Restore chart drawings and hydration readiness in one state publication instead of per-bucket serialization/writes.
+- Memoize the root retained UI and subscribe only to account identity, avoiding redraws on unrelated account metadata updates.
+- Pause hidden screen prewarming and anonymous chart prefetch during initial broker selection/authentication.
+- Load optional route modules one per idle turn, with cancellation and resumption; pause when backgrounded or no verified broker exists.
+- Skip development-only chart HTML hashing in production.
+
+Search Broker
+- Fetch independent supported directory origins concurrently, maintaining atomic validation and merge rules.
+- Use scoped verified broker lookup instead of forcing a complete directory refresh on selection.
+- Keep broker query selection referentially stable across form renders.
+- Use a coordinator-proven empty guest fast path for broker selection and Search Broker/Back; pending mutations and uncertain secure state still require full cleanup.
+- Move optional Demo module warming after the picker paints and cancel it on dismissal.
+
+Authentication and restore
+- Ordinary Login navigates immediately after authenticated secure-session activation; account hydration and remembered-password work follow the dashboard frame.
+- Root bootstrap also yields to dashboard paint and rejects stale session work.
+- Buy/Sell authentication retains required account/policy/catalog hydration and never sends an automatic order.
+- Canonical, unchanged secure restore records avoid redundant writes; migration and exact broker validation remain required.
+- Move disposable cache/profile housekeeping after the startup frame. Legacy credential aliases are still removed through serialized cleanup that never rewrites/removes the current bundle.
+
+Final validation
+PASS: npm run typecheck.
+PASS: npm test — all 445 test files, 19 batches.
+PASS: focused broker, hydration, auth, queue/lifecycle and startup tests, including the final 41-test cross-cutting run.
+PASS: git diff --check on affected tracked paths.
+PASS: production JavaScript exports for Android and iOS.
+Android: export/_expo/static/js/android/entry-10c991f2706911b63f5388e3799b140e.hbc
+iOS: export/_expo/static/js/ios/entry-bbf96d8ac73b81f5518ff3078d6c270b.hbc
+Logs under rtx5-app: .codex-startup-auth-typecheck-final.log, .codex-startup-auth-regression-final.log, .codex-startup-auth-export-final.log, .codex-startup-auth-final-focused.log.
+
+Validation limits
+No Android device was attached (adb devices returned an empty list). Physical startup/login timings and the one-second target were not measured. No native APK/IPA build, installation, release, live login, account creation or trading was performed.
+Authentication network response and secure session persistence remain necessary; device and server latency determine whether end-to-end Login can finish within one second.

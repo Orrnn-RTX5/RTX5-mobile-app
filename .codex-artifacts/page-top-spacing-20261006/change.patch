@@ -1,0 +1,249 @@
+--- src\features\chart\ChartActionLaunchShell.tsx
++++ src\features\chart\ChartActionLaunchShell.tsx
+@@ -47,7 +47,7 @@
+ 
+   return (
+     <View style={styles.root} testID={`chart-action-launch-shell-${destination}`}>
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <FastPressable
+           onPress={onBack}
+           activateOnPressIn
+--- src\features\chart\ChartAnalyticsScreen.tsx
++++ src\features\chart\ChartAnalyticsScreen.tsx
+@@ -214,7 +214,7 @@
+       style={styles.screen}
+     >
+       <Stack.Screen options={{ headerShown: false }} />
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <View style={styles.headerRow}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/(tabs)/chart')}
+--- src\features\chart\ChartMenuOrderScreen.tsx
++++ src\features\chart\ChartMenuOrderScreen.tsx
+@@ -21,7 +21,7 @@
+ 
+   return (
+     <Screen style={styles.screen}>
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <View style={styles.headerRow}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/(tabs)/chart')}
+--- src\features\chart\ChartSettingsScreen.tsx
++++ src\features\chart\ChartSettingsScreen.tsx
+@@ -266,7 +266,7 @@
+   return (
+     <Screen style={styles.screen}>
+       <View style={styles.swipeHost} {...chartReturnSwipePanResponder.panHandlers}>
+-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++        <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+           <View style={styles.headerRow}>
+             <FastPressable
+               onPress={handleReturnToChart}
+--- src\features\chart\ChartSpecificationScreen.tsx
++++ src\features\chart\ChartSpecificationScreen.tsx
+@@ -160,7 +160,7 @@
+       onLayout={handleLaunchBodyLayout}
+       style={styles.screen}
+     >
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <View style={styles.headerRow}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/(tabs)/chart')}
+--- src\features\chart\ChartTradingCalculatorScreen.tsx
++++ src\features\chart\ChartTradingCalculatorScreen.tsx
+@@ -152,7 +152,7 @@
+       onLayout={handleLaunchBodyLayout}
+       style={styles.screen}
+     >
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <View style={styles.headerRow}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/(tabs)/chart')}
+--- src\features\chart\IndicatorLevelScreen.tsx
++++ src\features\chart\IndicatorLevelScreen.tsx
+@@ -49,7 +49,7 @@
+   if (!level || !levelId) {
+     return (
+       <Screen style={styles.screen}>
+-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++        <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/chart/indicators')}
+             activateOnPressIn
+@@ -84,7 +84,7 @@
+         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+         style={{ flex: 1 }}
+       >
+-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++        <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/chart/indicators')}
+             activateOnPressIn
+--- src\features\chart\IndicatorLineStyleScreen.tsx
++++ src\features\chart\IndicatorLineStyleScreen.tsx
+@@ -46,7 +46,7 @@
+   if (!line || !lineKey) {
+     return (
+       <Screen style={styles.screen}>
+-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++        <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/chart/indicators')}
+             activateOnPressIn
+@@ -66,7 +66,7 @@
+ 
+   return (
+     <Screen style={styles.screen}>
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <Pressable
+           onPress={() => safeRouterBack(router, '/chart/indicators')}
+           activateOnPressIn
+--- src\features\chart\IndicatorsScreen.tsx
++++ src\features\chart\IndicatorsScreen.tsx
+@@ -94,7 +94,7 @@
+ 
+   return (
+     <Screen style={s.screen}>
+-      <View style={[s.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[s.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <Pressable
+           onPress={() => safeRouterBack(router, '/(tabs)/chart')}
+           activateOnPressIn
+--- src\features\quotes\QuotesScreen.tsx
++++ src\features\quotes\QuotesScreen.tsx
+@@ -1867,7 +1867,7 @@
+       style={[
+         addSymbolStyles.root,
+         {
+-          paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 16 : 28),
++          paddingTop: Math.max(insets.top, 0),
+           paddingBottom: Math.max(insets.bottom, 12),
+           paddingLeft: insets.left,
+           paddingRight: insets.right,
+--- src\features\settings\AboutScreen.tsx
++++ src\features\settings\AboutScreen.tsx
+@@ -678,7 +678,7 @@
+ 
+   return (
+     <Screen noBottomInset style={styles.contactScreen}>
+-      <View style={[styles.contactPageHeader, { paddingTop: Math.max(insetsTop, 0) + 14 }]}>
++      <View style={[styles.contactPageHeader, { paddingTop: Math.max(insetsTop, 0) + 8 }]}>
+         <FastPressable
+           onPress={onClose}
+           activateOnPressIn
+--- src\features\settings\ChartPropertiesScreen.tsx
++++ src\features\settings\ChartPropertiesScreen.tsx
+@@ -503,7 +503,7 @@
+   return (
+     <Screen style={styles.screen}>
+       <Stack.Screen options={{ headerShown: false }} />
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <View style={styles.headerRow}>
+           <Pressable
+             onPress={handleReturnFromSchema}
+--- src\features\settings\HelpScreen.tsx
++++ src\features\settings\HelpScreen.tsx
+@@ -98,7 +98,7 @@
+ 
+   return (
+     <Screen noBottomInset style={styles.screen}>
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 14 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <FastPressable
+           onPress={handleOpenMenu}
+           activateOnTouchStart
+--- src\features\settings\LegalDocumentScreen.tsx
++++ src\features\settings\LegalDocumentScreen.tsx
+@@ -65,7 +65,7 @@
+ 
+   return (
+     <Screen noBottomInset style={styles.screen}>
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 12 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <FastPressable
+           onPress={handleBack}
+           activateOnPressIn
+--- src\features\settings\UserGuideScreen.tsx
++++ src\features\settings\UserGuideScreen.tsx
+@@ -57,7 +57,7 @@
+ 
+   return (
+     <Screen noBottomInset style={styles.screen}>
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 14 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <FastPressable
+           onPress={handleOpenMenu}
+           activateOnTouchStart
+--- src\features\chart\IndicatorConfigScreen\ConfigBody.tsx
++++ src\features\chart\IndicatorConfigScreen\ConfigBody.tsx
+@@ -183,7 +183,7 @@
+         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+         style={{ flex: 1 }}
+       >
+-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++        <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+           <Pressable
+             onPress={() => { onDone(); }}
+             activateOnPressIn
+--- src\features\chart\IndicatorConfigScreen\IndicatorConfigScreen.tsx
++++ src\features\chart\IndicatorConfigScreen\IndicatorConfigScreen.tsx
+@@ -45,7 +45,7 @@
+   if (!meta) {
+     return (
+       <Screen style={styles.screen}>
+-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) + 12 }]}>
++        <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+           <Pressable
+             onPress={() => safeRouterBack(router, '/chart/indicators')}
+             activateOnPressIn
+--- src\features\chart\ObjectsScreen\ObjectsScreen.tsx
++++ src\features\chart\ObjectsScreen\ObjectsScreen.tsx
+@@ -1243,7 +1243,7 @@
+       onLayout={handleLaunchBodyLayout}
+       style={styles.screen}
+     >
+-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 18) + 10 }]}>
++      <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
+         <View style={styles.headerRow}>
+           <Pressable
+             onPress={editorOpen ? closeOpenEditor : () => safeRouterBack(router, '/(tabs)/chart')}
+--- src/features/settings/AboutScreen.styles.ts
++++ src/features/settings/AboutScreen.styles.ts
+@@ -58,7 +58,7 @@
+     },
+     identity: {
+       alignItems: 'center',
+-      paddingTop: 42,
++      paddingTop: 16,
+     },
+     logo: {
+       width: 96,
+--- src/features/settings/UserGuideScreen.styles.ts
++++ src/features/settings/UserGuideScreen.styles.ts
+@@ -53,7 +53,7 @@
+     },
+     hero: {
+       alignItems: 'center',
+-      paddingTop: 26,
++      paddingTop: 16,
+       paddingBottom: 28,
+       borderBottomWidth: 1,
+       borderBottomColor: palette.border,
+--- src\features\settings\BugReportScreen.tsx
++++ src\features\settings\BugReportScreen.tsx
+@@ -278,7 +278,7 @@
+       </View>
+     </KeyboardAvoidingView>}
+     <Modal visible={!!previewFile && active} onRequestClose={() => setPreview(undefined)} animationType="slide">
+-      <View style={[styles.screen, { paddingTop: Math.max(insetsTop, 20), paddingBottom: Math.max(insetsBottom, 12) }]}>
++      <View style={[styles.screen, { paddingTop: Math.max(insetsTop, 0) + 8, paddingBottom: Math.max(insetsBottom, 12) }]}>
+         <View style={styles.header}><Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="middle">{previewFile?.name}</Text><FastPressable onPress={() => setPreview(undefined)} style={styles.back} accessibilityLabel={t('Close preview')}><Ionicons name="close" size={24} color={styles.help.color} /></FastPressable></View>
+         <Text style={[styles.help, { padding: 16 }]}>{t('Check the complete file for sensitive information. Remove it if you cannot safely share it.')}</Text>
+         {previewFile?.mimeType === 'text/plain' ? <ScrollView style={styles.flex} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="always" canCancelContentTouches={Platform.OS === 'ios'}><Text selectable style={styles.help}>{previewFile.textPreview}</Text></ScrollView> : <Image source={{ uri: previewFile?.uri }} resizeMode="contain" style={styles.flex} accessibilityLabel={t('Attachment preview')} />}

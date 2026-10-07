@@ -1,0 +1,65 @@
+App performance optimization — validation record
+Date: 2026-10-06
+Source base: 31078cd5ceff6232a2d9345047a1e615a55c91b4
+Candidate: current working tree, including pre-existing local changes; not committed or published.
+
+Implemented in this pass
+- Cancel superseded tab/drawer navigation callbacks and commit navigation after the immediate visual response, with a bounded fallback for a stalled frame queue.
+- Remove remaining auth modal and calendar filter transition delays while retaining their layout, Back behavior, and submission guards.
+- Share overlapping account reads within the exact active session/credential generation and reuse catalog normalization.
+- Remove the redundant Trade focus refresh and share the live P/L calculation across the two retained tab-label layers.
+- Limit live quote React subscriptions to visible/initial rows, stabilize list callbacks and History row identities, and avoid hidden chart structural serialization.
+- Pause native query polling/retries with app visibility; bound auth countdown work and pause hidden chart clocks and decorative calendar animation.
+- Coalesce journal snapshots and defer JSON serialization until after visual feedback, with ordered writes, background flushing, and protection against stale storage reads.
+
+Principal source files (relative to rtx5-app)
+app/_layout.tsx
+app/(tabs)/_layout.tsx
+src/utils/afterVisualFrame.ts
+src/ui/navigation/fastTabVisualController.ts
+src/ui/components/sidebarDestinationHostController.ts
+src/state/deferredJsonStorage.ts
+src/state/terminalJournalState.ts
+src/state/providers/AppProviders.tsx
+src/state/providers/nativeQueryFocus.ts
+src/api/accountSnapshotRequests.ts
+src/api/account.ts
+src/api/accounts.ts
+src/api/instruments.ts
+src/services/bootstrapApp.ts
+src/features/auth/GuestFlowHost.tsx
+src/features/auth/authRetryCountdown.ts
+src/features/quotes/QuotesScreen.tsx
+src/features/quotes/quoteRowActivity.ts
+src/features/history/HistoryScreen.tsx
+src/features/history/historyRowKeys.ts
+src/features/trade/TradeScreen/TradeScreen.tsx
+src/features/trade/TradeTabFloatingPnl.tsx
+src/features/chart/ChartScreen.native.tsx
+src/features/chart/ChartSpecificationScreen.tsx
+src/features/chart/rendering/ChartWebViewHtml.ts
+src/features/settings/SettingsScreen/SettingsScreen.tsx
+src/features/settings/EconomicCalendarScreen/EconomicCalendarScreen.tsx
+src/features/settings/EconomicCalendarScreen/EconomicEventFiltersSheet.tsx
+src/features/settings/EconomicCalendarScreen/subComponents.tsx
+
+Final validation
+PASS: npm run typecheck
+PASS: npm test — all 440 test files, 19 batches.
+PASS: final focused chart/auth/trading/hidden-screen checks — 116 tests.
+PASS: git diff --check for the modified tracked source paths.
+PASS: Expo production JavaScript export for Android and iOS.
+Android bundle: export/_expo/static/js/android/entry-e5c7c123249afdd5e935280d81988d4b.hbc
+iOS bundle: export/_expo/static/js/ios/entry-8fb89943868560b39262de60847e224c.hbc
+Logs: rtx5-app/.codex-fullperf-typecheck-final.log, .codex-fullperf-regression-final.log, .codex-fullperf-final-focused.log, .codex-fullperf-export-final.log
+
+Behavioral evidence
+- Concurrent bootstrap, summary and detail account reads issue one request; later refreshes still reach the server.
+- A burst of 20 journal updates performs no serialization in the touch turn and one final snapshot serialization after visual scheduling.
+- Superseded tab callbacks cannot replace a newer drawer destination.
+- Hidden chart clocks stop and resume once, preserving visible countdown updates and missing-overlay repair.
+
+Limits
+No Android device was connected at final validation (adb devices returned an empty list). No physical Android/iOS latency measurements, screen recordings, or native installation/build validation were performed in this pass.
+JavaScript exports are bundle validation, not native APK/IPA builds or publication.
+No live account creation, logout/login timing, trading, or backend integration mutation was performed. Network latency still depends on connection and server response; zero latency is not guaranteed.
