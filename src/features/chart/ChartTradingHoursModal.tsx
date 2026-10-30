@@ -68,9 +68,17 @@ function convertSessionToLocal(hoursStr: string): string {
   const converted = segments.map((seg) => {
     const parts = seg.split(/\s*[-–]\s*/);
     if (parts.length !== 2) return seg;
+    if (parts[0] === '00:00' && parts[1] === '24:00') {
+      return '00:00 - 24:00';
+    }
     const start = gmtTimeToLocal(parts[0]);
     const end = gmtTimeToLocal(parts[1]);
-    return `${start.time} - ${end.time}`;
+    if (parts[1] === '24:00' && end.time === '00:00' && start.dayOffset === 0) {
+      return `${start.time} - 24:00`;
+    }
+    const dayShift = end.dayOffset - start.dayOffset;
+    const suffix = dayShift > 0 ? ' (+1d)' : '';
+    return `${start.time} - ${end.time}${suffix}`;
   });
 
   return converted.join(', ');

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
+import { createOtaReloadCoordinator } from './otaReload';
 import { APP_DISPLAY_VERSION } from '../config/appDisplayVersion';
 import { logStartupDiagnostic, serializeStartupError } from './startupDiagnostics';
 
@@ -30,6 +31,7 @@ export type OtaUpdatePromptController = {
   errorMessage: string | null;
   onInstall: () => void;
   onRetry: () => void;
+  onDismiss: () => void;
 };
 
 const getUpdateManifestId = (
@@ -52,6 +54,9 @@ export function useOtaUpdateOnLaunch(): OtaUpdatePromptController {
   const isCheckingRef = useRef(false);
   const isInstallingRef = useRef(false);
   const isMountedRef = useRef(true);
+  const deferredRef = useRef(false);
+  const reloadRef = useRef<ReturnType<typeof createOtaReloadCoordinator> | null>(null);
+  if (!reloadRef.current) reloadRef.current = createOtaReloadCoordinator(() => Updates.reloadAsync());
   const [status, setStatus] = useState<OtaUpdateStatus>('idle');
   const [visible, setVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -65,7 +70,7 @@ export function useOtaUpdateOnLaunch(): OtaUpdatePromptController {
         : 0;
 
   const checkForAvailableUpdate = useCallback(async (reason: 'launch' | 'foreground' | 'retry') => {
-    if (!canCheckForUpdates || isCheckingRef.current || isInstallingRef.current) {
+    if (!canCheckForUpdates || deferredRef.current || isCheckingRef.current || isInstallingRef.current) {
       return;
     }
 
@@ -114,7 +119,7 @@ export function useOtaUpdateOnLaunch(): OtaUpdatePromptController {
           targetVersion: APP_DISPLAY_VERSION,
         });
         setStatus('restarting');
-        await Updates.reloadAsync();
+        await reloadRef.current!();
         return;
       }
 
@@ -128,7 +133,7 @@ export function useOtaUpdateOnLaunch(): OtaUpdatePromptController {
       if (!isMountedRef.current) return;
       if (fetchResult.isNew || fetchResult.isRollBackToEmbedded || updateState.isUpdatePending) {
         setStatus('restarting');
-        await Updates.reloadAsync();
+        await reloadRef.current!();
         return;
       }
 
@@ -201,7 +206,7 @@ export function useOtaUpdateOnLaunch(): OtaUpdatePromptController {
   useEffect(() => {
     if (
       (updateState.isUpdateAvailable || updateState.isUpdatePending) &&
-      !isInstallingRef.current
+      !isInstallingRef.current && !deferredRef.current
     ) {
       setStatus('available');
       setVisible(true);
@@ -209,16 +214,14 @@ export function useOtaUpdateOnLaunch(): OtaUpdatePromptController {
   }, [updateState.isUpdateAvailable, updateState.isUpdatePending]);
 
   useEffect(() => {
-    if (updateState.isUpdatePending && isInstallingRef.current) {
-      setStatus('restarting');
-      void Updates.reloadAsync();
-    }
-  }, [updateState.isUpdatePending]);
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
+  const dismissUpdate = useCallback(() => {
+    if (isInstallingRef.current) return;
+    deferredRef.current = true;
+    setVisible(false);
   }, []);
 
   return {
@@ -229,5 +232,6 @@ export function useOtaUpdateOnLaunch(): OtaUpdatePromptController {
     errorMessage,
     onInstall: installLatestUpdate,
     onRetry: installLatestUpdate,
+    onDismiss: dismissUpdate,
   };
 }

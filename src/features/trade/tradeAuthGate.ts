@@ -2,7 +2,7 @@ export const ORRNN_DEMO_TRADE_BROKER_ID = 'orrnn-demo';
 
 export type TradeAuthIntent = Readonly<{
   // In-memory draft context only; never credentials, tickets, prices or callbacks.
-  kind: 'trade-tab' | 'order-ticket' | 'market-order' | 'pending-order' | 'position-action' | 'bulk-action';
+  kind: 'trade-tab' | 'history-tab' | 'order-ticket' | 'market-order' | 'pending-order' | 'position-action' | 'bulk-action';
   symbol?: string;
   side?: 'buy' | 'sell';
   volume?: number;
@@ -11,7 +11,7 @@ export type TradeAuthIntent = Readonly<{
   bulkMode?: 'all' | 'profitable' | 'losing' | 'buy' | 'sell';
 }>;
 
-export type OrrnnDemoTradeAuthState = Readonly<{
+export type TradingAuthState = Readonly<{
   selectedBrokerId?: unknown;
   isLoggedIn?: boolean;
   accountId?: unknown;
@@ -20,6 +20,9 @@ export type OrrnnDemoTradeAuthState = Readonly<{
   activeAccountLogin?: unknown;
   activeAccessToken?: unknown;
 }>;
+
+/** Compatibility for existing callers; authentication policy applies to every broker. */
+export type OrrnnDemoTradeAuthState = TradingAuthState;
 
 type TradeAuthGateRuntime = {
   pendingIntent: TradeAuthIntent | null;
@@ -39,27 +42,32 @@ export function isOrrnnDemoTradeBroker(value: unknown): boolean {
 }
 
 /**
- * Public Orrnn market data is available for every logged-out user, but trading
- * is not. Require persisted auth plus the matching active broker session before
- * any trade action can continue. A valid logged-in broker keeps its normal flow.
+ * Guest browsing never authorizes account access or order execution. Every
+ * broker requires persisted authentication and its matching active session.
+ * Broker identifiers are compared for ownership, never checked against a list.
  */
-export function shouldRequestOrrnnDemoTradeAuth(
-  state: OrrnnDemoTradeAuthState,
+export function shouldRequestTradingAuth(
+  state: TradingAuthState,
 ): boolean {
   if (state.isLoggedIn !== true) {
     return true;
   }
 
   const accountId = cleanString(state.accountId);
+  const brokerId = cleanString(state.selectedBrokerId);
   return !(
-    accountId.length > 0
+    brokerId.length > 0
+    && accountId.length > 0
     && cleanString(state.accessToken).length > 0
-    && cleanString(state.activeBrokerId) === cleanString(state.selectedBrokerId)
+    && cleanString(state.activeBrokerId) === brokerId
     && /^\d+$/.test(accountId) && /[1-9]/.test(accountId)
     && cleanString(state.activeAccountLogin) === accountId
     && cleanString(state.activeAccessToken).length > 0
   );
 }
+
+/** Legacy export retained for callers of the original guest implementation. */
+export const shouldRequestOrrnnDemoTradeAuth = shouldRequestTradingAuth;
 
 function sanitizeTradeAuthIntent(intent: TradeAuthIntent): TradeAuthIntent {
   const symbol = cleanString(intent.symbol);

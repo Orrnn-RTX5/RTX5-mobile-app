@@ -33,6 +33,7 @@ import type { AlertCondition } from '../../../api/alerts';
 import { safeRouterBack } from '../../../utils/navigation';
 import { AlertRow } from './AlertRow';
 import { makePriceAlertsStyles } from './styles';
+import { parsePositiveDecimalInput } from '../../../utils/decimalInput';
 
 type PriceAlertRouteParams = {
   condition?: string | string[];
@@ -55,8 +56,7 @@ const normalizeRoutePrice = (value: string | string[] | undefined) => {
     return '';
   }
 
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? raw : '';
+  return parsePositiveDecimalInput(raw) !== undefined ? raw : '';
 };
 
 const normalizeRouteCondition = (value: string | string[] | undefined): AlertCondition | undefined => {
@@ -116,7 +116,7 @@ export function PriceAlertsScreen({
   );
 
   // ── Alert list ───────────────────────────────────────────────────────────
-  const { data: alerts = [], isLoading, refetch, isRefetching } = useAlertsQuery({
+  const { data: alerts = [], isLoading, isError, refetch, isRefetching } = useAlertsQuery({
     enabled: isScreenFocused,
   });
   const { mutate: deleteAlert } = useDeleteAlertMutation();
@@ -127,6 +127,7 @@ export function PriceAlertsScreen({
   const [price, setPrice] = useState(routePrefillPrice);
   const [message, setMessage] = useState(routePrefillMessage);
   const [formError, setFormError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [appliedRoutePrefillKey, setAppliedRoutePrefillKey] = useState(routePrefillKey);
   const createAlertInFlightRef = React.useRef(false);
   const deletingAlertIdsRef = React.useRef<Set<number>>(new Set());
@@ -166,10 +167,10 @@ export function PriceAlertsScreen({
     }
 
     const trimmedSymbol = symbol.trim().toUpperCase();
-    const parsedPrice = parseFloat(price);
+    const parsedPrice = parsePositiveDecimalInput(price);
 
     if (!trimmedSymbol) { setFormError('Symbol is required'); return; }
-    if (!price.trim() || isNaN(parsedPrice) || parsedPrice <= 0) {
+    if (parsedPrice === undefined) {
       setFormError('Enter a valid price greater than 0');
       return;
     }
@@ -205,11 +206,15 @@ export function PriceAlertsScreen({
     }
 
     const nextDeletingIds = new Set(deletingAlertIdsRef.current);
+    setDeleteError('');
     nextDeletingIds.add(id);
     deletingAlertIdsRef.current = nextDeletingIds;
     setDeletingAlertIds(nextDeletingIds);
 
     deleteAlert(id, {
+      onError: () => {
+        setDeleteError('Failed to delete alert. Please try again.');
+      },
       onSettled: () => {
         const next = new Set(deletingAlertIdsRef.current);
         next.delete(id);
@@ -385,10 +390,30 @@ export function PriceAlertsScreen({
             </Text>
           </View>
 
+          {(isError || !!deleteError) && (
+            <View style={styles.emptyCard} accessibilityLiveRegion="polite">
+              <Ionicons name="warning-outline" size={24} color={T.down} />
+              {isError && (
+                <>
+                  <Text style={[styles.emptySubText, { color: T.down }]}>
+                    {t('Unable to load alerts. Please try again.')}
+                  </Text>
+                  <Pressable onPress={() => { void refetch(); }} disabled={isRefetching}
+                    accessibilityRole="button" style={[styles.createBtn, { backgroundColor: T.accent }]}>
+                    <Text style={styles.createBtnText}>{t('Retry')}</Text>
+                  </Pressable>
+                </>
+              )}
+              {!!deleteError && (
+                <Text style={[styles.emptySubText, { color: T.down }]}>{t(deleteError)}</Text>
+              )}
+            </View>
+          )}
+
           {isLoading ? (
             <ActivityIndicator size="small" color={T.accent} style={{ marginTop: 24 }} />
           ) : sorted.length === 0 ? (
-            <View style={styles.emptyCard}>
+            !isError && <View style={styles.emptyCard}>
               <Ionicons name="notifications-off-outline" size={36} color={isDark ? T.textDimmed : '#CBD5E1'} />
               <Text style={[styles.emptyText, { color: T.textMuted }]}>{t('No alerts set')}</Text>
               <Text style={[styles.emptySubText, { color: isDark ? T.textMuted : '#94A3B8' }]}>

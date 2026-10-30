@@ -54,10 +54,11 @@ export async function publicBrokerFetch(path: string, signal?: AbortSignal, exte
   const context = requirePublicBrokerContext(); const controller = new AbortController();
   const abort = () => controller.abort(); signal?.addEventListener('abort', abort, { once: true });
   if (signal?.aborted) abort(); requests.add(controller);
+  const base = path.startsWith('/api/') ? new URL(context.apiBase).origin : (extended ? context.extendedApiBase : context.apiBase);
   try {
-    const response = await timedFetch(`${extended ? context.extendedApiBase : context.apiBase}${path}`, {
+    const response = await timedFetch(`${base}${path}`, {
       method: 'GET', credentials: 'omit', headers: { Accept: 'application/json', 'X-Broker-ID': context.brokerId }, signal: controller.signal,
-    }, { label: 'guest.public', method: 'GET', endpoint: path.split('?')[0], source: 'candles', timeoutMs: path.startsWith('/candles/') ? 0 : 10000 });
+    }, { label: 'guest.public', method: 'GET', endpoint: path.split('?')[0], source: 'candles', timeoutMs: (path.startsWith('/candles/') || path.startsWith('/api/v1/candles')) ? 0 : 10000 });
     if (!isPublicBrokerContextCurrent(context)) throw new Error('Broker selection changed.'); return response;
   } finally { requests.delete(controller); signal?.removeEventListener('abort', abort); }
 }

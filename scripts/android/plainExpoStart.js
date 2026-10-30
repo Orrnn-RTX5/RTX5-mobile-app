@@ -1,5 +1,14 @@
 const path = require('node:path');
 
+function configureExpoGoStartEnvironment(argv, cwd, projectRoot, env, sdkVersion) {
+  if (path.resolve(cwd) !== path.resolve(projectRoot) || argv[0] !== 'start') return;
+  if (!argv.some((arg) => arg === '--go' || arg === '-g')) return;
+  if (argv.some((arg) => ['--dev-client', '-d', '--web', '-w'].includes(arg))) return;
+  // Explicit --go bypasses the launcher below, but still needs the Expo Go
+  // runtime. Otherwise serving its manifest computes the native fingerprint.
+  env.RTX5_FORCE_RUNTIME_VERSION ||= `exposdk:${sdkVersion}`;
+}
+
 function getPlainExpoStartArgs(argv, cwd, projectRoot) {
   if (path.resolve(cwd) !== path.resolve(projectRoot) || argv[0] !== 'start') return null;
   // Explicit runtimes and other platforms retain the unmodified Expo CLI.
@@ -16,10 +25,13 @@ function getPlainExpoStartArgs(argv, cwd, projectRoot) {
   const args = argv.slice(1).map((arg) => aliases[arg] || arg);
   const hasHost = args.some((arg) => ['--lan', '--localhost', '--tunnel', '--host'].includes(arg)
     || arg.startsWith('--host='));
-  return ['--go', ...(hasHost ? [] : ['--tunnel']), ...args];
+  // Match Expo's LAN default so plain startup does not depend on ngrok.
+  return ['--go', ...(hasHost ? [] : ['--lan']), ...args];
 }
 
 function routePlainExpoStart(projectRoot) {
+  configureExpoGoStartEnvironment(process.argv.slice(2), process.cwd(), projectRoot,
+    process.env, `${require('expo/package.json').version.split('.')[0]}.0.0`);
   const args = getPlainExpoStartArgs(process.argv.slice(2), process.cwd(), projectRoot);
   if (!args) return false;
   const launcher = path.join(projectRoot, 'scripts/android/start-dev-client-usb.js');
@@ -29,4 +41,4 @@ function routePlainExpoStart(projectRoot) {
   return true;
 }
 
-module.exports = { getPlainExpoStartArgs, routePlainExpoStart };
+module.exports = { getPlainExpoStartArgs, routePlainExpoStart, configureExpoGoStartEnvironment };

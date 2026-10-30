@@ -69,6 +69,26 @@ test('falls back to explicit open/closed status when quote_open is absent', () =
   assert.equal(resolveChartMarketSessionPolicy({ symbol: 'BTCUSD', status: 'open' }).quotePhase, 'open');
 });
 
+test('treats instrument unavailable status payload without session_close as unknown rather than confirmed closed', () => {
+  assert.deepEqual(
+    resolveChartMarketSessionPolicy({
+      symbol: 'ETHUSD',
+      status: 'closed',
+      quote_open: false,
+      trade_open: false,
+      message: 'instrument unavailable',
+    }),
+    {
+      quotePhase: 'unknown',
+      tradeOpen: false,
+      sessionOpen: null,
+      sessionClose: null,
+      serverTime: null,
+      reason: 'insufficient_backend_evidence',
+    },
+  );
+});
+
 test('requests one reconciliation only for a confirmed closed-to-open transition', () => {
   assert.equal(shouldRefreshChartHistoryOnSessionTransition('closed', 'open'), true);
   assert.equal(shouldRefreshChartHistoryOnSessionTransition('closed', 'unknown'), false);

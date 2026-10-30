@@ -1,7 +1,9 @@
 import { ENHANCED_DRAWING_TOOLS_RUNTIME_JS } from '../drawingTools/runtime';
+import { VALUE_BASED_PRICE_WEBVIEW_JS } from '../../../utils/backendPrice';
 
 export const ENHANCED_DRAWING_TOOLS_JS = `
 (function () {
+  ${VALUE_BASED_PRICE_WEBVIEW_JS}
   function safeNotify(type, payload) {
     try {
       if (!window.ReactNativeWebView || typeof window.ReactNativeWebView.postMessage !== 'function') return;
@@ -247,7 +249,7 @@ export const ENHANCED_DRAWING_TOOLS_JS = `
     return Math.round(lowerTime + ((upperTime - lowerTime) * ratio));
   }
 
-  function formatCrosshairPrice(series, price) {
+  function formatCrosshairCoordinatePrice(series, price) {
     var precision = 5;
     try {
       var options = series && typeof series.options === 'function' ? series.options() : null;
@@ -257,6 +259,10 @@ export const ENHANCED_DRAWING_TOOLS_JS = `
       }
     } catch (_error) {}
     return isFiniteNumber(price) ? price.toFixed(precision) : '';
+  }
+
+  function formatCrosshairPrice(series, price) {
+    return isFiniteNumber(price) ? formatValueBasedPrice(price) : '';
   }
 
   function normalizeCrosshairTimeframe(timeframe) {
@@ -2489,7 +2495,7 @@ export const ENHANCED_DRAWING_TOOLS_JS = `
     } else if (regularCrosshairInspector) {
       // The axis value is the inspected price. Ruler statistics use these
       // same digit-rounded values instead of an invisible sub-point price.
-      price = Number(formatCrosshairPrice(this._series, price));
+      price = Number(formatCrosshairCoordinatePrice(this._series, price));
     } else {
       price = this._resolveCrosshairPrice(price, candle, rawY);
     }

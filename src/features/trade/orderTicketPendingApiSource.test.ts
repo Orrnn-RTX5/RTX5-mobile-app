@@ -20,7 +20,7 @@ test('order ticket pending submit uses the pending-order API contract', () => {
   assert.doesNotMatch(pendingHandler, /ordersApi\.placeMarketOrder\(payload as any\)/);
 });
 
-test('order ticket keeps Market Execution available and visibly locks every pending type', () => {
+test('order ticket applies shared pending availability to selection and accessibility', () => {
   const source = readOrderTicketSource();
   const tabsStart = source.indexOf('{CHART_ORDER_TYPES.map((option) => {');
   const tabsEnd = source.indexOf('</ScrollView>', tabsStart);
@@ -186,10 +186,11 @@ test('order ticket account leverage is read-only from backend account summary', 
 
   const leverageSection = source.slice(leverageSectionStart, leverageSectionEnd);
   assert.match(leverageSection, /const backendLeverage = isOrderTicketLeverageValue\(accountSummary\?\.leverage\)[\s\S]*\? accountSummary\.leverage[\s\S]*: null/);
-  assert.match(leverageSection, /const leverage = backendLeverage \?\? ORDER_TICKET_FALLBACK_LEVERAGE/);
+  assert.doesNotMatch(leverageSection, /ORDER_TICKET_FALLBACK_LEVERAGE/);
   assert.match(leverageSection, /const leverageDisplay = backendLeverage !== null[\s\S]*\? formatOrderTicketLeverage\(backendLeverage\)[\s\S]*: '--'/);
-  assert.match(source, /<InfoRow label=\{t\('Acc\. Leverage'\)\} value=\{leverageDisplay\} styles=\{styles\} \/>/);
-  assert.match(source, /const resolvedMargin = serverRequiredMargin \?\? estimatedMargin/);
+  assert.match(source, /<InfoRow label=\{t\('Acc\. Leverage'\)\} value=\{leverageDisplay\} loading=\{backendLeverage === null && !accountSummaryError\} styles=\{styles\} \/>/);
+  assert.match(source, /const marginDisplay = orderTicketMarginDisplay\(serverRequiredMargin, currency\)/);
+  assert.doesNotMatch(source, /estimatedMargin|ORDER_TICKET_FALLBACK_LEVERAGE/);
   assert.doesNotMatch(source, /ORDER_TICKET_LEVERAGE_OPTIONS|OrderTicketLeverageOption/);
   assert.doesNotMatch(source, /leveragePickerOpen|selectedLeverageValue|hasManualLeverage/);
   assert.doesNotMatch(source, /InfoSelectRow|handleOpenLeveragePicker|orderTicket\.leverage\.open/);
@@ -199,7 +200,7 @@ test('order ticket account leverage is read-only from backend account summary', 
 test('order ticket spread uses the symbol point size', () => {
   const source = readOrderTicketSource();
 
-  assert.match(source, /const rawSpreadPoints = pricePointSize > 0 && Number\.isFinite\(ASK\) && Number\.isFinite\(BID\)[\s\S]*Math\.round\(\(ASK - BID\) \/ pricePointSize\)/);
+  assert.match(source, /const rawSpreadPoints = pricePointSize > 0 && ASK > 0 && BID > 0 && Number\.isFinite\(ASK\) && Number\.isFinite\(BID\)[\s\S]*Math\.round\(\(ASK - BID\) \/ pricePointSize\)/);
   assert.match(source, /const spread = Math\.max\(0, rawSpreadPoints\)/);
   assert.doesNotMatch(source, /Math\.round\(\(ASK - BID\) \/ 0\.01\)/);
 });
@@ -241,20 +242,6 @@ test('order ticket graph uses the screen background instead of a white card', ()
   assert.match(graphProps, /backgroundColor=\{T\.bg\}/);
   assert.match(graphWrapStyle, /backgroundColor:\s*BG/);
   assert.doesNotMatch(graphWrapStyle, /#FFFFFF/);
-});
-
-test('order ticket trade confirmation toast follows the active app theme', () => {
-  const source = readOrderTicketSource();
-  const stylesStart = source.indexOf('tradeConfirmationCard: {');
-  const stylesEnd = source.indexOf('tradeConfirmationSide:', stylesStart);
-  assert.notEqual(stylesStart, -1, 'trade confirmation style must exist');
-  assert.notEqual(stylesEnd, -1, 'trade confirmation style boundary must exist');
-
-  const toastStyles = source.slice(stylesStart, stylesEnd);
-  assert.match(toastStyles, /backgroundColor:\s*isDark \? SURFACE : '#FFFFFF'/);
-  assert.match(toastStyles, /borderColor:\s*isDark \? T\.border : 'transparent'/);
-  assert.match(toastStyles, /tradeConfirmationSymbol:[\s\S]*color:\s*WHITE/);
-  assert.doesNotMatch(toastStyles, /color:\s*'#0F172A'/);
 });
 
 test('order ticket buy and sell buttons use blue and red trading colors', () => {

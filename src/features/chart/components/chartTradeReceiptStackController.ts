@@ -3,6 +3,7 @@ import type { TradeSide } from '../../../domain/tradeSide';
 export type ChartTradeQueueStatus =
   | 'pending'
   | 'confirmed'
+  | 'placed'
   | 'failed'
   | 'unconfirmed'
   | 'cancelled';
@@ -51,14 +52,14 @@ export function selectChartTradeReceiptSnapshotForPane(
   );
 }
 
-const TERMINAL_DISMISS_MS = 5_000;
+const TERMINAL_DISMISS_MS = 1_000;
 
 const isTerminalStatus = (status: ChartTradeQueueStatus): boolean =>
-  status === 'confirmed' || status === 'failed' || status === 'unconfirmed';
+  status === 'confirmed' || status === 'placed' || status === 'failed' || status === 'unconfirmed';
 
 /**
  * Applies a queue event without mutating the previous snapshot. New trades are
- * prepended, while status changes keep the receipt in its original position.
+ * appended in click order, while status changes keep each receipt in its row.
  * There is deliberately no maximum length: FlatList virtualizes large bursts.
  */
 export function reduceChartTradeReceiptStack(
@@ -73,7 +74,7 @@ export function reduceChartTradeReceiptStack(
   }
 
   if (existingIndex < 0) {
-    return [event, ...snapshot];
+    return [...snapshot, event];
   }
 
   const current = snapshot[existingIndex];
@@ -123,6 +124,7 @@ export type ChartTradeReceiptStackController = {
 
 export type ChartTradeReceiptStackControllerOptions = {
   terminalDismissMs?: number;
+  pendingDismissMs?: number;
 };
 
 export function createChartTradeReceiptStackController(
@@ -131,6 +133,9 @@ export function createChartTradeReceiptStackController(
   const terminalDismissMs = Number.isFinite(options.terminalDismissMs)
     ? Math.max(0, Number(options.terminalDismissMs))
     : TERMINAL_DISMISS_MS;
+  const pendingDismissMs = Number.isFinite(options.pendingDismissMs)
+    ? Math.max(0, Number(options.pendingDismissMs))
+    : null;
   const listeners = new Set<() => void>();
   const dismissTimers = new Map<number, ReturnType<typeof setTimeout>>();
   let snapshot: ChartTradeReceiptSnapshot = [];
@@ -156,12 +161,12 @@ export function createChartTradeReceiptStackController(
     emit();
   };
 
-  const scheduleDismiss = (queueId: number) => {
+  const scheduleDismiss = (queueId: number, delayMs = terminalDismissMs) => {
     clearDismissTimer(queueId);
     const timer = setTimeout(() => {
       dismissTimers.delete(queueId);
       dismiss(queueId);
-    }, terminalDismissMs);
+    }, delayMs);
     dismissTimers.set(queueId, timer);
   };
 
@@ -177,7 +182,7 @@ export function createChartTradeReceiptStackController(
     applyEvent(event) {
       if (disposed) return;
 
-      if (event.status === 'pending') {
+      if (event.status === 'pending' && pendingDismissMs === null) {
         clearDismissTimer(event.queueId);
       }
 
@@ -189,8 +194,10 @@ export function createChartTradeReceiptStackController(
 
       if (event.status === 'cancelled') {
         clearDismissTimer(event.queueId);
+      } else if (event.status === 'pending' && pendingDismissMs !== null) {
+        scheduleDismiss(event.queueId, pendingDismissMs);
       } else if (isTerminalStatus(event.status)) {
-        scheduleDismiss(event.queueId);
+        scheduleDismiss(event.queueId, terminalDismissMs);
       }
     },
     dismiss,

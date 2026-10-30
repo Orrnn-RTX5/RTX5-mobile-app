@@ -2,6 +2,8 @@
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { resolve } from 'node:path';
+import { runInNewContext } from 'node:vm';
+import ts from 'typescript';
 
 import { buildMarketOrderSymbolCandidates } from './placeMarketOrderCandidates.ts';
 
@@ -89,7 +91,7 @@ test('market client_order_id is sent in the body and bound to the exact wire pay
   assert.match(marketOrderSource, /idsBySerializedBody = new Map<string, string>\(\)/);
   assert.match(marketOrderSource, /idsBySerializedBody\.get\(serializedBody\)/);
   assert.match(marketOrderSource, /idsBySerializedBody\.set\(serializedBody, created\)/);
-  assert.match(marketOrderSource, /const created = createMarketOrderClientOrderId\(\)/);
+  assert.match(marketOrderSource, /: createMarketOrderClientOrderId\(\)/);
   assert.match(marketOrderSource, /const serializedBody = JSON\.stringify\(body\)/);
   assert.match(marketOrderSource, /const clientOrderId = resolveClientOrderId\(serializedBody\)/);
   assert.match(
@@ -101,6 +103,37 @@ test('market client_order_id is sent in the body and bound to the exact wire pay
   assert.match(marketOrderSource, /IDEMPOTENCY_CONFLICT/);
   assert.doesNotMatch(marketOrderSource, /createTradeIdempotencyKey\('order'\)/);
   assert.doesNotMatch(marketOrderSource, /response\.ok/);
+});
+
+test('distinct click IDs reach canonical backend idempotency while exact retries keep the same ID', () => {
+  const source = ts.createSourceFile('placeMarketOrder.ts', marketOrderSource, ts.ScriptTarget.Latest, true);
+  let expression: ts.Expression | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(source) === 'createPayloadBoundClientOrderIdResolver') expression = node.initializer;
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  assert.ok(expression);
+  let generated = 0;
+  const createResolver = runInNewContext(ts.transpileModule(`(${expression.getText(source)})`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText, {
+    createMarketOrderClientOrderId: () => `order-fallback-${++generated}`,
+  });
+  const body = JSON.stringify({ account_login: 123, symbol: 'BTCUSD', side: 'buy', volume: '0.01' });
+  const ids = Array.from({ length: 10 }, (_, index) => `order-click-${index}`);
+  const resolvers = ids.map(id => createResolver(id));
+  assert.deepEqual(resolvers.map(resolveId => resolveId(body)), ids);
+  assert.deepEqual(resolvers.map(resolveId => resolveId(body)), ids, 'retries reuse each click ID');
+  assert.equal(createResolver(ids[0])(body), ids[0], 'a replay of the same first attempt remains backend-idempotent');
+  const changedBody = JSON.stringify({ symbol: 'btcusd', volume: '0.01' });
+  const changedId = resolvers[0](changedBody);
+  assert.notEqual(changedId, ids[0], 'a symbol retry with a changed wire body needs a separate idempotency ID');
+  assert.equal(resolvers[0](changedBody), changedId);
+  assert.notEqual(createResolver()(body), createResolver()(body), 'legacy independent calls still receive fresh IDs');
+  assert.match(marketOrderSource, /createPayloadBoundClientOrderIdResolver\(payload\.frontendIntentId\)/);
+  assert.match(marketOrderSource, /!isValidClientOrderId\(payload\.frontendIntentId\)/);
+  assert.doesNotMatch(marketOrderSource, /orderBody\.frontendIntentId|frontendIntentId:\s*payload\.frontendIntentId/);
 });
 
 test('market order uses a >= 30 s HTTP budget', () => {

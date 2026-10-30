@@ -12,7 +12,6 @@ export const CC: Record<string, string> = {
   NZD: 'nz', CAD: 'ca', TRY: 'tr', ZAR: 'za', MXN: 'mx', SEK: 'se',
   NOK: 'no', DKK: 'dk', CNH: 'cn', SGD: 'sg', HKD: 'hk', PLN: 'pl',
   HUF: 'hu', CZK: 'cz', ILS: 'il', RUB: 'ru', BRL: 'br', INR: 'in',
-  BTC: 'bt', ETH: 'et', XAU: 'xau', XAG: 'xag',
 };
 
 export const flagUrl = (cc: string) => `https://flagcdn.com/w80/${cc}.png`;

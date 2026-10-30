@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getJournalLogs } from '../../../../api/journal';
+import { interactionLifecycle } from '../../../../utils/interactionLifecycle';
 import { type JournalLogEntry } from './journalModel';
+import { createJournalResultCache } from './journalResultCache';
 
 type JournalLoadState = {
   serverLogs: JournalLogEntry[];
@@ -58,12 +60,23 @@ export function useServerJournal({
 }) {
   const requestKey = buildJournalRequestKey(sessionScope, mode, type, filter);
   const [state, setState] = useState<JournalLoadState>(INITIAL_STATE);
-  const cacheRef = useRef(new Map<string, JournalLogEntry[]>());
+  const cacheRef = useRef(createJournalResultCache());
   const cacheScopeRef = useRef<string | null>(null);
   const loadedScopeRef = useRef<string | null>(null);
   const requestSequenceRef = useRef(0);
   const activeRequestRef = useRef<AbortController | null>(null);
   const loadRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    // Retained screens must release the previous account's cached rows even
+    // when they are hidden throughout an account switch or logout.
+    if (cacheScopeRef.current !== sessionScope) {
+      cacheRef.current.clear();
+      cacheScopeRef.current = sessionScope;
+      loadedScopeRef.current = null;
+      setState(INITIAL_STATE);
+    }
+  }, [sessionScope]);
 
   useEffect(() => {
     if (!active) {
@@ -107,7 +120,7 @@ export function useServerJournal({
     });
 
     const load = async () => {
-      if (requestInFlight) return;
+      if (disposed || !isAuthenticated || !interactionLifecycle.isForeground() || requestInFlight) return;
       requestInFlight = true;
       const sequence = ++requestSequenceRef.current;
       activeRequestRef.current?.abort();
@@ -139,7 +152,10 @@ export function useServerJournal({
         const message = error instanceof Error && error.message ? error.message : 'Failed to load journal';
         setState((previous) => ({ ...previous, fetchError: message, errorRequestKey: requestKey }));
       } finally {
-        requestInFlight = false;
+        if (sequence === requestSequenceRef.current) {
+          requestInFlight = false;
+          activeRequestRef.current = null;
+        }
         if (!disposed && sequence === requestSequenceRef.current) {
           setState((previous) => ({ ...previous, isLoading: false, isRefreshing: false }));
         }
@@ -150,12 +166,26 @@ export function useServerJournal({
       void load();
     };
     let autoRefreshTimer: ReturnType<typeof setInterval> | undefined;
-    if (isAuthenticated) {
-      void load();
-      autoRefreshTimer = setInterval(() => {
+    const syncForeground = () => {
+      if (isAuthenticated && interactionLifecycle.isForeground()) {
+        if (autoRefreshTimer !== undefined) return;
         void load();
-      }, JOURNAL_AUTO_REFRESH_MS);
-    }
+        autoRefreshTimer = setInterval(() => {
+          void load();
+        }, JOURNAL_AUTO_REFRESH_MS);
+      } else {
+        if (autoRefreshTimer !== undefined) clearInterval(autoRefreshTimer);
+        autoRefreshTimer = undefined;
+        // A background response must not parse or update a retained screen.
+        requestSequenceRef.current += 1;
+        activeRequestRef.current?.abort();
+        activeRequestRef.current = null;
+        requestInFlight = false;
+        setState((previous) => ({ ...previous, isLoading: false, isRefreshing: false }));
+      }
+    };
+    const unsubscribeForeground = interactionLifecycle.register(syncForeground);
+    syncForeground();
     return () => {
       // Leaving, hiding or re-keying aborts the in-flight request; a late
       // response is ignored by the sequence check.
@@ -163,7 +193,8 @@ export function useServerJournal({
       requestSequenceRef.current += 1;
       activeRequestRef.current?.abort();
       activeRequestRef.current = null;
-      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      unsubscribeForeground();
+      if (autoRefreshTimer !== undefined) clearInterval(autoRefreshTimer);
       loadRef.current = () => {};
     };
   }, [active, filter, isAuthenticated, mode, requestKey, sessionScope, type]);

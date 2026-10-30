@@ -1,5 +1,6 @@
 import { toBrokerServiceRoot } from '../../../api/brokerRouting';
 import { timedFetch } from '../../../utils/apiLatency';
+import { confirmBrokerSignInAvailability, type BrokerAvailabilityRequester } from '../../../api/brokerSignInAvailability';
 
 export const SELECTED_BROKER_UNAVAILABLE_MESSAGE = 'Selected broker is unavailable';
 export const SELECTED_BROKER_HEALTH_TIMEOUT_MS = 3_000;
@@ -22,9 +23,7 @@ export type SelectedBrokerHealthGate = Readonly<{
   run: (request: SelectedBrokerHealthGateRequest) => Promise<SelectedBrokerHealthGateResult>;
 }>;
 
-type SelectedBrokerHealthRequester = (
-  healthUrl: string,
-) => Promise<Pick<Response, 'ok'>>;
+type SelectedBrokerHealthRequester = BrokerAvailabilityRequester;
 
 /**
  * Builds only the health URL belonging to the selected directory record.
@@ -41,9 +40,9 @@ const requestSelectedBrokerHealth: SelectedBrokerHealthRequester = (healthUrl) =
     method: 'GET',
     headers: { accept: 'application/json' },
   }, {
-    label: 'broker.selected.health',
+    label: healthUrl.endsWith('/broker/config') ? 'broker.selected.signInConfig' : 'broker.selected.health',
     method: 'GET',
-    endpoint: '/health',
+    endpoint: healthUrl.endsWith('/broker/config') ? '/broker/config' : '/health',
     source: 'broker',
     timeoutMs: SELECTED_BROKER_HEALTH_TIMEOUT_MS,
   })
@@ -56,8 +55,9 @@ const isHealthProbeTimeout = (error: unknown): boolean =>
  * A bounded reachability check for the exact selected broker server. Like the
  * login probe (checkBrokerServerHealth), a timeout is retried once: the first
  * request after idle pays a cold DNS + TCP + TLS handshake and can exceed the
- * budget while the broker is healthy. HTTP failures and network errors still
- * fail closed immediately.
+ * budget while the broker is healthy. An explicit degraded 503 can still open
+ * sign-in when the same broker's public config confirms it is active. Other
+ * HTTP failures and network errors remain unavailable.
  */
 export async function probeSelectedBrokerHealth(
   serverUrl: string,
@@ -68,13 +68,13 @@ export async function probeSelectedBrokerHealth(
 
   try {
     const response = await requester(healthUrl);
-    return response.ok;
+    return await confirmBrokerSignInAvailability(serverUrl, response, requester);
   } catch (firstError) {
     if (!isHealthProbeTimeout(firstError)) return false;
   }
   try {
     const response = await requester(healthUrl);
-    return response.ok;
+    return await confirmBrokerSignInAvailability(serverUrl, response, requester);
   } catch {
     return false;
   }

@@ -135,9 +135,9 @@ export const formatTpSlOverlayValueLabel = (
   );
   const normalizedPnl = Object.is(projectedPnl, -0) ? 0 : projectedPnl;
   const sign = normalizedPnl > 0 ? '+' : normalizedPnl < 0 ? '-' : '';
-  const signedUsd = `${sign}${sign ? ' ' : ''}${Math.abs(normalizedPnl).toFixed(2)} USD`;
+  const signedAmount = `${sign}${sign ? ' ' : ''}${Math.abs(normalizedPnl).toFixed(2)}`;
 
-  return `${signedUsd}, ${pointDistance} points`;
+  return `${signedAmount}, ${pointDistance} points`;
 };
 
 export const formatTpSlOverlayLabel = (
@@ -197,5 +197,5 @@ export const buildPendingOrderLabel = (order: LoginOrder): string => {
       ? upperType
       : `${side} ${upperType || 'ORDER'}`;
 
-  return `${typeLabel} ${formatPositionVolumeLabel(Number(order.volume))}`.trim();
+  return `#${order.ticket} ${typeLabel} ${formatPositionVolumeLabel(Number(order.volume))} @ ${order.price_open}`.trim();
 };

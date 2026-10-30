@@ -13,6 +13,7 @@ export type TradePositionActionHostSnapshot = Readonly<{
   visible: boolean;
   destination: TradePositionActionDestination | null;
   positionId: string | null;
+  protectionLevel: 'tp' | 'sl' | null;
 }>;
 
 export type TradePositionActionHostVisualApplier = (visible: boolean) => void;
@@ -22,7 +23,7 @@ export type TradePositionActionHostController = Readonly<{
   hide: (revision?: number) => boolean;
   isVisible: () => boolean;
   registerVisualApplier: (applier: TradePositionActionHostVisualApplier) => () => void;
-  show: (destination: TradePositionActionDestination, positionId: string) => number;
+  show: (destination: TradePositionActionDestination, positionId: string, protectionLevel?: 'tp' | 'sl') => number;
   subscribe: (listener: () => void) => () => void;
 }>;
 
@@ -31,9 +32,10 @@ const CLOSED: TradePositionActionHostSnapshot = Object.freeze({
   visible: false,
   destination: null,
   positionId: null,
+  protectionLevel: null,
 });
 
-const TRADE_POSITION_ACTION_HOST_CONTROLLER_VERSION = 1;
+const TRADE_POSITION_ACTION_HOST_CONTROLLER_VERSION = 2;
 
 export function createTradePositionActionHostController(): TradePositionActionHostController {
   const listeners = new Set<() => void>();
@@ -62,6 +64,7 @@ export function createTradePositionActionHostController(): TradePositionActionHo
         visible: false,
         destination: snapshot.destination,
         positionId: snapshot.positionId,
+        protectionLevel: snapshot.protectionLevel,
       }));
       return true;
     },
@@ -78,7 +81,7 @@ export function createTradePositionActionHostController(): TradePositionActionHo
       };
     },
 
-    show: (destination, positionId) => {
+    show: (destination, positionId, protectionLevel) => {
       const nextId = String(positionId ?? '').trim();
       if (!nextId) {
         return snapshot.revision;
@@ -91,6 +94,7 @@ export function createTradePositionActionHostController(): TradePositionActionHo
         visible: true,
         destination,
         positionId: nextId,
+        protectionLevel: destination === 'modify' && (protectionLevel === 'tp' || protectionLevel === 'sl') ? protectionLevel : null,
       }));
       return revision;
     },
@@ -124,8 +128,9 @@ controllerGlobal.__rtx5TradePositionActionHostControllerVersion = TRADE_POSITION
 export function showTradePositionAction(
   destination: TradePositionActionDestination,
   positionId: string,
+  protectionLevel?: 'tp' | 'sl',
 ) {
-  return tradePositionActionHostController.show(destination, positionId);
+  return tradePositionActionHostController.show(destination, positionId, protectionLevel);
 }
 
 export function hideTradePositionActionHost(revision?: number) {

@@ -47,6 +47,24 @@ const candles: ChartOverlayCandle[] = Array.from({ length: 40 }, (_, index) => {
 const BOTH_SIDES = { buyTrade: true, sellTrade: true, slTpLevels: true } as const;
 const NO_SIDES = { buyTrade: false, sellTrade: false, slTpLevels: false } as const;
 
+test('BUY and SELL entry controls use a blue solid line at the exact broker entry, independently of live price', () => {
+  for (const side of ['buy', 'sell'] as const) {
+    const payload = buildChartOverlayPayload({
+      chartSymbol: 'EURUSD', candles, colors: { ...TEST_CHART_COLORS, tradeOpen: '#FFA500' },
+      sellColor: '#EF5350', showOnChart: BOTH_SIDES,
+      positions: [{ id: '21', symbol: 'EURUSD', side, volume: 0.01, openPrice: 1.123456,
+        currentPrice: 1.2, pnl: 3, swap: 0, openTime: new Date(candles[0].time * 1000).toISOString() }],
+      positionControlScope: { sessionScope: 'account', dataContextSig: 'EURUSD:M1', chartGeneration: 1, symbol: 'EURUSD' },
+    });
+    const entry = payload.priceLines.find((line) => line.id === 'open-21')!;
+    assert.equal(entry.price, 1.123456);
+    assert.equal(entry.color, '#2962FF');
+    assert.equal(entry.lineStyle, CHART_LINE_STYLE.Solid);
+    assert.equal(entry.positionControl?.positionId, '21');
+    assert.equal(entry.labelSideColor, side === 'buy' ? '#FFA500' : '#EF5350');
+  }
+});
+
 test('normalizeChartOverlaySymbol strips broker suffix variants consistently', () => {
   // Separator-based suffixes
   assert.equal(normalizeChartOverlaySymbol('EURUSDm'), 'EURUSD');
@@ -113,6 +131,7 @@ test('buildChartOverlayPayload maps open positions for the chart symbol with the
     showOnChart: BOTH_SIDES,
   };
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     ...input,
     allowPositionStopDragging: true,
   });
@@ -124,14 +143,16 @@ test('buildChartOverlayPayload maps open positions for the chart symbol with the
   );
   const openLine = payload.priceLines.find((line: any) => line.id === 'open-1');
   assert.equal(openLine?.lineWidth, 1);
-  assert.equal(openLine?.lineStyle, CHART_LINE_STYLE.Dotted);
-  assert.equal(openLine?.title, 'BUY 0.20, +42.000 USD');
+  assert.equal(openLine?.lineStyle, CHART_LINE_STYLE.Solid);
+  assert.equal(openLine?.title, 'BUY 0.20 +42.000 USD');
   assert.equal(openLine?.color, TEST_CHART_COLORS.tradeOpen);
   assert.equal(openLine?.labelSideText, 'BUY 0.20');
   assert.equal(openLine?.labelValueText, '+42.000 USD');
   assert.equal(openLine?.labelSideColor, TEST_CHART_COLORS.tradeOpen);
   assert.equal(openLine?.labelValueColor, LIVE_CHART_PNL_COLORS.darkCanvas.profit);
   assert.equal(openLine?.labelPlacement, 'line');
+  assert.equal(payload.priceLines.find((line: any) => line.id === 'tp-1')?.lineWidth, 1);
+  assert.equal(payload.priceLines.find((line: any) => line.id === 'sl-1')?.lineWidth, 1);
   assert.equal(payload.priceLines.find((line: any) => line.id === 'tp-1')?.labelPlacement, 'line');
   assert.equal(payload.priceLines.find((line: any) => line.id === 'sl-1')?.labelPlacement, 'line');
   assert.equal(
@@ -162,24 +183,25 @@ test('buildChartOverlayPayload maps open positions for the chart symbol with the
 test('SL/TP projected labels use the position side instead of assuming every SL loses', () => {
   assert.equal(
     formatTpSlOverlayLabel('sl', 'XAUUSD', 'buy', 4053.25, 4057.76, 0.01),
-    'SL, + 4.51 USD, 451 points',
+    'SL, + 4.51, 451 points',
   );
   assert.equal(
     formatTpSlOverlayLabel('sl', 'XAUUSD', 'buy', 4053.25, 4048.74, 0.01),
-    'SL, - 4.51 USD, 451 points',
+    'SL, - 4.51, 451 points',
   );
   assert.equal(
     formatTpSlOverlayLabel('sl', 'XAUUSD', 'sell', 4053.25, 4048.74, 0.01),
-    'SL, + 4.51 USD, 451 points',
+    'SL, + 4.51, 451 points',
   );
   assert.equal(
     formatTpSlOverlayLabel('sl', 'XAUUSD', 'sell', 4053.25, 4057.76, 0.01),
-    'SL, - 4.51 USD, 451 points',
+    'SL, - 4.51, 451 points',
   );
 });
 
 test('SL/TP protection colors stay type-owned when their projected P/L signs are inverted', () => {
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'XAUUSD',
     candles,
     positions: [
@@ -208,12 +230,12 @@ test('SL/TP protection colors stay type-owned when their projected P/L signs are
   const slLine = payload.priceLines.find((line) => line.id === 'sl-inverted-protection');
   const tpLine = payload.priceLines.find((line) => line.id === 'tp-inverted-protection');
 
-  assert.equal(slLine?.labelValueText, '+ 4.51 USD, 451 points');
+  assert.equal(slLine?.labelValueText, '4057.76');
   assert.equal(slLine?.color, TEST_CHART_COLORS.tradeStopOut);
   assert.equal(slLine?.labelSideColor, TEST_CHART_COLORS.tradeStopOut);
   assert.equal(slLine?.labelValueColor, TEST_CHART_COLORS.tradeStopOut);
 
-  assert.equal(tpLine?.labelValueText, '- 4.51 USD, 451 points');
+  assert.equal(tpLine?.labelValueText, '4048.74');
   assert.equal(tpLine?.color, TEST_CHART_COLORS.tradeTpSl);
   assert.equal(tpLine?.labelSideColor, TEST_CHART_COLORS.tradeTpSl);
   assert.equal(tpLine?.labelValueColor, TEST_CHART_COLORS.tradeTpSl);
@@ -267,6 +289,7 @@ test('buildChartOverlayPayload drops a position and its SL/TP once it is no long
   };
 
   const beforeHit = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles,
     positions: [openPosition],
@@ -282,6 +305,7 @@ test('buildChartOverlayPayload drops a position and its SL/TP once it is no long
   );
 
   const afterHit = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles,
     positions: [],
@@ -324,6 +348,7 @@ test('an exact SL or TP hit removes the full matching overlay while preserving a
       { preserveMissingExisting: true },
     );
     const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
       chartSymbol: 'EURUSD',
       candles,
       positions: remainingPositions,
@@ -345,6 +370,7 @@ test('an exact SL or TP hit removes the full matching overlay while preserving a
 
 test('buildChartOverlayPayload updates open position labels from live bid and ask prices', () => {
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'BTCUSD',
     candles,
     positions: [
@@ -399,20 +425,20 @@ test('buildChartOverlayPayload updates open position labels from live bid and as
   const valueTextById = new Map(payload.priceLines.map((line: any) => [line.id, line.labelValueText]));
   const valueColorById = new Map(payload.priceLines.map((line: any) => [line.id, line.labelValueColor]));
 
-  assert.equal(titleById.get('open-buy-live'), 'BUY 0.01, +0.22300 USD');
+  assert.equal(titleById.get('open-buy-live'), 'BUY 0.01 -999.00 USD');
   assert.equal(colorById.get('open-buy-live'), TEST_CHART_COLORS.tradeOpen);
   assert.equal(sideTextById.get('open-buy-live'), 'BUY 0.01');
-  assert.equal(valueTextById.get('open-buy-live'), '+0.22300 USD');
-  assert.equal(valueColorById.get('open-buy-live'), LIVE_CHART_PNL_COLORS.darkCanvas.profit);
-  assert.equal(titleById.get('open-buy-loss-live'), 'BUY 0.01, -0.04700 USD');
+  assert.equal(valueTextById.get('open-buy-live'), '-999.00 USD');
+  assert.equal(valueColorById.get('open-buy-live'), LIVE_CHART_PNL_COLORS.darkCanvas.loss);
+  assert.equal(titleById.get('open-buy-loss-live'), 'BUY 0.01 +999.00 USD');
   assert.equal(colorById.get('open-buy-loss-live'), TEST_CHART_COLORS.tradeOpen);
-  assert.equal(valueTextById.get('open-buy-loss-live'), '-0.04700 USD');
-  assert.equal(valueColorById.get('open-buy-loss-live'), LIVE_CHART_PNL_COLORS.darkCanvas.loss);
-  assert.equal(titleById.get('open-sell-live'), 'SELL 0.02, +1.4000 USD');
-  assert.equal(colorById.get('open-sell-live'), '#EF5350');
+  assert.equal(valueTextById.get('open-buy-loss-live'), '+999.00 USD');
+  assert.equal(valueColorById.get('open-buy-loss-live'), LIVE_CHART_PNL_COLORS.darkCanvas.profit);
+  assert.equal(titleById.get('open-sell-live'), 'SELL 0.02 -999.00 USD');
+  assert.equal(colorById.get('open-sell-live'), '#2962FF');
   assert.equal(sideTextById.get('open-sell-live'), 'SELL 0.02');
-  assert.equal(valueTextById.get('open-sell-live'), '+1.4000 USD');
-  assert.equal(valueColorById.get('open-sell-live'), LIVE_CHART_PNL_COLORS.darkCanvas.profit);
+  assert.equal(valueTextById.get('open-sell-live'), '-999.00 USD');
+  assert.equal(valueColorById.get('open-sell-live'), LIVE_CHART_PNL_COLORS.darkCanvas.loss);
 });
 
 test('per-tick open-position patches update only label values and preserve line geometry', () => {
@@ -423,8 +449,8 @@ test('per-tick open-position patches update only label values and preserve line 
       side: 'buy' as const,
       volume: 0.01,
       openPrice: 61000,
-      currentPrice: 61000,
-      pnl: 0,
+      currentPrice: 61010,
+      pnl: 0.1,
       swap: 0,
       commission: 0,
       openTime: new Date(candles[5].time * 1000).toISOString(),
@@ -435,14 +461,15 @@ test('per-tick open-position patches update only label values and preserve line 
       side: 'sell' as const,
       volume: 0.02,
       openPrice: 61020,
-      currentPrice: 61020,
-      pnl: 0,
+      currentPrice: 61010,
+      pnl: 0.2,
       swap: 0,
       commission: 0,
       openTime: new Date(candles[6].time * 1000).toISOString(),
     },
   ];
   const basePayload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'BTCUSD',
     candles,
     positions,
@@ -467,6 +494,7 @@ test('per-tick open-position patches update only label values and preserve line 
   const firstPayload = applyChartOpenPositionLabelPatches(
     basePayload,
     buildChartOpenPositionLabelPatches({
+      accountCurrency: 'USD',
       chartSymbol: 'BTCUSD',
       positions,
       colors: TEST_CHART_COLORS,
@@ -480,6 +508,7 @@ test('per-tick open-position patches update only label values and preserve line 
   const secondPayload = applyChartOpenPositionLabelPatches(
     firstPayload,
     buildChartOpenPositionLabelPatches({
+      accountCurrency: 'USD',
       chartSymbol: 'BTCUSD',
       positions,
       colors: TEST_CHART_COLORS,
@@ -532,6 +561,7 @@ test('per-tick chart labels reuse the Trade row calibrated PnL and precision', (
   };
 
   const [patch] = buildChartOpenPositionLabelPatches({
+      accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     positions: [position],
     colors: TEST_CHART_COLORS,
@@ -548,11 +578,12 @@ test('per-tick chart labels reuse the Trade row calibrated PnL and precision', (
   });
 
   assert.equal(patch?.labelValueText, '+25.350 USD');
-  assert.equal(patch?.title, 'BUY 0.10, +25.350 USD');
+  assert.equal(patch?.title, 'BUY 0.10 +25.350 USD');
 });
 
 test('cold or stale chart labels use the same position snapshot fallback as Trade', () => {
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles,
     positions: [{
@@ -578,11 +609,12 @@ test('cold or stale chart labels use the same position snapshot fallback as Trad
 
   const line = payload.priceLines.find((item) => item.id === 'open-stale-fallback');
   assert.equal(line?.labelValueText, '+12.500 USD');
-  assert.equal(line?.title, 'BUY 0.10, +12.500 USD');
+  assert.equal(line?.title, 'BUY 0.10 +12.500 USD');
 });
 
 test('buildChartOverlayPayload does not substitute bid for a missing sell-side ask', () => {
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'GBPUSD',
     candles,
     positions: [
@@ -607,10 +639,10 @@ test('buildChartOverlayPayload does not substitute bid for a missing sell-side a
   });
 
   const openLine = payload.priceLines.find((line: any) => line.id === 'open-sell-one-sided');
-  assert.equal(openLine?.title, 'SELL 0.10, +0.00000 USD');
-  assert.equal(openLine?.color, '#EF5350');
+  assert.equal(openLine?.title, 'SELL 0.10 -999.00 USD');
+  assert.equal(openLine?.color, '#2962FF');
   assert.equal(openLine?.labelSideColor, '#EF5350');
-  assert.equal(openLine?.labelValueColor, '#EF5350');
+  assert.equal(openLine?.labelValueColor, LIVE_CHART_PNL_COLORS.darkCanvas.loss);
 });
 
 test('buildChartOverlayPayload filters open trades by side via the buy/sell toggles', () => {
@@ -640,6 +672,7 @@ test('buildChartOverlayPayload filters open trades by side via the buy/sell togg
   ];
 
   const buyOnly = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles,
     positions,
@@ -654,6 +687,7 @@ test('buildChartOverlayPayload filters open trades by side via the buy/sell togg
   );
 
   const sellOnly = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles,
     positions,
@@ -668,6 +702,7 @@ test('buildChartOverlayPayload filters open trades by side via the buy/sell togg
   );
 
   const both = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles,
     positions,
@@ -698,6 +733,7 @@ test('buildChartOverlayPayload still renders pattern markers from the drawing to
   };
 
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles: patternCandles,
     positions: [],
@@ -738,6 +774,7 @@ test('buildChartOverlayPayload returns one shared empty payload when trade sides
 
   const payloadA = buildChartOverlayPayload(baseInput);
   const payloadB = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     ...baseInput,
     candles: candles.slice(0, 10),
   });
@@ -772,10 +809,12 @@ test('buildChartOverlayPayload shows or hides trades directly from the buy/sell 
   };
 
   const visiblePayload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     ...baseInput,
     showOnChart: BOTH_SIDES,
   });
   const hiddenPayload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     ...baseInput,
     showOnChart: NO_SIDES,
   });
@@ -789,6 +828,7 @@ test('buildChartOverlayPayload shows or hides trades directly from the buy/sell 
 
 test('buildChartOverlayPayload hides SL/TP levels while keeping visible trade entries', () => {
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'EURUSD',
     candles,
     positions: [
@@ -817,6 +857,7 @@ test('buildChartOverlayPayload hides SL/TP levels while keeping visible trade en
 
 test('buildChartOverlayPayload matches all open positions across slash and suffix symbol variants', () => {
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'GBPUSD',
     candles,
     positions: [
@@ -859,6 +900,7 @@ test('buildChartOverlayPayload matches all open positions across slash and suffi
 
 test('buildChartOverlayPayload keeps each stacked open position line visible', () => {
   const payload = buildChartOverlayPayload({
+    accountCurrency: 'USD',
     chartSymbol: 'GBPUSD',
     candles,
     positions: Array.from({ length: 10 }, (_unused, index) => ({

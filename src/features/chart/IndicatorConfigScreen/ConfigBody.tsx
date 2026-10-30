@@ -74,7 +74,13 @@ export function ConfigBody({
     const parsed = Number(numberEdit.value);
     if (Number.isFinite(parsed)) {
       if (numberEdit.target === 'param') {
-        setValue(numberEdit.key, parsed);
+        const paramDef = (meta ?? getIndicatorMeta(metaId))?.parameters.find((p) => p.key === numberEdit.key);
+        let nextVal = parsed;
+        if (paramDef?.kind === 'number') {
+          if (paramDef.min !== undefined) nextVal = Math.max(paramDef.min, nextVal);
+          if (paramDef.max !== undefined) nextVal = Math.min(paramDef.max, nextVal);
+        }
+        setValue(numberEdit.key, nextVal);
       } else if (numberEdit.target === 'fixedMin') {
         setVisualization({ fixedMin: parsed });
       } else if (numberEdit.target === 'fixedMax') {

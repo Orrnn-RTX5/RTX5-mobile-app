@@ -122,9 +122,9 @@ export function ChartColorsScreen() {
 
                     {/* Right: Hex Code & Color Swatch */}
                     <View style={styles.rowRight}>
-                      <Text style={styles.hexText}>{resolveHexLabel(chartColors[item.keyId])}</Text>
+                      <Text style={styles.hexText}>{resolveHexLabel(resolvedChartColors[item.keyId])}</Text>
                       <View style={styles.colorSwatchWrap}>
-                        <View style={[styles.colorSwatch, { backgroundColor: chartColors[item.keyId] }]} />
+                        <View style={[styles.colorSwatch, { backgroundColor: resolvedChartColors[item.keyId] }]} />
                         <View style={styles.colorSwatchHighlight} />
                       </View>
                       <Ionicons name="chevron-forward" size={16} color={T.textMuted} style={{ marginLeft: 6 }} />

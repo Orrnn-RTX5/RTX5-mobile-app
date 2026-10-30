@@ -18,8 +18,9 @@ export const buildRestQuoteTickEvent = (
   }
 
   const { update } = normalized;
-  const timestamp = update.timestamp ?? receivedAt;
-  const feedTickAt = normalizeQuoteTickTimestampToMs(timestamp) ?? receivedAt;
+  const rawTimestamp = update.timestamp ?? receivedAt;
+  const feedTickAt = normalizeQuoteTickTimestampToMs(rawTimestamp) ?? receivedAt;
+  const timestamp = feedTickAt;
 
   return {
     symbol: update.symbol,

@@ -1,11 +1,12 @@
 /**
- * Trade handling for ChartTradeButtons: retains the Order Ticket tap lock and
- * dispatches accepted one-click market orders immediately and concurrently.
+ * Chart Buy/Sell executes directly with One Click enabled and immediately
+ * opens the order ticket with One Click disabled.
  */
 import React from 'react';
 import { router } from 'expo-router';
 import { classifyTradingError } from '../../../../api/tradingErrors';
-import { usePlaceOrderExecutor } from '../../../../query/orders';
+import { usePlaceOrderExecutor, usePendingMarketOrderSides } from '../../../../query/orders';
+import { createMarketOrderIntentId } from '../../../../api/orders/marketOrderInFlight';
 import { resolveTradingLogin } from '../../../../state/tradingLogin';
 import { useUserPreferences } from '../../../../state/userPreferences';
 import { runCriticalTradeAction } from '../../../../utils/actionLatency';
@@ -18,19 +19,8 @@ import {
 } from '../../../../market/quoteIntegrity';
 import { buildChartMarketOrderPayload, getChartTradeAction } from '../../chartTradeActions';
 import { validateChartTradeProtectionLevels } from '../../chartTradeOrderUtils';
-import {
-  CHART_TRADE_TAP_RELEASE_DELAY_MS,
-  acquireChartTradeButtonSharedLock,
-  getChartTradeButtonSharedLockSide,
-  releaseChartTradeButtonSharedLock,
-} from './sharedLock';
 import { dispatchChartTradeImmediately } from './chartTradeDispatch';
 import { resolveChartTradeActionDisabled } from './tradeAvailability';
-import {
-  hideOrderTicketLaunch,
-  scheduleOrderTicketLaunchNavigation,
-  showOrderTicketLaunch,
-} from '../../../trade/orderTicketLaunchController';
 import { redactDiagnosticValue } from '../../../../utils/securityRedaction';
 import { resolveBrokerExecutionEvidence } from '../../../../api/orders/executionEvidence';
 import { normalizeSymbol } from '../../../../domain/symbols';
@@ -82,6 +72,7 @@ type TradeFeedback = {
 
 type AcceptedChartTrade = {
   id: number;
+  frontendIntentId: string;
   side: TradeSide;
   symbol: string;
   tradingLogin: string | number;
@@ -97,6 +88,7 @@ type AcceptedChartTrade = {
 export type TradeHandlerOptions = {
   symbol: string;
   variant?: 'compact' | 'mt5-market';
+  executionDisabled?: boolean;
   comment?: string;
   stopLossPrice?: number | null;
   takeProfitPrice?: number | null;
@@ -117,6 +109,7 @@ export type TradeHandlerOptions = {
 export function useTradeHandler({
   symbol,
   variant = 'compact',
+  executionDisabled = false,
   comment,
   stopLossPrice,
   takeProfitPrice,
@@ -130,16 +123,14 @@ export function useTradeHandler({
   onTradeResult,
   onTradeQueueEvent,
 }: TradeHandlerOptions) {
-  const oneClickAccepted = useUserPreferences((s) => s.oneClickAccepted);
+  const executionDisabledRef = React.useRef(executionDisabled);
+  executionDisabledRef.current = executionDisabled;
   const currentChartSymbol = useUserPreferences((s) => s.chartSymbol);
   const isPublicDemoTradePrompt = useUserPreferences(
     (state) => !state.isLoggedIn,
   );
   const placeOrder = usePlaceOrderExecutor();
-  const [activeSide, setActiveSide] = React.useState<TradeSide | null>(null);
-  const activeSideResetTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tradeTapLockRef = React.useRef(false);
-  const tradeTapLockSideRef = React.useRef<TradeSide | null>(null);
+  const pendingMarketSides = usePendingMarketOrderSides(symbol);
   const mountedRef = React.useRef(true);
   const onTradeResultRef = React.useRef(onTradeResult);
   onTradeResultRef.current = onTradeResult;
@@ -229,74 +220,13 @@ export function useTradeHandler({
 
   React.useEffect(() => {
     mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (activeSideResetTimeoutRef.current) {
-        clearTimeout(activeSideResetTimeoutRef.current);
-        activeSideResetTimeoutRef.current = null;
-      }
-      tradeTapLockRef.current = false;
-      if (tradeTapLockSideRef.current) {
-        releaseChartTradeButtonSharedLock(tradeTapLockSideRef.current);
-        tradeTapLockSideRef.current = null;
-      }
-    };
+    return () => { mountedRef.current = false; };
   }, []);
-
-  React.useEffect(() => {
-    if (activeSideResetTimeoutRef.current) {
-      clearTimeout(activeSideResetTimeoutRef.current);
-      activeSideResetTimeoutRef.current = null;
-    }
-    setActiveSide(null);
-    tradeTapLockRef.current = false;
-    if (tradeTapLockSideRef.current) {
-      releaseChartTradeButtonSharedLock(tradeTapLockSideRef.current);
-      tradeTapLockSideRef.current = null;
-    }
-  }, [symbol]);
-
-  const clearActiveTradeSide = (side: TradeSide, delayMs = 0) => {
-    if (activeSideResetTimeoutRef.current) {
-      clearTimeout(activeSideResetTimeoutRef.current);
-      activeSideResetTimeoutRef.current = null;
-    }
-
-    const clearSide = () => {
-      setActiveSide((currentSide) => (currentSide === side ? null : currentSide));
-      activeSideResetTimeoutRef.current = null;
-    };
-
-    if (delayMs > 0) {
-      activeSideResetTimeoutRef.current = setTimeout(clearSide, delayMs);
-      return;
-    }
-
-    clearSide();
-  };
-
-  const markActiveTradeSide = (side: TradeSide) => {
-    if (activeSideResetTimeoutRef.current) {
-      clearTimeout(activeSideResetTimeoutRef.current);
-      activeSideResetTimeoutRef.current = null;
-    }
-    setActiveSide(side);
-  };
-
-  const releaseTradeTapLock = (delayMs = 0) => {
-    const lockedSide = tradeTapLockSideRef.current;
-    tradeTapLockRef.current = false;
-    tradeTapLockSideRef.current = null;
-    if (lockedSide) {
-      releaseChartTradeButtonSharedLock(lockedSide, delayMs);
-      clearActiveTradeSide(lockedSide, delayMs);
-    }
-  };
 
   const dispatchAcceptedChartTrade = (acceptedTrade: AcceptedChartTrade) => {
     const action = getChartTradeAction(acceptedTrade.side);
     // Every accepted tap reaches this function independently in the same turn.
-    const payload = buildChartMarketOrderPayload({
+    const payload = { ...buildChartMarketOrderPayload({
       accountLogin: acceptedTrade.tradingLogin,
       symbol: acceptedTrade.symbol,
       side: action.side,
@@ -304,7 +234,7 @@ export function useTradeHandler({
       comment: acceptedTrade.comment,
       stopLossPrice: acceptedTrade.stopLossPrice,
       takeProfitPrice: acceptedTrade.takeProfitPrice,
-    });
+    }), frontendIntentId: acceptedTrade.frontendIntentId };
     const requestStartedAtMs = getApiLatencyNow();
     const dispatchDelayMs = Math.max(
       0,
@@ -472,9 +402,11 @@ export function useTradeHandler({
         }
       },
     });
+    return !settled;
   };
 
   const executeTrade = (side: TradeSide) => {
+    if (executionDisabledRef.current) return;
     const action = getChartTradeAction(side);
     const stateChartSymbol = useUserPreferences.getState().chartSymbol;
     if (!resolveSymbolExecutionOwnership()) {
@@ -492,11 +424,27 @@ export function useTradeHandler({
       return;
     }
     if (requestOrrnnDemoTradeAuth({
-      kind: oneClickAccepted || variant === 'mt5-market' ? 'market-order' : 'order-ticket',
+      kind: useUserPreferences.getState().oneClickAccepted ? 'market-order' : 'order-ticket',
       symbol,
       side,
       origin: 'chart',
     })) {
+      return;
+    }
+    // Read at tap time so a retained chart callback respects setting changes.
+    if (!useUserPreferences.getState().oneClickAccepted) {
+      router.navigate({
+        pathname: '/trade/order-ticket',
+        params: {
+          symbol,
+          side: action.side,
+          origin: 'chart',
+          ...(Number.isFinite(Number(stopLossPrice)) && Number(stopLossPrice) > 0 ? { sl: String(stopLossPrice) } : {}),
+          ...(Number.isFinite(Number(takeProfitPrice)) && Number(takeProfitPrice) > 0 ? { tp: String(takeProfitPrice) } : {}),
+          ...(protectionDraftId ? { protectionDraftId } : {}),
+          ...(comment?.trim() ? { comment: comment.trim() } : {}),
+        },
+      });
       return;
     }
     // Normalize once — hot path used to normalize both sides twice.
@@ -515,11 +463,6 @@ export function useTradeHandler({
       return;
     }
 
-    // ── One-click OFF: open New Order as a sidebar-class retained handoff ──
-    // Shell first (UI thread), then lock + route — no heavy validation.
-    // The SL/TP trade sheet (mt5-market variant) IS the explicit order form:
-    // its Buy/Sell always place the market order directly, exactly like MT5's
-    // New Order screen, regardless of the one-click preference.
     // Read the exact pane symbol from the imperative quote cache at touch time.
     // Split panes render independently, so a render-captured quote must not
     // block a newly fresh pane or authorize one whose final tick went stale.
@@ -536,103 +479,7 @@ export function useTradeHandler({
       return;
     }
 
-    if (!oneClickAccepted && variant !== 'mt5-market') {
-      if (tradeTapLockRef.current) {
-        logChartTradeDiagnostic('[TRADE-BUTTON-PRESS]', {
-          side,
-          buttonPressed: action.buttonPressed,
-          symbol,
-          displayedLabel: action.displayLabel,
-          sidePassedToHandler: action.side,
-          ignored: true,
-          lockSide: getChartTradeButtonSharedLockSide(),
-          reason: 'tap-lock',
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-      if (!acquireChartTradeButtonSharedLock(action.side)) {
-        logChartTradeDiagnostic('[TRADE-BUTTON-PRESS]', {
-          side,
-          buttonPressed: action.buttonPressed,
-          symbol,
-          displayedLabel: action.displayLabel,
-          sidePassedToHandler: action.side,
-          ignored: true,
-          lockSide: getChartTradeButtonSharedLockSide(),
-          reason: 'shared-tap-lock',
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-
-      // Paint retained New Order shell in this touch turn before any setState.
-      const launchRevision = showOrderTicketLaunch(symbol, 'chart');
-
-      tradeTapLockRef.current = true;
-      tradeTapLockSideRef.current = action.side;
-
-      const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
-      const normalizedStopLossPrice = Number(stopLossPrice);
-      const normalizedTakeProfitPrice = Number(takeProfitPrice);
-      const hasStopLossPrice = Number.isFinite(normalizedStopLossPrice) && normalizedStopLossPrice > 0;
-      const hasTakeProfitPrice = Number.isFinite(normalizedTakeProfitPrice) && normalizedTakeProfitPrice > 0;
-
-      // Busy chrome after shell is visible so it does not compete with first paint.
-      markActiveTradeSide(action.side);
-
-      logChartTradeDiagnostic('[TRADE-BUTTON-PRESS]', {
-        side,
-        buttonPressed: action.buttonPressed,
-        symbol,
-        displayedLabel: action.displayLabel,
-        sidePassedToHandler: action.side,
-        timestamp: new Date().toISOString(),
-      });
-
-      const releaseOpenPathLock = () => {
-        releaseTradeTapLock(CHART_TRADE_TAP_RELEASE_DELAY_MS);
-      };
-
-      // Real ticket mounts after one paint frame (see scheduler).
-      scheduleOrderTicketLaunchNavigation(
-        launchRevision,
-        () => {
-          try {
-            router.push({
-              pathname: '/trade/order-ticket',
-              params: {
-                symbol,
-                origin: 'chart',
-                side: action.side,
-                ...(hasStopLossPrice ? { sl: String(normalizedStopLossPrice) } : {}),
-                ...(hasTakeProfitPrice ? { tp: String(normalizedTakeProfitPrice) } : {}),
-                ...(protectionDraftId ? { protectionDraftId } : {}),
-                ...(trimmedComment ? { comment: trimmedComment } : {}),
-              },
-            });
-          } catch (navErr: any) {
-            hideOrderTicketLaunch(launchRevision);
-            warnChartTradeDiagnostic('[Trade] navigation failed', navErr);
-            emitTradeResult({
-              visible: true, type: 'error',
-              title: 'Navigation Error',
-              message: navErr?.message || 'Could not open the order ticket screen.',
-              side: action.side,
-            });
-          } finally {
-            releaseOpenPathLock();
-          }
-        },
-        () => {
-          hideOrderTicketLaunch(launchRevision);
-          releaseOpenPathLock();
-        },
-      );
-      return;
-    }
-
-    // ── One-click ON: place market order (validation required) ───────────
+    // One Click is enabled; submit this explicit Buy/Sell tap directly.
     const volume = Number(lotSize);
     const trimmedComment = typeof comment === 'string' ? comment.trim() : '';
     const normalizedStopLossPrice = Number(stopLossPrice);
@@ -725,6 +572,7 @@ export function useTradeHandler({
     logChartTradeDiagnostic('[Trade] one-click path, login=', tradingLogin);
     const acceptedTrade: AcceptedChartTrade = {
       id: nextChartTradeReceiptId,
+      frontendIntentId: createMarketOrderIntentId(),
       side: action.side,
       symbol,
       tradingLogin,
@@ -773,15 +621,16 @@ export function useTradeHandler({
   };
 
   const handleTrade = (side: TradeSide) => {
+    if (executionDisabledRef.current) return;
     // Tap time for the Journal's order latency telemetry.
     markTradeIntent();
     return runCriticalTradeAction(`chart.${variant}.trade.${side}`, () => executeTrade(side));
   };
 
-  const isChartTradeActionBusy = (side: TradeSide) => activeSide === side && tradeTapLockRef.current;
-  const chartTradeActionDisabled = resolveChartTradeActionDisabled({
+  const isChartTradeActionBusy = (side: TradeSide) => Boolean(pendingMarketSides & (side === 'buy' ? 1 : 2));
+  const chartTradeActionDisabled = executionDisabled || resolveChartTradeActionDisabled({
     isCurrentChartSymbol,
-    oneClickAccepted,
+    oneClickAccepted: true,
     quoteActionAllowed,
   });
   // This side-specific signal is reserved for in-flight feedback. Quote

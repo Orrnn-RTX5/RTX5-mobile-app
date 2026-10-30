@@ -30,6 +30,7 @@ import { createStartupWorkQueue } from './startupWorkQueue';
 const ACTION_DEFERRED_MODULE_WARMUP_DELAY_MS = 180;
 
 const ACTION_DEFERRED_MODULE_WARMUPS = [
+  { cacheKey: ORDER_TICKET_ROUTE_MODULE_CACHE_KEY, load: loadOrderTicketScreenRoute },
   { cacheKey: JOURNAL_ROUTE_CACHE_KEY, load: loadJournalScreenRoute },
   // /settings/accounts hides its heavy screen behind DeferredRouteModule. Warm
   // only that module so the first "Manage accounts" tap does not wait for
@@ -45,7 +46,6 @@ const ACTION_DEFERRED_MODULE_WARMUPS = [
   // DeferredRouteModule so the sheet tap commits only a light launch preview;
   // warm their modules so the preview lasts about one frame instead of a
   // first-visit module evaluation.
-  { cacheKey: ORDER_TICKET_ROUTE_MODULE_CACHE_KEY, load: loadOrderTicketScreenRoute },
   { cacheKey: SYMBOL_DETAILS_ROUTE_MODULE_CACHE_KEY, load: loadSymbolDetailsScreenRoute },
   { cacheKey: MARKET_STATISTICS_ROUTE_MODULE_CACHE_KEY, load: loadMarketStatisticsScreenRoute },
 ] as const;

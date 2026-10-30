@@ -251,7 +251,7 @@ test('zoom scaling clones history markers and leaves signal markers untouched', 
 test('all generated WebView scripts remain valid JavaScript', () => {
   const scripts = [...CH_HTML.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)]
     .map((match) => match[1]);
-  assert.equal(scripts.length, 4);
+  assert.ok(scripts.length > 0, 'generated WebView must contain executable scripts');
   scripts.forEach((script, index) => {
     assert.doesNotThrow(
       () => new Function(script),

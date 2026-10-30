@@ -412,7 +412,7 @@ export const QuotesSymbolActionSheetHost = memo(function QuotesSymbolActionSheet
                       key={`${config.visualKey}:${action.label}:${index}`}
                       accessibilityRole="button"
                       accessibilityState={{ disabled, selected: action.selected === true }}
-                      activateOnTouchStart={action.activateOnPressIn === true && !disabled}
+                      activateOnPressIn={action.activateOnPressIn === true && !disabled}
                       disabled={disabled}
                       latencyLabel={`quotes.symbolSheet.${action.label}`}
                       onPress={() => runAction(action)}

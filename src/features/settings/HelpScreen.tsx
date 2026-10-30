@@ -101,7 +101,7 @@ export const HelpScreenInner = memo(function HelpScreenInner({ isScreenFocused }
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
         <FastPressable
           onPress={handleOpenMenu}
-          activateOnTouchStart
+          activateOnTouchStart={Platform.OS !== 'ios'}
           latencyLabel="help.menu"
           hitSlop={12}
           style={styles.menuButton}
@@ -134,6 +134,7 @@ export const HelpScreenInner = memo(function HelpScreenInner({ isScreenFocused }
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color={accentColor} />
             <TextInput
+              accessibilityLabel={t('Search FAQ')}
               value={faqQuery}
               onChangeText={handleChangeQuery}
               placeholder={t('Search FAQ')}
@@ -160,7 +161,8 @@ export const HelpScreenInner = memo(function HelpScreenInner({ isScreenFocused }
 
         <FastPressable
           style={styles.questionOption}
-          onPress={() => setQuestionFormOpen(true)}
+          disabled
+          accessibilityState={{ disabled: true }}
           latencyLabel="help.question.open"
           accessibilityRole="button"
           accessibilityLabel={t('Ask a question')}
@@ -170,7 +172,7 @@ export const HelpScreenInner = memo(function HelpScreenInner({ isScreenFocused }
           </View>
           <View style={styles.summaryTitleWrap}>
             <Text style={styles.questionOptionTitle}>{t('Ask a question')}</Text>
-            <Text style={styles.questionOptionBody}>{t("Can't find an answer in the FAQ?")}</Text>
+            <Text style={styles.questionOptionBody}>{t('Question submission is currently unavailable. Please use the FAQ.')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={accentColor} />
         </FastPressable>

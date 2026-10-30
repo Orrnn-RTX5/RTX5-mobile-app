@@ -177,6 +177,27 @@ export type ChartVisiblePriceRange = Readonly<{
   to: number;
 }>;
 
+export const resolveVisiblePendingEntryPrice = (
+  visibleRange: ChartVisiblePriceRange | null | undefined,
+  roundPrice: (value: number) => number,
+): number | null => {
+  if (
+    !visibleRange
+    || !Number.isFinite(visibleRange.from)
+    || !Number.isFinite(visibleRange.to)
+    || visibleRange.from === visibleRange.to
+  ) {
+    return null;
+  }
+
+  // MT5 starts each newly selected pending type in the middle of the price
+  // plot, including when a previous draft was dragged to another level.
+  const midpoint = visibleRange.from / 2 + visibleRange.to / 2;
+  if (!(midpoint > 0)) return null;
+  const price = roundPrice(midpoint);
+  return Number.isFinite(price) && price > 0 ? price : null;
+};
+
 export const resolveVisibleTradeStopPreviewPrice = (
   kind: 'sl' | 'tp',
   entryPrice: number,

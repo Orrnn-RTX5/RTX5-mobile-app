@@ -383,7 +383,7 @@ test('Crosshair activation immediately shows a centered cursor with axis labels 
   assert.equal(vertical.style.left, '150px');
   assert.equal(horizontal.style.top, '148px');
   assert.equal(priceLabel.style.display, 'block');
-  assert.equal(priceLabel.textContent, '85.20000');
+  assert.equal(priceLabel.textContent, '85.20');
   assert.equal(timeLabel.style.display, 'block');
   assert.notEqual(timeLabel.textContent, '');
   assert.equal(center.textContent, '');
@@ -600,12 +600,12 @@ test('Crosshair stationary tap starts a transient ruler with broker points and t
   assert.equal(anchor.style.top, '148px');
   assert.equal(anchor.style.width, '8px');
   assert.equal(anchor.style.height, '8px');
-  assert.equal(priceLabel.textContent, '189.945');
-  assert.equal(anchorPriceLabel.textContent, '190.000');
+  assert.equal(priceLabel.textContent, '189.94');
+  assert.equal(anchorPriceLabel.textContent, '190.00');
   assert.equal(anchorPriceLabel.style.display, 'block');
   assert.equal(anchorTimeLabel.style.display, 'block');
   assert.notEqual(anchorTimeLabel.textContent, timeLabel.textContent);
-  assert.equal(stats.textContent, '55 points (-0.03%, -0.055)\n6 bars, 6m');
+  assert.equal(stats.textContent, '55 points (-0.03%, -0.0550)\n6 bars, 6m');
   assert.equal(stats.style.background, '#D3D3D3');
   assert.equal(stats.style.color, '#000000');
   assert.equal(stats.style.font, '400 13px Arial, sans-serif');
@@ -632,7 +632,7 @@ test('Crosshair positive ruler uses a signed percent, blue fill, and a gray stat
   harness.touchStart(180, 147.57);
   harness.touchEnd(180, 147.57);
 
-  assert.match(overlay.children[11].textContent, /^43 points \(\+0.02%, \+0.043\)/);
+  assert.match(overlay.children[11].textContent, /^43 points \(\+0.02%, \+0.0430\)/);
   assert.equal(overlay.children[7].style.background, 'rgba(33, 150, 243, 0.20)');
   assert.equal(overlay.children[7].style.border, '0');
   assert.equal(overlay.children[11].style.left, '56px', 'label flips left when there is insufficient room to the right');
@@ -653,16 +653,16 @@ test('Crosshair negative ruler stats sit below and beside the endpoint rather th
   assert.equal(overlay.children[13].style.width, '296px');
 });
 
-test('Crosshair ruler points and price change use the same digit-rounded prices as its axis labels', () => {
+test('Crosshair ruler retains broker point precision while labels use value-based decimals', () => {
   const harness = createFakeChartEnvironment({ priceFormat: { minMove: 0.01, precision: 3 }, touch: true });
   harness.setPriceCoordinateMapping(76.5276);
   harness.manager.setActiveTool('crosshair');
   harness.touchStart(180, 149.612);
   harness.touchEnd(180, 149.612);
   const overlay = harness.host.children.find((child: any) => child['data-rtx5-crosshair-overlay'] === 'true');
-  assert.equal(overlay.children[9].textContent, '61.728');
-  assert.equal(overlay.children[2].textContent, '61.566');
-  assert.match(overlay.children[11].textContent, /^162 points \(-0.26%, -0.162\)/);
+  assert.equal(overlay.children[9].textContent, '61.73');
+  assert.equal(overlay.children[2].textContent, '61.57');
+  assert.match(overlay.children[11].textContent, /^162 points \(-0.26%, -0.1620\)/);
   assert.equal(harness.manager._resolveCrosshairPointSize(), 0.001, 'digit point must not be replaced by a larger trading tick size');
 });
 
@@ -672,7 +672,7 @@ test('Crosshair tap on the current cursor shows a zero ruler and a second tap ex
   const overlay = harness.host.children.find((child: any) => child['data-rtx5-crosshair-overlay'] === 'true');
   harness.touchStart(148, 148);
   harness.touchEnd(148, 148);
-  assert.equal(overlay.children[11].textContent, '0 points (0.00%, +0.000)\n0 bars, 0m');
+  assert.equal(overlay.children[11].textContent, '0 points (0.00%, +0.0000)\n0 bars, 0m');
   assert.ok(harness.manager._crosshairRulerAnchor);
 
   harness.touchStart(210, 190);
@@ -701,7 +701,7 @@ test('Crosshair ruler taps inspect the exact pointer price even when drawing mag
   harness.touchStart(180, 164);
   harness.touchEnd(180, 164);
   const overlay = harness.host.children.find((child: any) => child['data-rtx5-crosshair-overlay'] === 'true');
-  assert.equal(overlay.children[2].textContent, '83.60000');
+  assert.equal(overlay.children[2].textContent, '83.60');
   assert.equal(overlay.children[1].style.top, '164px');
   assert.deepEqual(harness.latestDrawings(), []);
 });
@@ -730,7 +730,7 @@ test('Crosshair ruler drag moves only the endpoint by touch delta and survives l
   assert.equal(overlay.children[8].style.left, '150px');
   assert.equal(overlay.children[8].style.top, '148px');
   assert.equal(harness.manager._crosshairRulerAnchor, originalAnchor);
-  assert.match(overlay.children[11].textContent, /^12 points \(-1.41%, -1.20000\)\n8 bars, 8s$/);
+  assert.match(overlay.children[11].textContent, /^12 points \(-1.41%, -1.2000\)\n8 bars, 8s$/);
   assert.deepEqual(harness.latestDrawings(), []);
 });
 
@@ -794,8 +794,8 @@ test('Crosshair live-scale refresh keeps both ruler labels and measurement align
   assert.equal(overlay.children[1].style.top, '160px');
   assert.equal(overlay.children[8].style.left, '150px');
   assert.equal(overlay.children[8].style.top, '148px');
-  assert.equal(overlay.children[2].textContent, '102.00000');
-  assert.equal(overlay.children[9].textContent, '102.60000');
+  assert.equal(overlay.children[2].textContent, '102.00');
+  assert.equal(overlay.children[9].textContent, '102.60');
   assert.equal(harness.manager._crosshairRulerAnchor.time, 3615);
   assert.equal(harness.manager._lastCrosshairState.time, 3618);
   assert.match(overlay.children[11].textContent, /^60 points .*\n3 bars, 3s$/);
@@ -951,7 +951,7 @@ test('Area inspector seeds the latest point and snaps movement to the nearest Ar
   assert.equal(center.style.top, '30px');
   assert.equal(priceLabel.style.display, 'none');
   assert.equal(timeLabel.style.display, 'none');
-  assert.match(tooltip.innerHTML, /97\.00000/);
+  assert.match(tooltip.innerHTML, /97\.00/);
   assert.match(tooltip.innerHTML, /01 Jan 1970/);
   assert.doesNotMatch(tooltip.innerHTML, />O</);
   assert.deepEqual(harness.crosshairMessages().at(-1)?.candle, {
@@ -970,7 +970,7 @@ test('Area inspector seeds the latest point and snaps movement to the nearest Ar
   assert.equal(vertical.style.left, '20px');
   assert.equal(center.style.left, '20px');
   assert.equal(center.style.top, '60px');
-  assert.match(tooltip.innerHTML, /94\.00000/);
+  assert.match(tooltip.innerHTML, /94\.00/);
   assert.equal(harness.crosshairMessages().at(-1)?.candle?.time, 2);
   assert.equal(harness.crosshairMessages().at(-1)?.candle?.close, 94);
 });
@@ -1002,7 +1002,7 @@ test('Area inspector retries its initial latest-point seed when data arrives aft
   assert.equal(vertical.style.left, '20px');
   assert.equal(horizontal.style.display, 'none');
   assert.equal(center.style.left, '20px');
-  assert.match(tooltip.innerHTML, /94\.00000/);
+  assert.match(tooltip.innerHTML, /94\.00/);
 });
 
 test('Area inspector preserves touch drag, tap lock, unlock, and pinch suppression', () => {
@@ -1880,7 +1880,7 @@ test('Text Level creates a snapped one-point price level drawing', () => {
   const primitive: any = harness.attachedPrimitives[harness.attachedPrimitives.length - 1];
   primitive.updateAllViews();
   primitive.paneViews()[0].renderer().draw(createFakeBitmapTarget().target);
-  assert.equal(primitive.priceAxisViews()[0].text(), '90.00000');
+  assert.equal(primitive.priceAxisViews()[0].text(), '90.00');
   assert.ok(primitive.getGeometry().labelBox.width > 0);
 });
 
@@ -2421,8 +2421,8 @@ test('Position drawings restore risk-reward plans with zones, labels and editabl
   const texts = drawTarget.texts.map((entry) => entry.text);
   assert.ok(texts.includes('Long RR 2.00'));
   // Prices format at the series precision (5 in this fake environment).
-  assert.ok(texts.includes('Target 94.00000 (+4.0000)'));
-  assert.ok(texts.includes('Stop 88.00000 (-2.0000)'));
+  assert.ok(texts.includes('Target 94.00 (+4.0000)'));
+  assert.ok(texts.includes('Stop 88.00 (-2.0000)'));
 
   assert.equal(primitive.hitTest({ x: 10, y: 100 }, { isTouch: false })?.part, 'p1');
   assert.equal(primitive.hitTest({ x: 30, y: 60 }, { isTouch: false })?.part, 'p2');
@@ -2450,8 +2450,8 @@ test('Short position restore defaults the stop to a 1:1 mirror above the entry',
   primitive.paneViews()[0].renderer().draw(drawTarget.target);
   const texts = drawTarget.texts.map((entry) => entry.text);
   assert.ok(texts.includes('Short RR 1.00'));
-  assert.ok(texts.includes('Target 90.00000 (+4.0000)'));
-  assert.ok(texts.includes('Stop 98.00000 (-4.0000)'));
+  assert.ok(texts.includes('Target 90.00 (+4.0000)'));
+  assert.ok(texts.includes('Stop 98.00 (-4.0000)'));
 });
 
 test('Pitchfork creates a three-point pitchfork drawing', () => {

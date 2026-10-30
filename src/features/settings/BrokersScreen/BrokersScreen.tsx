@@ -40,6 +40,8 @@ import {
 } from '../../../utils/navigation';
 import { useBrokerDirectory } from '../../../query/broker';
 import { selectGuestBroker } from '../../../services/selectGuestBroker';
+import { getPublicBrokerContext } from '../../../state/publicBrokerContext';
+import { openAuthFlow } from '../../trade/authFlowState';
 import type { ValidatedBrokerServer } from '../../../api/broker';
 import {
   brokersLaunchController,
@@ -133,6 +135,10 @@ function BrokerDirectoryScreen({ isScreenFocused, onSelectBroker, onBack, select
   const routerInstance = useRouter();
   const brokerPickerFocusedRef = useRef(isScreenFocused);
   brokerPickerFocusedRef.current = isScreenFocused;
+  useEffect(() => {
+    brokerPickerFocusedRef.current = isScreenFocused;
+    return () => { brokerPickerFocusedRef.current = false; };
+  }, [isScreenFocused]);
   const brokerPressGestureRef = useRef<BrokerPressGesture>({
     start: null,
     handled: false,
@@ -209,9 +215,10 @@ function BrokerDirectoryScreen({ isScreenFocused, onSelectBroker, onBack, select
     const record = brokerDirectory?.selectableServers.find(row => row.broker_id === selection.brokerId);
     if (!record) return;
     if (onSelectBroker) { onSelectBroker(record); return; }
-    void selectGuestBroker(record).then(() => {
+    void selectGuestBroker(record).then(selected => {
+      if (!selected || !brokerPickerFocusedRef.current || getPublicBrokerContext()?.brokerId !== record.broker_id) return;
+      openAuthFlow(undefined, undefined, '/settings/brokers');
       hideBrokersLaunch(); hideSidebarDestination();
-      routerInstance.replace('/(tabs)/quotes');
     }).catch(error => Alert.alert('Broker unavailable', error.message));
   };
 
@@ -302,7 +309,7 @@ function BrokerDirectoryScreen({ isScreenFocused, onSelectBroker, onBack, select
       serverUrl: broker.serverUrl,
       onAvailable: () => {
         if (!brokerPickerFocusedRef.current) return;
-        // Activate only the exact verified directory record for guest browsing.
+        // Open the broker account form after validating the selected server.
         openBrokerDetail(selection);
       },
       onUnavailable: () => {

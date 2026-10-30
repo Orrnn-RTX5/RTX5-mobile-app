@@ -1,4 +1,4 @@
-﻿import { normalizeSymbol } from '../domain/symbols';
+import { normalizeSymbol } from '../domain/symbols';
 import { normalizeTimeframeStrict } from '../domain/candles/core/candles';
 import { requirePublicBrokerContext, getPublicBrokerContext, publicBrokerFetch, isPublicBrokerContextCurrent, subscribePublicBrokerContext } from '../state/publicBrokerContext';
 import { setPublicMarketStatus } from '../state/publicMarketStatus';
@@ -29,38 +29,64 @@ export const resolveOrrnnDemoPublicCandleTimeframe = (timeframe: unknown): Orrnn
 };
 let cached: { namespace: string; at: number; value: OrrnnDemoPublicCatalog } | null = null;
 let pending: { namespace: string; promise: Promise<OrrnnDemoPublicCatalog> } | null = null;
-export const resetOrrnnDemoPublicMarketCatalogCache = () => { cached = null; pending = null; };
+type WireSymbolIndex = { exact: Set<string>; normalized: Map<string, string | null> };
+// Catalog arrays are replaced on each response. Weak keys release indexes when
+// old catalog/query consumers go away instead of accumulating broker catalogs.
+let wireSymbolIndexes = new WeakMap<readonly string[], WireSymbolIndex>();
+export const resetOrrnnDemoPublicMarketCatalogCache = () => { cached = null; pending = null; wireSymbolIndexes = new WeakMap(); };
 subscribePublicBrokerContext(resetOrrnnDemoPublicMarketCatalogCache);
 async function json(response: Response, label: string): Promise<unknown> {
   if (!response.ok) throw new Error(label + ' failed with HTTP ' + response.status + '.');
   return response.json();
 }
 export async function getOrrnnDemoPublicMarketCatalog(signal?: AbortSignal): Promise<OrrnnDemoPublicCatalog> {
+  signal?.throwIfAborted?.();
   const context = requirePublicBrokerContext();
   if (cached?.namespace === context.cacheNamespace && Date.now() - cached.at < 300000) return cached.value;
-  if (pending?.namespace === context.cacheNamespace) return pending.promise;
+  if (pending?.namespace === context.cacheNamespace) {
+    const sharedResult = await pending.promise;
+    signal?.throwIfAborted?.();
+    return sharedResult;
+  }
   const promise = (async () => {
     const [instrumentPayload, quotePayload] = await Promise.all([
-      publicBrokerFetch('/instruments', signal).then(response => json(response, 'Instrument catalog')),
-      publicBrokerFetch('/quotes', signal).then(response => json(response, 'Quote snapshots')),
+      publicBrokerFetch('/instruments').then(response => json(response, 'Instrument catalog')),
+      publicBrokerFetch('/quotes').then(response => json(response, 'Quote snapshots')),
     ]);
     const instruments = publicRows(instrumentPayload, 'instruments').filter(row => typeof row.symbol === 'string' && row.symbol.length > 0 && row.enabled !== false);
-    const symbols = Array.from(new Set(instruments.map(row => String(row.symbol))));
+    const availableSymbols = new Set(instruments.map(row => String(row.symbol)));
+    const symbols = Array.from(availableSymbols);
     if (!symbols.length) { setPublicMarketStatus('empty'); throw new Error('This broker has no available instruments.'); }
-    const quotes = publicRows(quotePayload, 'quotes').filter(row => symbols.includes(String(row.symbol)));
+    const quotes = publicRows(quotePayload, 'quotes').filter(row => availableSymbols.has(String(row.symbol)));
     const value: OrrnnDemoPublicCatalog = { symbols, timeframes: Object.values(TF), instruments, quotes };
     if (!isPublicBrokerContextCurrent(context)) throw new Error('Broker selection changed.');
     cached = { namespace: context.cacheNamespace, at: Date.now(), value };
     return value;
   })();
   pending = { namespace: context.cacheNamespace, promise };
-  try { return await promise; } finally { if (pending?.promise === promise) pending = null; }
+  try {
+    const result = await promise;
+    signal?.throwIfAborted?.();
+    return result;
+  } finally {
+    if (pending?.promise === promise) pending = null;
+  }
 }
 /** UI normalization is allowed only as a unique lookup; wire identifiers stay exact. */
 export function resolvePublicWireSymbol(symbol: string, catalog: OrrnnDemoPublicCatalog): string | null {
-  if (catalog.symbols.includes(symbol)) return symbol;
-  const matches = catalog.symbols.filter(candidate => normalizeSymbol(candidate) === normalizeSymbol(symbol));
-  return matches.length === 1 ? matches[0] : null;
+  let index = wireSymbolIndexes.get(catalog.symbols);
+  if (!index) {
+    index = { exact: new Set(catalog.symbols), normalized: new Map() };
+    for (const candidate of catalog.symbols) {
+      const key = normalizeSymbol(candidate);
+      // More than one wire spelling of a normalized key is ambiguous. Exact
+      // matches still win, and no broker suffix/base alias is introduced.
+      index.normalized.set(key, index.normalized.has(key) ? null : candidate);
+    }
+    wireSymbolIndexes.set(catalog.symbols, index);
+  }
+  if (index.exact.has(symbol)) return symbol;
+  return index.normalized.get(normalizeSymbol(symbol)) ?? null;
 }
 export async function getOrrnnDemoPublicCandles(symbol: string, timeframe: string, limit = 500, signal?: AbortSignal): Promise<OrrnnDemoPublicCandlesResponse> {
   const context = requirePublicBrokerContext();
@@ -75,7 +101,19 @@ export async function getOrrnnDemoPublicCandles(symbol: string, timeframe: strin
   if (!isPublicBrokerContextCurrent(context)) throw new Error('Broker selection changed.');
   if (payload.symbol !== undefined && payload.symbol !== wire || payload.timeframe !== undefined && payload.timeframe !== canonical) throw new Error('Candle history selection mismatch.');
   const byTime = new Map<number, unknown>();
-  for (const row of publicRows(payload, 'candles')) {
+  let rows = publicRows(payload, 'candles');
+  if (!rows.length) {
+    try {
+      const feedPayload: any = await json(await publicBrokerFetch('/api/v1/candles?symbol=' + encodeURIComponent(wire) + '&tf=' + encodeURIComponent(tf) + '&limit=' + safeLimit, signal), 'Candle history');
+      if (!isPublicBrokerContextCurrent(context)) throw new Error('Broker selection changed.');
+      if ((feedPayload.symbol === undefined || feedPayload.symbol === wire) && (feedPayload.tf === undefined || feedPayload.tf === tf) && (feedPayload.timeframe === undefined || feedPayload.timeframe === canonical)) {
+        rows = publicRows(feedPayload, 'candles');
+      }
+    } catch (error) {
+      if (!isPublicBrokerContextCurrent(context) || signal?.aborted) throw error;
+    }
+  }
+  for (const row of rows) {
     const time = Number(row.time ?? row.timestamp);
     if (Number.isFinite(time) && time > 0) byTime.set(time, row);
   }

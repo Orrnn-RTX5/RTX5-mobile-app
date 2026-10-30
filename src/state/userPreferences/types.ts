@@ -57,7 +57,7 @@ export type ChartDisplaySettings = {
   showLivePriceLine: boolean;
   /** @deprecated Legacy persisted key migrated to showLivePriceLine. */
   showBidPriceLine: boolean;
-  /** @deprecated Legacy persisted key migrated to showLivePriceLine. */
+  /** Independent Ask guide for BUY pending-order trigger visibility. */
   showAskPriceLine: boolean;
   showLastPriceLine: boolean;
   showGrid: boolean;
@@ -100,10 +100,9 @@ export type UserPreferencesState = {
   oneClickAccepted: boolean;
   historyRange: string;
   /**
-   * Unix millisecond timestamps for the active history date filter.
-   * Set alongside `historyRange` so query hooks can pass `from`/`to` params
-   * to GET /api/v2/account/deals and similar range-aware endpoints.
-   * null means "no explicit filter" — the server applies its own default.
+   * Unix millisecond bounds for a custom history date filter.
+   * Preset bounds are computed from `historyRange` relative to today;
+   * All time uses no bounds.
    */
   historyFromMs: number | null;
   historyToMs: number | null;
@@ -181,8 +180,8 @@ export type UserPreferencesState = {
   setOpenOrderMode: (mode: 'Regular' | 'Risk calculator' | 'One-click') => void;
   setOneClickAccepted: (accepted: boolean) => void;
   setHistoryRange: (range: string) => void;
-  /** Persist the computed from/to Unix-ms timestamps alongside the range label. */
-  setHistoryDateRange: (fromMs: number | null, toMs: number | null) => void;
+  /** Persist custom Unix-ms bounds and their label in one update. */
+  setHistoryDateRange: (fromMs: number | null, toMs: number | null, range?: string) => void;
   mergeAccountEnvironmentForAccount: (
     accountKey: string,
     resolved: AccountEnvironment,

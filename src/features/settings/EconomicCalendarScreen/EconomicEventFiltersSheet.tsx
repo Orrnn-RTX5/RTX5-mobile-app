@@ -8,12 +8,17 @@ import React, {
   useState,
 } from 'react';
 import {
+  AccessibilityInfo,
+  Animated,
   BackHandler,
+  Dimensions,
+  Easing,
   StyleSheet,
   Text,
   View,
+  type LayoutChangeEvent,
 } from 'react-native';
-import type { ImpactLevel } from '../../../dev/mock/calendarData';
+import type { ImpactLevel } from '../../../api/economicCalendar';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { useIsDarkTheme } from '../../../state/themeMode';
 import { FastPressable } from '../../../ui/components/FastPressable';
@@ -40,8 +45,9 @@ type EconomicEventFiltersSheetProps = {
  * behind it. The parent receives one update only after Apply is pressed.
  *
  * The host stays mounted and measured behind a React-owned visibility barrier.
- * Opening reveals its settled layout immediately, without creating a native
- * Modal window or restarting an entrance when display preferences update.
+ * Opening starts native-driven motion on touch-down without creating a native
+ * Modal window or rebuilding the calendar. Only the card's translation and the
+ * separate backdrop's opacity animate; the card remains opaque and full-size.
  */
 export const EconomicEventFiltersSheet = React.memo(React.forwardRef<
   EconomicEventFiltersSheetHandle,
@@ -59,44 +65,158 @@ export const EconomicEventFiltersSheet = React.memo(React.forwardRef<
     () => new Set(selectedImpacts),
   );
   const visibleRef = useRef(false);
+  const closingRef = useRef(false);
+  const hostRef = useRef<View>(null);
+  const sheetHeightRef = useRef(Dimensions.get('window').height);
+  const translateY = useRef(new Animated.Value(sheetHeightRef.current)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const motionRef = useRef<Animated.CompositeAnimation | null>(null);
+  const motionGenerationRef = useRef(0);
+  const reduceMotionRef = useRef(false);
   const selectedImpactsRef = useRef(selectedImpacts);
   selectedImpactsRef.current = selectedImpacts;
   const openedAtRef = useRef(0);
   const backdropColor = isDark ? 'rgba(0,0,0,0.72)' : 'rgba(0,0,0,0.3)';
 
   const hideNow = useCallback(() => {
-    if (!visibleRef.current) return;
+    ++motionGenerationRef.current;
+    motionRef.current?.stop();
+    motionRef.current = null;
     visibleRef.current = false;
+    closingRef.current = false;
+    hostRef.current?.setNativeProps({
+      pointerEvents: 'none', accessibilityElementsHidden: true,
+      importantForAccessibility: 'no-hide-descendants', style: { opacity: 0 },
+    });
+    translateY.setValue(sheetHeightRef.current);
+    backdropOpacity.setValue(0);
     setVisible(false);
     setDraftImpacts(new Set(selectedImpactsRef.current));
-  }, []);
+  }, [backdropOpacity, translateY]);
 
   const open = useCallback(() => {
     if (visibleRef.current) return;
+    const reopening = closingRef.current;
+    ++motionGenerationRef.current;
+    motionRef.current?.stop();
+    motionRef.current = null;
+    closingRef.current = false;
+    if (!reopening) {
+      translateY.setValue(sheetHeightRef.current);
+      backdropOpacity.setValue(0);
+    }
     visibleRef.current = true;
     openedAtRef.current = Date.now();
     setDraftImpacts(new Set(selectedImpactsRef.current));
     setVisible(true);
-  }, []);
+    // Install the parked pose before revealing the measured native host.
+    // Motion starts in this tap's JS turn, without waiting for a React effect.
+    if (reduceMotionRef.current) {
+      translateY.setValue(0);
+      backdropOpacity.setValue(1);
+    } else {
+      motionRef.current = Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0, duration: 210, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1, duration: 150, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+        }),
+      ]);
+      motionRef.current.start();
+    }
+    hostRef.current?.setNativeProps({
+      pointerEvents: 'box-none', accessibilityElementsHidden: false,
+      importantForAccessibility: 'auto', style: { opacity: 1 },
+    });
+  }, [backdropOpacity, translateY]);
+
+  const dismiss = useCallback(() => {
+    if (!visibleRef.current || closingRef.current) return false;
+    visibleRef.current = false;
+    closingRef.current = true;
+    const generation = ++motionGenerationRef.current;
+    motionRef.current?.stop();
+    // Consume touches during exit; none of the outgoing controls can submit twice.
+    hostRef.current?.setNativeProps({ pointerEvents: 'box-only', accessibilityElementsHidden: true });
+    if (reduceMotionRef.current) {
+      hideNow();
+      return true;
+    }
+    motionRef.current = Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: sheetHeightRef.current, duration: 140, easing: Easing.in(Easing.cubic), useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0, duration: 120, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+    ]);
+    motionRef.current.start(({ finished }) => {
+      if (finished && generation === motionGenerationRef.current) hideNow();
+    });
+    return true;
+  }, [backdropOpacity, hideNow, translateY]);
+
+  const handleCardLayout = useCallback((event: LayoutChangeEvent) => {
+    const height = event.nativeEvent.layout.height;
+    if (!Number.isFinite(height) || height <= 0) return;
+    sheetHeightRef.current = height;
+    if (!visibleRef.current && !closingRef.current) translateY.setValue(height);
+  }, [translateY]);
 
   useImperativeHandle(ref, () => ({ open, close: hideNow }), [hideNow, open]);
 
   useEffect(() => {
-    if (!visibleRef.current) {
+    if (!visibleRef.current && !closingRef.current) {
       setDraftImpacts(new Set(selectedImpacts));
     }
   }, [selectedImpacts]);
 
   useEffect(() => {
+    let active = true;
+    let preferenceChanged = false;
+    const updateReducedMotion = (enabled: boolean) => {
+      if (!active) return;
+      reduceMotionRef.current = enabled;
+      if (!enabled) return;
+      if (closingRef.current) { hideNow(); return; }
+      if (!visibleRef.current) return;
+      ++motionGenerationRef.current;
+      motionRef.current?.stop();
+      motionRef.current = null;
+      translateY.setValue(0);
+      backdropOpacity.setValue(1);
+    };
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (!preferenceChanged) updateReducedMotion(enabled);
+    }).catch(() => undefined);
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', (enabled) => {
+      preferenceChanged = true;
+      updateReducedMotion(enabled);
+    });
+    return () => { active = false; subscription.remove(); };
+  }, [backdropOpacity, hideNow, translateY]);
+
+  useEffect(() => () => {
+    ++motionGenerationRef.current;
+    motionRef.current?.stop();
+    visibleRef.current = false;
+    closingRef.current = false;
+    hostRef.current?.setNativeProps({ pointerEvents: 'none', style: { opacity: 0 } });
+  }, []);
+
+  useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (closingRef.current) return true;
       if (!visibleRef.current) return false;
-      hideNow();
+      dismiss();
       return true;
     });
     return () => subscription.remove();
-  }, [hideNow]);
+  }, [dismiss]);
 
   const toggleDraftImpact = useCallback((impact: ImpactLevel) => {
+    if (!visibleRef.current || closingRef.current) return;
     setDraftImpacts((current) => {
       const next = new Set(current);
       if (next.has(impact)) next.delete(impact);
@@ -107,17 +227,17 @@ export const EconomicEventFiltersSheet = React.memo(React.forwardRef<
 
   const handleBackdropPress = useCallback(() => {
     if (Date.now() - openedAtRef.current < EVENT_FILTER_OPEN_GUARD_MS) return;
-    hideNow();
-  }, [hideNow]);
+    dismiss();
+  }, [dismiss]);
 
   const handleApply = useCallback(() => {
     const nextImpacts = new Set(draftImpacts);
-    hideNow();
-    onApply(nextImpacts);
-  }, [draftImpacts, hideNow, onApply]);
+    if (dismiss()) onApply(nextImpacts);
+  }, [draftImpacts, dismiss, onApply]);
 
   return (
     <View
+      ref={hostRef}
       pointerEvents={visible ? 'box-none' : 'none'}
       accessibilityElementsHidden={!visible}
       accessibilityViewIsModal={visible}
@@ -134,11 +254,12 @@ export const EconomicEventFiltersSheet = React.memo(React.forwardRef<
       >
         <View style={styles.modalOverlay} testID="economic-event-filters-sheet">
           {/* Backdrop is a sibling of the sheet — never parent opacity of the card. */}
-          <View
+          <Animated.View
             pointerEvents="none"
             style={[
               StyleSheet.absoluteFillObject,
               { backgroundColor: backdropColor },
+              { opacity: backdropOpacity },
             ]}
           />
           <FastPressable
@@ -150,9 +271,10 @@ export const EconomicEventFiltersSheet = React.memo(React.forwardRef<
             unstable_pressDelay={0}
           />
 
-          <View
+          <Animated.View
             collapsable={false}
-            style={styles.modalCard}
+            style={[styles.modalCard, { transform: [{ translateY }] }]}
+            onLayout={handleCardLayout}
             testID="economic-event-filters-card"
           >
             <View style={styles.modalHeader}>
@@ -249,7 +371,7 @@ export const EconomicEventFiltersSheet = React.memo(React.forwardRef<
               />
               <Text style={styles.modalDoneBtnText}>{t('Apply Filters')}</Text>
             </FastPressable>
-          </View>
+          </Animated.View>
         </View>
       </View>
     </View>

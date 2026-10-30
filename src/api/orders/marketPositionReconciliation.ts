@@ -28,15 +28,20 @@ const waitFor = (delayMs: number) => new Promise<void>((resolve) => {
 });
 
 const toTicketKey = (value: unknown): string | null => {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  return Number.isSafeInteger(numeric) && numeric > 0 ? String(numeric) : null;
+  if (typeof value === 'string' && /^\d+$/.test(value.trim()) && !/^0+$/.test(value.trim())) return value.trim();
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? String(value) : null;
 };
 
 const getResponseTicket = (response: PlaceOrderResponse | null): string | null =>
   toTicketKey(response?.position_ticket ?? response?.ticket);
 
+const getPositionRecordTicket = (position: Position): string | null => {
+  const raw = position as unknown as Record<string, unknown>;
+  return toTicketKey(position.ticket ?? raw.position_ticket ?? raw.id);
+};
+
 const candidateContainsTicket = (positions: Position[], ticket: string): boolean =>
-  positions.some((position) => toTicketKey(position.ticket) === ticket);
+  positions.some((position) => getPositionRecordTicket(position) === ticket);
 
 const getResponseAction = (response: PlaceOrderResponse | null): string =>
   typeof response?.action === 'string' ? response.action.trim().toLowerCase() : '';
@@ -74,9 +79,9 @@ const createPositionLedgerStabilityKey = (positions: Position[]): string =>
   JSON.stringify(
     positions
       .map((position) => [
-        toTicketKey(position.ticket),
+        getPositionRecordTicket(position),
         position.account_login,
-        position.symbol.trim().toUpperCase(),
+        String(position.symbol ?? '').trim().toUpperCase(),
         position.side,
         position.volume,
         position.price_open,

@@ -38,7 +38,10 @@ test('history pins the balance when space permits and scrolls its details grid',
   // The balance header (and its expand/collapse toggle) stays outside the list.
   assert.match(summaryHeader, /styles\.summaryTop/);
   assert.match(summaryHeader, /styles\.summaryBlock/);
-  assert.match(summaryHeader, /\{fmt\.decimal\(balance\)\}/);
+  assert.match(summaryHeader, /Number\.isFinite\(balance\) \? fmt\.decimal\(balance\) : '--'/);
+  assert.match(summaryHeader, /styles\.summaryBalanceInline[\s\S]*styles\.balanceQuickCurrency/);
+  assert.match(summaryHeader, /t\('Balance'\)/);
+  assert.doesNotMatch(summaryHeader, /historySummaryDetailsVisible\s*\?/);
   assert.match(summaryHeader, /toggleHistorySummaryDetails/);
   assert.match(source, /shouldScrollTradingSummary\(useResponsiveLayout\(\)\)/);
   assert.match(pinned, /\{!scrollSummary \? historySummaryHeader : null\}/);

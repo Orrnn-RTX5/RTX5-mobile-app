@@ -164,7 +164,6 @@ export const pollOrderCommand = async (
   const deadline = now() + timeoutMs;
 
   while (now() < deadline) {
-    await sleep(intervalMs);
     options.assertCurrent?.();
     let response: OrderCommandPollResponse | null = null;
     try {
@@ -174,6 +173,8 @@ export const pollOrderCommand = async (
       if (error && typeof error === 'object' && (error as { name?: string }).name === 'StaleBrokerSessionError') {
         throw error;
       }
+      const remaining = deadline - now();
+      if (remaining > 0) await sleep(Math.min(intervalMs, remaining));
       continue;
     }
     options.assertCurrent?.();
@@ -181,6 +182,8 @@ export const pollOrderCommand = async (
     // the HTTP status; everything else (404 not yet visible, 5xx) keeps polling.
     const result = parseOrderCommandResult(response.body);
     if (result) return result;
+    const remaining = deadline - now();
+    if (remaining > 0) await sleep(Math.min(intervalMs, remaining));
   }
   return Object.freeze({ kind: 'pending' });
 };

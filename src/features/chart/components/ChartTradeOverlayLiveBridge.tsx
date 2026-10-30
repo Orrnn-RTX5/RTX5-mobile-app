@@ -1,5 +1,5 @@
 import React, { useLayoutEffect } from 'react';
-import type { QuoteItem } from '../../../dev/mock/tradingData';
+import type { QuoteItem } from '../../../domain/tradingModels';
 import { hasLiveQuoteFeedData, useLiveSymbolQuote } from '../../../query/websocket';
 
 export type ChartTradeOverlayLiveQuote = Partial<QuoteItem>;

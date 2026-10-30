@@ -32,14 +32,18 @@ test('history summary and control cards use the accounts live card shell', () =>
     assert.match(styleSource, /shadowOffset: \{ width: 0, height: isDark \? 4 : 2 \}/);
     assert.match(styleSource, /shadowOpacity: isDark \? 0\.08 : 0\.06/);
     assert.match(styleSource, /shadowRadius: isDark \? 16 : 8/);
-    assert.match(styleSource, /elevation: isDark \? 4 : 1/);
     assert.doesNotMatch(styleSource, /T\.borderSubtle|#0F172A|height: isDark \? 4 : 8|shadowRadius: isDark \? 16 : 24/);
+  }
+  assert.match(summaryStyle, /elevation: isDark \? 5 : 2/);
+  assert.match(summaryStyle, /zIndex: 1/);
+  for (const styleSource of [detailsStyle, topBlockStyle]) {
+    assert.match(styleSource, /elevation: isDark \? 4 : 1/);
   }
 });
 
 test('history summary preserves the backend balance cents', () => {
   const source = readSource('src/features/history/HistoryScreen.tsx');
 
-  assert.match(source, /\{fmt\.decimal\(balance\)\}/);
+  assert.match(source, /Number\.isFinite\(balance\) \? fmt\.decimal\(balance\) : '--'/);
   assert.doesNotMatch(source, /\{fmt\.int\(balance\)\}/);
 });

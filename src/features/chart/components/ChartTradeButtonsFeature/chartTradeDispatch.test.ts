@@ -74,3 +74,33 @@ test('a receipt presentation error cannot block broker dispatch', () => {
 
   assert.equal(dispatchCalls, 1);
 });
+
+test('the order request starts before receipt rendering and without a scheduling step', () => {
+  const events: string[] = [];
+  dispatchChartTradeImmediately({
+    trade: { id: 1, side: 'buy' as const },
+    dispatch: () => { events.push('POST'); },
+    emitPending: () => { events.push('loading'); },
+  });
+  assert.deepEqual(events, ['POST', 'loading']);
+});
+
+test('a synchronous rejection is never overwritten by a pending receipt', () => {
+  const events: string[] = [];
+  dispatchChartTradeImmediately({
+    trade: { id: 1, side: 'sell' as const },
+    dispatch: () => { events.push('rejected'); return false; },
+    emitPending: () => { events.push('loading'); },
+  });
+  assert.deepEqual(events, ['rejected']);
+});
+
+test('a thrown request failure does not leave an endless loading receipt', () => {
+  let pending = false;
+  assert.throws(() => dispatchChartTradeImmediately({
+    trade: { id: 1, side: 'buy' as const },
+    dispatch: () => { throw new Error('request failed'); },
+    emitPending: () => { pending = true; },
+  }), /request failed/);
+  assert.equal(pending, false);
+});

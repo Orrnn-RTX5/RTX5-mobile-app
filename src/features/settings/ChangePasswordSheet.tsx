@@ -18,6 +18,8 @@ import { ThemeColors } from '../../ui/theme/glass';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { useMemo, useRef, useState } from 'react';
 import { changePasswordAPI } from '../../api/auth';
+import { setSavedAccountPassword, useSavedAccounts } from '../../state/savedAccounts';
+import { useUserPreferences } from '../../state/userPreferences';
 
 const MAX_PASSWORD_LENGTH = 15;
 
@@ -87,6 +89,15 @@ export function ChangePasswordSheet({ loginId, type, onClose, onSuccess }: Props
         current_password: data.oldPassword,
         new_password: data.newPassword,
       });
+      if (type === 'master' && loginId) {
+        const activeBrokerId = useUserPreferences.getState().brokerId;
+        const savedAccount = useSavedAccounts.getState().accounts.find(
+          (acc) => acc.login === String(loginId) && (!activeBrokerId || acc.brokerId === activeBrokerId),
+        );
+        if (savedAccount?.hasCredentials) {
+          await setSavedAccountPassword(savedAccount.brokerId, savedAccount.login, data.newPassword).catch(() => undefined);
+        }
+      }
       onSuccess();
     } catch (err: any) {
       setError('root.serverError', {

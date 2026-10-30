@@ -4,6 +4,7 @@ export const CHART_WINDOW_TOOLBAR_ACTIONS = [
   'crosshair',
   'timeframe',
   'sltp',
+  'oneClick',
   'drawings',
   'settings',
   'more',

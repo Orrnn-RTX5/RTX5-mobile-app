@@ -1,4 +1,4 @@
-import type { PositionItem } from '../dev/mock/tradingData';
+import type { PositionItem } from '../domain/tradingModels';
 import { normalizeSymbol } from '../domain/symbols';
 
 export const UNKNOWN_POSITION_SYMBOL = 'UNKNOWN';
@@ -100,8 +100,12 @@ function resolvePositionSymbol(source: Record<string, unknown>, existing?: Posit
 function resolveOpenTime(dto: Record<string, unknown>, existing?: PositionItem): string {
   const rawTime = dto.time_create ?? dto.openTime;
 
-  if (typeof rawTime === 'number' && Number.isFinite(rawTime)) {
-    return new Date(rawTime * 1000).toISOString();
+  if (typeof rawTime === 'number' && Number.isFinite(rawTime) && rawTime > 0) {
+    const ms = rawTime > 4.2e10 ? Math.floor(rawTime) : Math.floor(rawTime * 1000);
+    const parsed = new Date(ms);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
   }
 
   if (typeof rawTime === 'string' && rawTime.trim() !== '') {
@@ -138,9 +142,17 @@ export function mapPositionToItem(
   const existingBaseProfit = existing
     ? existing.pnl - (existing.swap ?? 0) - (existing.commission ?? 0)
     : 0;
+  const explicitProfit = toFiniteNumber(source.profit);
+  const netProfitAlias = toFiniteNumber(source.pnl ?? source.pl ?? source.floating);
+  const isAlreadyMappedItem =
+    source.openPrice !== undefined &&
+    source.currentPrice !== undefined &&
+    source.profit === undefined;
   const baseProfit =
-    toFiniteNumber(source.profit ?? source.pnl ?? source.pl ?? source.floating) ??
-    existingBaseProfit;
+    explicitProfit ??
+    (netProfitAlias !== undefined
+      ? (isAlreadyMappedItem ? netProfitAlias - swap - commission : netProfitAlias)
+      : existingBaseProfit);
 
   const openPrice =
     toFiniteNumber(source.price_open ?? source.openPrice ?? source.open_price) ??
@@ -171,6 +183,8 @@ export function mapPositionToItem(
     openPrice,
     currentPrice,
     pnl: baseProfit + swap + commission,
+    pnlReported: source.pnlReported === false ? false : toFiniteNumber(source.profit ?? source.pnl ?? source.pl ?? source.floating) !== undefined
+      ? true : existing?.pnlReported ?? false,
     swap,
     commission,
     openTime: resolveOpenTime(source, existing),

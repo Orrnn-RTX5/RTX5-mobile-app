@@ -43,8 +43,14 @@ test('shared ActionSheet surfaces use the instant host contract', () => {
   // Quotes now owns a dedicated implementation and is deliberately excluded
   // from both the shared mounts and the shared scoped-call inventory.
   // The retained auth form contributes country and leverage pickers.
-  assert.equal(actionSheetMounts.length, 21);
-  assert.equal(scopedActionSheetCalls.length, 13);
+  // Login also keeps broker selection inside its retained form.
+  // Pending Orders shares the Trade host with Positions rather than mounting another sheet.
+  assert.equal(actionSheetMounts.length, 22);
+  // Chart position controls contribute the details and grouped-position sheets.
+  assert.equal(scopedActionSheetCalls.length, 16);
+  const positionControlsSource = readSource('src/features/chart/useChartPositionControls.ts');
+  assert.equal([...positionControlsSource.matchAll(/\.showChartActionSheet\(/g)].length, 2);
+  assert.equal([...positionControlsSource.matchAll(/detent: 'adaptive'/g)].length, 2);
 
   for (const mount of actionSheetMounts) {
     assert.match(mount[0], /instantOpen/, 'ActionSheet mount must opt into instant open path');
@@ -68,7 +74,7 @@ test('shared ActionSheet surfaces use the instant host contract', () => {
   assert.match(tabsLayoutSource, /visualKey=\{activeConfig\?\.visualKey\}/);
   assert.match(tabsLayoutSource, /const activeConfig = actionSheet \|\| scopedActionSheet \|\| scopedPreloadConfig \|\| preloadConfig/);
   assert.match(tabsLayoutSource, /const visible = actionSheet !== null \|\| scopedActionSheet !== null/);
-  assert.match(uiStateSource, /showActionSheet: \(config\) => set\(\{ actionSheet: withInstantActionSheetOpen\(config\) \}\)/);
+  assert.match(uiStateSource, /showActionSheet: \(config\) => set\(\(state\) => \(\{\s*actionSheet: withInstantActionSheetOpen\(config\),\s*actionSheetOpenRevision: state\.actionSheetOpenRevision \+ 1/);
   assert.match(uiStateSource, /config\.instantOpen === true \? config : \{ \.\.\.config, instantOpen: true \}/);
   assert.match(uiStateSource, /entryMotion\?: 'instant' \| 'mt5Slide' \| 'standard'/);
   assert.match(uiStateSource, /deferOffscreenActions\?: boolean/);

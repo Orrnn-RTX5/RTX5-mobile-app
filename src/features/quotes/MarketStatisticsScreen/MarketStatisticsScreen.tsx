@@ -15,11 +15,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } 
 import { ScrollView, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { QuoteItem } from '../../../dev/mock/tradingData';
+import type { QuoteItem } from '../../../domain/tradingModels';
 import { useMarketData } from '../../../query/websocket';
 import { useIsDarkTheme } from '../../../state/themeMode';
 import { useTheme } from '../../../ui/theme/useTheme';
 import { fmt } from '../../../utils/format';
+import { formatBackendPrice } from '../../../utils/backendPrice';
+import { formatBackendDailyChange } from '../../../utils/backendDailyChange';
 import {
   safeRouterBack,
   scheduleBackNavigationAfterVisualFrame,
@@ -69,9 +71,9 @@ const formatVolume = (volume?: number) => {
   return safeVolume.toLocaleString();
 };
 
-const formatMarketPrice = (value: number | undefined, digits: number) =>
+const formatMarketPrice = (value: number | undefined) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? fmt.price(value, digits)
+    ? formatBackendPrice(value)
     : '--';
 
 const formatTickTime = (timestamp?: number) => {
@@ -138,7 +140,9 @@ export function MarketStatisticsScreen() {
 
     if (wasFocusedRef.current) {
       wasFocusedRef.current = false;
-      completeQuoteInfoLaunch('market-statistics');
+      if (!backNavigationStartedRef.current) {
+        completeQuoteInfoLaunch('market-statistics');
+      }
     }
   }, [contentReady, isScreenFocused]);
 
@@ -212,18 +216,28 @@ export function MarketStatisticsInteractiveContent({
 
   const q = useMemo<QuoteItem>(() => {
     const live = liveQuotes[symbol] as Partial<QuoteItem> | undefined;
+    const bid = finiteOr(live?.bid, Number.NaN);
+    const ask = finiteOr(live?.ask, Number.NaN);
+    const digits = live?.digits ?? remoteMeta?.digits ?? 2;
+    const point = remoteMeta?.point ?? live?.point ?? live?.tickSize ?? (1 / Math.pow(10, digits));
+    const rawSpread = finiteOr(live?.spread, 0);
+    const computedSpread = rawSpread > 0
+      ? rawSpread
+      : Number.isFinite(bid) && Number.isFinite(ask) && point > 0
+        ? Math.round(Math.abs(ask - bid) / point)
+        : 0;
     const base = {
       ...(live || {}),
       symbol,
-      bid: finiteOr(live?.bid, Number.NaN),
-      ask: finiteOr(live?.ask, Number.NaN),
-      changePct: finiteOr(live?.changePct, 0),
+      bid,
+      ask,
+      changePct: finiteOr(live?.changePct, Number.NaN),
       high: finiteOr(live?.high, Number.NaN),
       low: finiteOr(live?.low, Number.NaN),
       contractSize: finiteOr(remoteMeta?.contractSize ?? live?.contractSize, 0),
       swapLong: finiteOr(live?.swapLong, Number.NaN),
       swapShort: finiteOr(live?.swapShort, Number.NaN),
-      spread: finiteOr(live?.spread, 0),
+      spread: computedSpread,
     } as QuoteItem;
     if (remoteMeta) {
       base.contractSize = remoteMeta.contractSize ?? base.contractSize;
@@ -239,11 +253,13 @@ export function MarketStatisticsInteractiveContent({
   const bidHigh = Number.isFinite(sentiment.dayHigh) ? sentiment.dayHigh : q.high;
   const bidLow = sentiment.dayLow !== Infinity ? sentiment.dayLow : q.low;
   const askHigh = useMemo(() => {
-    const spread = (q.ask || 0) - (q.bid || 0);
+    if (!Number.isFinite(bidHigh) || bidHigh <= 0) return Number.NaN;
+    const spread = Number.isFinite(q.ask) && Number.isFinite(q.bid) ? q.ask - q.bid : 0;
     return bidHigh + spread;
   }, [bidHigh, q.ask, q.bid]);
   const askLow = useMemo(() => {
-    const spread = (q.ask || 0) - (q.bid || 0);
+    if (!Number.isFinite(bidLow) || bidLow <= 0) return Number.NaN;
+    const spread = Number.isFinite(q.ask) && Number.isFinite(q.bid) ? q.ask - q.bid : 0;
     return bidLow + spread;
   }, [bidLow, q.ask, q.bid]);
 
@@ -281,18 +297,19 @@ export function MarketStatisticsInteractiveContent({
   const instrumentDescriptor = [instrumentCategory, instrumentSector].filter(Boolean).map((part) => t(part)).join(' / ');
   const bidDirection = resolveDirection(q.bid, q.prevBid);
   const askDirection = resolveDirection(q.ask, q.prevAsk);
-  const changeAccent = isUp ? T.up : T.down;
-  const signedChange = `${isUp ? '+' : ''}${(q.changePct || 0).toFixed(2)}%`;
+  const hasDailyChange = Number.isFinite(q.changePct);
+  const changeAccent = hasDailyChange ? (isUp ? T.up : T.down) : T.textMuted;
+  const signedChange = formatBackendDailyChange(q.changePct);
   const signedPoints = `${pointsChange >= 0 ? '+' : ''}${pointsChange.toFixed(0)} ${t('pts')}`;
 
   const rows: StatRow[] = useMemo(() => [
-    { label: 'Bid high', value: formatMarketPrice(bidHigh, priceDigits), direction: 'up' },
-    { label: 'Bid low', value: formatMarketPrice(bidLow, priceDigits), direction: 'down' },
-    { label: 'Ask high', value: formatMarketPrice(askHigh, priceDigits), direction: 'up' },
-    { label: 'Ask low', value: formatMarketPrice(askLow, priceDigits), direction: 'down' },
-    { label: 'Open price', value: formatMarketPrice(openPrice, priceDigits), direction: 'neutral' },
-    { label: 'Close price', value: formatMarketPrice(closePrice, priceDigits), direction: closePrice >= openPrice ? 'up' : 'down' },
-    { label: 'Mid price', value: formatMarketPrice(midPrice, priceDigits), direction: 'neutral' },
+    { label: 'Bid high', value: formatMarketPrice(bidHigh), direction: 'up' },
+    { label: 'Bid low', value: formatMarketPrice(bidLow), direction: 'down' },
+    { label: 'Ask high', value: formatMarketPrice(askHigh), direction: 'up' },
+    { label: 'Ask low', value: formatMarketPrice(askLow), direction: 'down' },
+    { label: 'Open price', value: formatMarketPrice(openPrice), direction: 'neutral' },
+    { label: 'Close price', value: formatMarketPrice(closePrice), direction: closePrice >= openPrice ? 'up' : 'down' },
+    { label: 'Mid price', value: formatMarketPrice(midPrice), direction: 'neutral' },
     { label: 'Day Range', value: `${rangePct.toFixed(2)}%`, direction: 'neutral' },
   ], [askHigh, askLow, bidHigh, bidLow, closePrice, midPrice, openPrice, priceDigits, rangePct]);
 
@@ -306,7 +323,7 @@ export function MarketStatisticsInteractiveContent({
       label: 'Change',
       value: signedChange,
       accent: changeAccent,
-      icon: isUp ? 'trending-up-outline' : 'trending-down-outline',
+      icon: hasDailyChange ? (isUp ? 'trending-up-outline' : 'trending-down-outline') : 'remove-outline',
     },
     {
       label: 'Points',
@@ -329,7 +346,7 @@ export function MarketStatisticsInteractiveContent({
       value: formatTickTime(latestTickAt),
       icon: 'time-outline',
     },
-  ], [changeAccent, isUp, latestTickAt, pointsChange, priceDigits, q.spread, q.volume, signedChange, signedPoints, T.down, T.up]);
+  ], [changeAccent, hasDailyChange, isUp, latestTickAt, pointsChange, priceDigits, q.spread, q.volume, signedChange, signedPoints, T.down, T.up]);
 
   const styles = useMemo(() => makeMarketStatisticsStyles(T, isDark), [T, isDark]);
   const displaySymbol = fmt.symbol(symbol);
@@ -396,14 +413,14 @@ export function MarketStatisticsInteractiveContent({
                 )}
               </View>
               <Text style={[styles.quoteValue, { color: bidColor }]} numberOfLines={1} adjustsFontSizeToFit>
-                {formatMarketPrice(q.bid, priceDigits)}
+                {formatMarketPrice(q.bid)}
               </Text>
               <View style={styles.quoteMetaRow}>
                 <Text style={styles.quoteMetaLabel}>{t('Low')}</Text>
-                <Text style={styles.quoteMetaValue}>{fmt.price(bidLow, priceDigits)}</Text>
+                <Text style={styles.quoteMetaValue}>{formatMarketPrice(bidLow)}</Text>
                 <Text style={styles.quoteMetaDivider}>/</Text>
                 <Text style={styles.quoteMetaLabel}>{t('High')}</Text>
-                <Text style={styles.quoteMetaValue}>{fmt.price(bidHigh, priceDigits)}</Text>
+                <Text style={styles.quoteMetaValue}>{formatMarketPrice(bidHigh)}</Text>
               </View>
             </View>
 
@@ -417,14 +434,14 @@ export function MarketStatisticsInteractiveContent({
                 )}
               </View>
               <Text style={[styles.quoteValue, { color: askColor }]} numberOfLines={1} adjustsFontSizeToFit>
-                {formatMarketPrice(q.ask, priceDigits)}
+                {formatMarketPrice(q.ask)}
               </Text>
               <View style={styles.quoteMetaRow}>
                 <Text style={styles.quoteMetaLabel}>{t('Low')}</Text>
-                <Text style={styles.quoteMetaValue}>{fmt.price(askLow, priceDigits)}</Text>
+                <Text style={styles.quoteMetaValue}>{formatMarketPrice(askLow)}</Text>
                 <Text style={styles.quoteMetaDivider}>/</Text>
                 <Text style={styles.quoteMetaLabel}>{t('High')}</Text>
-                <Text style={styles.quoteMetaValue}>{fmt.price(askHigh, priceDigits)}</Text>
+                <Text style={styles.quoteMetaValue}>{formatMarketPrice(askHigh)}</Text>
               </View>
             </View>
           </View>
@@ -519,15 +536,15 @@ export function MarketStatisticsInteractiveContent({
           <View style={styles.rangeValueRow}>
             <View style={styles.rangeValueBlock}>
               <Text style={styles.rangeLabelSmall}>{t('LOW')}</Text>
-              <Text style={styles.rangeLabelValue}>{fmt.price(bidLow, priceDigits)}</Text>
+              <Text style={styles.rangeLabelValue}>{formatMarketPrice(bidLow)}</Text>
             </View>
             <View style={[styles.rangeValueBlock, styles.rangeValueBlockCenter]}>
               <Text style={styles.rangeLabelSmall}>{t('CURRENT')}</Text>
-              <Text style={[styles.rangeLabelValue, { color: changeAccent }]}>{formatMarketPrice(q.bid, priceDigits)}</Text>
+              <Text style={[styles.rangeLabelValue, { color: changeAccent }]}>{formatMarketPrice(q.bid)}</Text>
             </View>
             <View style={[styles.rangeValueBlock, styles.rangeValueBlockRight]}>
               <Text style={styles.rangeLabelSmall}>{t('HIGH')}</Text>
-              <Text style={styles.rangeLabelValue}>{fmt.price(bidHigh, priceDigits)}</Text>
+              <Text style={styles.rangeLabelValue}>{formatMarketPrice(bidHigh)}</Text>
             </View>
           </View>
           <View style={styles.rangeTrack}>

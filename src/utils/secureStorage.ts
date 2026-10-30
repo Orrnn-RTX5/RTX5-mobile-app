@@ -28,7 +28,7 @@ export const setSecureItemAsync = async (key: string, value: string): Promise<vo
   );
 };
 
-export const getSecureItemAsync = async (key: string): Promise<string | null> => {
+export const getSecureItemAsync = async (key: string, throwOnError = false): Promise<string | null> => {
   try {
     assertNativeSecureStorage();
     return await SecureStore.getItemAsync(key);
@@ -37,6 +37,7 @@ export const getSecureItemAsync = async (key: string): Promise<string | null> =>
     if (Platform.OS !== 'web') {
       console.error('[SecureStorage] Failed to read secure item', { key, error });
     }
+    if (throwOnError) throw error;
     return null;
   }
 };

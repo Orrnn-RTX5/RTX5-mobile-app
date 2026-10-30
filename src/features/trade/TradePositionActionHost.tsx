@@ -105,6 +105,7 @@ export const TradePositionActionHost = memo(function TradePositionActionHost() {
               hosted
               hostedActive
               hostedPositionId={positionId}
+              hostedProtectionLevel={snapshot.protectionLevel}
               onHostedBack={closeHost}
             />
           </View>

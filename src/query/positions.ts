@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { positionsApi, Position, ClosedPosition } from '../api/positions';
-import { PositionItem } from '../dev/mock/tradingData';
+import { PositionItem } from '../domain/tradingModels';
 import {
   getSessionQueryCacheNamespace,
   invalidateSessionQueryRoots,
@@ -95,6 +95,10 @@ function mapPositionToItem(dto: Position): PositionItem {
   };
 }
 
+// QueryObserver reuses its selected result when both data and selector are
+// unchanged. A render-local callback defeats that reuse on every parent render.
+const selectPositionItems = (data: Position[]): PositionItem[] => data.map(mapPositionToItem);
+
 /**
  * Fetch open positions for a trading account.
  * Auto-refreshes every 5 seconds while the component is mounted.
@@ -116,7 +120,7 @@ export function usePositionsQuery(
     ),
     enabled,
     refetchInterval: resolvePollingRefetchInterval(enabled, 5000, options.refetchInterval),
-    select: (data: Position[]) => data.map(mapPositionToItem),
+    select: selectPositionItems,
   });
 }
 

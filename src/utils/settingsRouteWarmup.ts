@@ -76,6 +76,9 @@ export function warmSettingsRouteModules() {
 
   return () => {
     cancelled = true;
+    if (cursor < SETTINGS_ROUTE_MODULE_LOADERS.length) {
+      settingsRouteWarmupStarted = false;
+    }
     cancelScheduledWork.forEach((cancel) => cancel());
     cancelScheduledWork.length = 0;
   };

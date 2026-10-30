@@ -36,7 +36,10 @@ test('chart trade confirmations never invent tickets or execution prices', () =>
   const evidence = readSource('src/api/orders/executionEvidence.ts');
 
   assert.doesNotMatch(webButtons, /Math\.random|openPrice:\s*data|currentPrice:\s*data/);
-  assert.match(webButtons, /data\?\.price_open \?\? data\?\.price/);
+  assert.match(webButtons, /createTradeReceipt\(\{ symbol, side: action\.side/);
+  const receiptCallbacks = readSource('src/features/trade/marketTradeReceiptCallbacks.ts');
+  assert.match(receiptCallbacks, /resolveBrokerExecutionEvidence\(data\)/);
+  assert.match(receiptCallbacks, /evidence\.confirmed \? 'confirmed' : 'unconfirmed'/);
   assert.doesNotMatch(webButtons, /data\?\.price\s*(?:\|\||\?\?).*(?:latestBid|latestAsk)/);
 
   assert.match(evidence, /data\.price \?\? data\.price_open/);
@@ -52,7 +55,7 @@ test('chart trade confirmations never invent tickets or execution prices', () =>
   assert.doesNotMatch(nativePendingSubmit, /['"]Confirmed['"]|data\.price[^\n]*(?:\?\?|\|\|)\s*chartTradePrice/);
 });
 
-test('shared order mutation never inserts an execution response into the position ledger', () => {
+test('shared order mutation inserts only a complete confirmed fill in the captured session', () => {
   const source = readSource('src/query/orders.ts');
   const orderSource = readSource('src/api/orders/placeMarketOrder.ts');
   const reconciliationSource = readSource('src/api/orders/marketPositionReconciliation.ts');
@@ -64,7 +67,11 @@ test('shared order mutation never inserts an execution response into the positio
   assert.doesNotMatch(reconciliationSource, /order_ticket/);
   assert.match(orderSource, /getPositionsForReconciliation\(reconciliationAccountLogin\)/);
   assert.match(orderSource, /applyPositionsSnapshot\(/);
-  assert.doesNotMatch(orderSource, /\.upsertPosition\(/);
+  assert.match(
+    orderSource,
+    /assertOrderSessionCurrent\(\);\s*const confirmedPosition = confirmedPositionFill\(finalData\);\s*if \(confirmedPosition\) usePositionsState\.getState\(\)\.upsertPosition\(confirmedPosition\);/,
+  );
+  assert.equal([...orderSource.matchAll(/\.upsertPosition\(/g)].length, 1);
   assert.doesNotMatch(source, /openPrice:\s*data\.price\s*\|\|\s*0/);
   assert.doesNotMatch(source, /currentPrice:\s*data\.price\s*\|\|\s*0/);
 });
@@ -96,11 +103,17 @@ test('market-order surfaces report accepted responses without fill evidence as u
   const modal = readSource('src/ui/components/TradeFeedbackModal.tsx');
   const presentation = readSource('src/ui/components/tradeFeedbackPresentation.ts');
 
-  for (const source of [orderTicket, chartHandler, symbolDetails]) {
+  for (const source of [orderTicket, chartHandler]) {
     assert.match(source, /resolveBrokerExecutionEvidence/);
     assert.match(source, /executionEvidence\.confirmed/);
     assert.match(source, /Confirmation Pending/);
   }
+  assert.match(symbolDetails, /useMarketTradeReceipts\(\)/);
+  assert.match(symbolDetails, /createTradeReceipt\(\{ symbol, side, volume: resolvedVolume \}/);
+  const receiptCallbacks = readSource('src/features/trade/marketTradeReceiptCallbacks.ts');
+  assert.match(receiptCallbacks, /resolveBrokerExecutionEvidence\(data\)/);
+  assert.match(receiptCallbacks, /evidence\.confirmed \? 'confirmed' : 'unconfirmed'/);
+  assert.match(receiptCallbacks, /Confirmation Pending/);
   assert.match(modal, /state\.executionConfirmed === false/);
   assert.match(modal, /state\.title \|\|/);
   assert.match(

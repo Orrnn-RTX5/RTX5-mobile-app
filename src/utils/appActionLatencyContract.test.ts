@@ -160,7 +160,7 @@ test('shared press action budget is capped without touch-down activation by defa
   assert.match(fastPressSource, /const DEFAULT_PRESS_RETENTION_OFFSET = \{ top: 20, bottom: 20, left: 20, right: 20 \} as const/);
   assert.match(fastPressSource, /const needsPressInHandler = activateOnPressIn \|\| Boolean\(onPressIn\)/);
   assert.match(fastPressSource, /const needsPressHandler = Boolean\(onPress\) \|\| Boolean\(onPressIn\)/);
-  assert.match(fastPressSource, /const needsTouchStartHandler = activateOnTouchStart \|\| Boolean\(onTouchStart\)/);
+  assert.match(fastPressSource, /const needsTouchStartHandler = activateOnTouchStart \|\| activateOnPressIn \|\| Boolean\(onTouchStart\)/);
   assert.match(fastPressSource, /const needsPressOutHandler = Boolean\(onPressOut\) \|\| activateOnPressIn \|\| activateOnTouchStart \|\| Boolean\(onPressIn\)/);
   assert.match(fastPressSource, /onPressIn=\{needsPressInHandler \? handlePressIn : undefined\}/);
   assert.match(fastPressSource, /onPress=\{needsPressHandler \? handlePress : undefined\}/);
@@ -236,13 +236,9 @@ test('chart trade one-click and ticket paths keep heavy work out of the tap pain
   const chartTradeButtonsSource = readSource('src/features/chart/components/ChartTradeButtonsFeature/ChartTradeButtonsFeature.tsx');
   const chartSource = readSource('src/features/chart/ChartScreen.native.tsx');
   const chartWebSource = readSource('src/features/chart/ChartScreen.web.tsx');
-  const openPathStart = chartTradeHandlerSource.indexOf('// ── One-click OFF:');
-  const oneClickPathStart = chartTradeHandlerSource.indexOf('// ── One-click ON:');
-  assert.notEqual(openPathStart, -1);
-  assert.notEqual(oneClickPathStart, -1);
-  const openPathSource = chartTradeHandlerSource.slice(openPathStart, oneClickPathStart);
-  const oneClickPathEnd = chartTradeHandlerSource.indexOf('\n  const handleTrade', oneClickPathStart);
-  assert.notEqual(oneClickPathEnd, -1);
+  const oneClickPathStart = chartTradeHandlerSource.indexOf('const executeTrade =');
+  const oneClickPathEnd = chartTradeHandlerSource.indexOf('const handleTrade =', oneClickPathStart);
+  assert.ok(oneClickPathStart >= 0 && oneClickPathEnd > oneClickPathStart);
   const oneClickSource = chartTradeHandlerSource.slice(oneClickPathStart, oneClickPathEnd);
 
   assert.match(ordersSource, /export const usePlaceOrderExecutor = \(\) => \{/);
@@ -276,15 +272,14 @@ test('chart trade one-click and ticket paths keep heavy work out of the tap pain
   );
   assert.match(
     chartTradeHandlerSource,
-    /const isPublicDemoTradePrompt = useUserPreferences\([\s\S]*!state\.isLoggedIn[\s\S]*const chartTradeActionDisabled = resolveChartTradeActionDisabled\(\{[\s\S]*isCurrentChartSymbol,[\s\S]*oneClickAccepted,[\s\S]*quoteActionAllowed,[\s\S]*\}\);/,
+    /const isPublicDemoTradePrompt = useUserPreferences\([\s\S]*!state\.isLoggedIn[\s\S]*const chartTradeActionDisabled = executionDisabled \|\| resolveChartTradeActionDisabled\(\{[\s\S]*isCurrentChartSymbol,[\s\S]*oneClickAccepted: true,[\s\S]*quoteActionAllowed,[\s\S]*\}\);/,
   );
-  assert.doesNotMatch(openPathSource, /resolveSessionQuoteActionAvailability/);
   assert.match(
     chartTradeHandlerSource,
     /requestOrrnnDemoTradeAuth\(\{[\s\S]*\}\)[\s\S]*const currentQuoteAvailability = resolveCurrentQuoteActionAvailability\(\);[\s\S]*if \(!currentQuoteAvailability\.allowed\)/,
   );
   assert.doesNotMatch(oneClickSource, /resolveSessionQuoteActionAvailability/);
-  assert.match(chartTradeHandlerSource, /import \{ usePlaceOrderExecutor \} from '..\/..\/..\/..\/query\/orders'/);
+  assert.match(chartTradeHandlerSource, /import \{ usePlaceOrderExecutor, usePendingMarketOrderSides \} from '..\/..\/..\/..\/query\/orders'/);
   assert.match(chartTradeHandlerSource, /import \{ getApiLatencyNow \} from '..\/..\/..\/..\/utils\/apiLatency'/);
   assert.match(chartTradeHandlerSource, /const placeOrder = usePlaceOrderExecutor\(\);/);
   assert.doesNotMatch(
@@ -315,30 +310,9 @@ test('chart trade one-click and ticket paths keep heavy work out of the tap pain
     chartTradeButtonsSource,
     /disabled=\{[^}]*(?:isChartTradeActionBusy|isChartTradeActionVisuallyLocked)/,
   );
-  assert.match(chartTradeHandlerSource, /const isChartTradeActionBusy = \(side: TradeSide\) => activeSide === side && tradeTapLockRef\.current;/);
-  // Open path: shell first, before auth/volume/SL validation or setState locks.
-  assert.match(
-    openPathSource,
-    /const launchRevision = showOrderTicketLaunch\(symbol, 'chart'\);[\s\S]*scheduleOrderTicketLaunchNavigation\(\s*launchRevision,\s*\(\) => \{[\s\S]*router\.push\(\{[\s\S]*pathname: '\/trade\/order-ticket'[\s\S]*origin: 'chart'/,
-  );
-  assert.match(
-    openPathSource,
-    /showOrderTicketLaunch\(symbol, 'chart'\);[\s\S]*tradeTapLockRef\.current = true/,
-  );
-  assert.match(
-    openPathSource,
-    /const releaseOpenPathLock = \(\) => \{\s*releaseTradeTapLock\(CHART_TRADE_TAP_RELEASE_DELAY_MS\);\s*\};/,
-  );
-  assert.match(
-    openPathSource,
-    /finally \{\s*releaseOpenPathLock\(\);\s*\}[\s\S]*hideOrderTicketLaunch\(launchRevision\);\s*releaseOpenPathLock\(\);/,
-  );
-  assert.doesNotMatch(openPathSource, /authToken|validateChartTradeProtectionLevels|Invalid Lot Size/);
-  assert.match(
-    chartWebSource,
-    /const launchRevision = showOrderTicketLaunch\(symbol, 'chart'\);[\s\S]*scheduleOrderTicketLaunchNavigation\(launchRevision, \(\) => \{[\s\S]*router\.push\(\{ pathname: '\/trade\/order-ticket'/,
-  );
-  assert.match(chartTradeHandlerSource, /catch \(navErr: any\) \{[\s\S]*hideOrderTicketLaunch\(launchRevision\)/);
+  assert.match(chartTradeHandlerSource, /const isChartTradeActionBusy = \(side: TradeSide\) => Boolean\(pendingMarketSides & \(side === 'buy' \? 1 : 2\)\);/);
+  assert.doesNotMatch(chartTradeHandlerSource, /showOrderTicketLaunch|scheduleOrderTicketLaunchNavigation|Alert\.alert/);
+  assert.doesNotMatch(chartWebSource, /showOrderTicketLaunch|scheduleOrderTicketLaunchNavigation/);
   assert.doesNotMatch(chartTradeHandlerSource, /runAfterChartTradeTapPaint/);
   assert.doesNotMatch(
     oneClickSource,
@@ -365,18 +339,18 @@ test('trade buy/sell success feedback uses the shared popup without device vibra
   assert.doesNotMatch(chartSource, /\bVibration\b|\.vibrate\(/);
   assert.doesNotMatch(feedbackModalSource, /\bVibration\b|\.vibrate\(/);
   assert.match(ticketSource, /without device vibration/);
-  assert.match(ticketSource, /const \[tradeConfirmations, setTradeConfirmations\] = useState<OrderTicketTradeConfirmation\[\]>/);
+  assert.match(ticketSource, /const \[orderTicketReceiptController\] = useState\(createChartTradeReceiptStackController\)/);
   assert.match(ticketSource, /Market BUY\/SELL executions and broker rejections share one feedback surface/);
   assert.match(
     ticketSource,
-    /const successFeedback: TradeFeedbackState = executionEvidence\.confirmed[\s\S]*executionConfirmed:\s*true,[\s\S]*side:\s*requestedSide[\s\S]*symbol:\s*displaySymbol[\s\S]*executedAt:\s*new Date\(\)\.toLocaleTimeString\(\)[\s\S]*executionConfirmed:\s*false,[\s\S]*Confirmation Pending[\s\S]*if \(positionTicket\) \{[\s\S]*successFeedback\.ticket = String\(positionTicket\);[\s\S]*if \(executionPrice !== undefined\) \{[\s\S]*successFeedback\.price = executionPrice;[\s\S]*showModal\(successFeedback\)/,
+    /const successFeedback: TradeFeedbackState = executionEvidence\.confirmed[\s\S]*executionConfirmed:\s*true,[\s\S]*side:\s*requestedSide[\s\S]*symbol:\s*displaySymbol[\s\S]*executedAt:\s*new Date\(\)\.toLocaleTimeString\(\)[\s\S]*executionConfirmed:\s*false,[\s\S]*Confirmation Pending[\s\S]*if \(positionTicket\) \{[\s\S]*successFeedback\.ticket = String\(positionTicket\);[\s\S]*if \(executionPrice !== undefined\) \{[\s\S]*successFeedback\.price = executionPrice;[\s\S]*showModal\(successFeedback, submittedReceiptId\)/,
   );
   assert.doesNotMatch(ticketSource, /showTradeConfirmation\(\{ side: requestedSide/);
-  assert.match(ticketSource, /showTradeConfirmation\(\{ side: pendingSideValue, symbol, volume \}\)/);
+  assert.match(ticketSource, /orderTicketReceiptController\.applyEvent\(\{[\s\S]*status: 'placed',[\s\S]*executionConfirmed: false/);
   assert.match(ticketSource, /Shared RTX5 execution receipt plus detailed rejected\/unconfirmed feedback/);
   assert.match(
     ticketSource,
-    /useConfirmedTradeReceiptAutoDismiss\(modalState, handleModalClose\)/,
+    /orderTicketReceiptController\.applyEvent\([\s\S]*status: 'confirmed'[\s\S]*<OrderTicketAnchoredReceipts[\s\S]*controller=\{orderTicketReceiptController\}/,
   );
   assert.match(
     chartSource,
@@ -521,7 +495,8 @@ test('action destination modules warm without boot-time route prefetch', () => {
   assert.doesNotMatch(brokersLaunchHostSource, /router\.canGoBack\(\)|popRouteWhenReady/);
   for (const source of [brokersLaunchHostSource, brokersRouteSource]) {
     assert.match(source, /selectGuestBrokerById\(broker\.brokerId/);
-    assert.match(source, /replace\('\/\(tabs\)\/quotes'\)/);
+    assert.match(source, /openAuthFlow\(undefined, undefined, '\/settings\/brokers'\)/);
+    assert.doesNotMatch(source, /replace\('\/\(tabs\)\/quotes'\)/);
     assert.doesNotMatch(source, /showBrokerDetailLaunch\(selection\)/);
   }
   assert.match(brokersLaunchHostSource, /<BrokersLaunchShell[\s\S]*onSelectBroker=\{selectBroker\}/);
@@ -788,7 +763,7 @@ test('global action sheet actions avoid selecting rows while scrolling', () => {
   assert.match(source, /activateOnPressIn/);
   assert.match(source, /pointerEvents="box-none"/);
   assert.doesNotMatch(source, /traceUiInteraction/);
-  assert.match(uiStateSource, /showActionSheet: \(config\) => set\(\{ actionSheet: withInstantActionSheetOpen\(config\) \}\)/);
+  assert.match(uiStateSource, /showActionSheet: \(config\) => set\(\(state\) => \(\{\s*actionSheet: withInstantActionSheetOpen\(config\),\s*actionSheetOpenRevision: state\.actionSheetOpenRevision \+ 1/);
   assert.match(uiStateSource, /config\.instantOpen === true \? config : \{ \.\.\.config, instantOpen: true \}/);
   assert.match(dismissSource, /const ACTION_SHEET_DISMISS_SETTLE_FRAMES = 1/);
   assert.match(dismissSource, /const ACTION_SHEET_VISUAL_HANDOFF_CLOSE_FRAMES = 2/);
@@ -869,7 +844,7 @@ test('chart properties color picker keeps readouts live and commits chart colors
   assert.match(source, /low: Math\.min\(previewLastCandle\.low, livePreviewPrice\)/);
   assert.match(source, /close: livePreviewPrice/);
   assert.match(source, /const previewOhlcItems = previewLiveCandle/);
-  assert.match(source, /formatQuote\(previewLiveCandle\.close, liveQuote\?\.digits\)/);
+  assert.match(source, /formatQuote\(previewLiveCandle\.close\)/);
   assert.doesNotMatch(source, /formatQuote\(previewLastCandle\.close, liveQuote\?\.digits\)/);
   assert.match(source, /useLiveCandles\(chartSymbol, chartTimeframe, previewActive\)/);
   assert.match(source, /active=\{previewActive\}/);
@@ -1232,7 +1207,7 @@ test('settings navigation surfaces keep heavyweight routes responsive on first t
   assert.match(brokersSource, /const cancelBrokerRowPressForScroll = \(\) => \{[\s\S]*cancelled: true,[\s\S]*selection: null/);
   assert.match(brokersSource, /const recordBrokerRowPressMove = \(event: GestureResponderEvent\) => \{[\s\S]*hasBrokerPressMovedBeyondThreshold\(gesture\.start, current\)[\s\S]*cancelBrokerRowPressForScroll\(\)/);
   assert.match(brokersSource, /const handleBrokerRowPress = \(broker: BrokerRow, event: GestureResponderEvent\) => \{[\s\S]*if \(!broker\.selectable\) \{[\s\S]*return;[\s\S]*shouldIgnoreBrokerRowPress\(event\)[\s\S]*const selection = toBrokerDetailLaunchSelection\(broker\);[\s\S]*selectedBrokerHealthGate\.run\(\{[\s\S]*serverUrl: broker\.serverUrl,[\s\S]*onAvailable: \(\) => \{[\s\S]*openBrokerDetail\(selection\)[\s\S]*onUnavailable: \(\) => \{[\s\S]*Alert\.alert\(SELECTED_BROKER_UNAVAILABLE_MESSAGE\)/);
-  assert.match(brokersSource, /const openBrokerDetail = \(selection: BrokerDetailLaunchSelection\) => \{[\s\S]*selectGuestBroker\(record\)[\s\S]*routerInstance\.replace/);
+  assert.match(brokersSource, /const openBrokerDetail = \(selection: BrokerDetailLaunchSelection\) => \{[\s\S]*selectGuestBroker\(record\)[\s\S]*openAuthFlow\(undefined, undefined, '\/settings\/brokers'\)/);
   const openBrokerDetailStart = brokersSource.indexOf('const openBrokerDetail =');
   const recordBrokerPressStart = brokersSource.indexOf('const recordBrokerRowPressStart =', openBrokerDetailStart);
   assert.doesNotMatch(
@@ -1323,7 +1298,7 @@ test('settings navigation surfaces keep heavyweight routes responsive on first t
   assert.match(registerSource, /onPress=\{handleRegisterBack\}[\s\S]*activateOnPressIn[\s\S]*activateOnTouchStart[\s\S]*latencyLabel="register\.back"[\s\S]*latencyBudgetMs=\{50\}[\s\S]*unstable_pressDelay=\{0\}/);
   assert.match(rootSource, /const brokerFlowBackground = T\.bg/);
   assert.match(rootSource, /const brokerFlowScreenOptions = \{[\s\S]*headerShown: false,[\s\S]*animation: 'none',[\s\S]*freezeOnBlur: false,[\s\S]*contentStyle: \{ backgroundColor: brokerFlowBackground \},[\s\S]*\} as const;/);
-  assert.match(rootSource, /const registerScreenOptions = \{[\s\S]*headerShown: false,[\s\S]*animation: 'none',[\s\S]*presentation: 'card',[\s\S]*gestureEnabled: false,[\s\S]*freezeOnBlur: false,[\s\S]*contentStyle: \{ backgroundColor: brokerFlowBackground \},[\s\S]*\} as const;/);
+  assert.match(rootSource, /const registerScreenOptions = \{[\s\S]*headerShown: false,[\s\S]*animation: 'none',[\s\S]*presentation: 'containedTransparentModal',[\s\S]*gestureEnabled: false,[\s\S]*freezeOnBlur: false,[\s\S]*contentStyle: \{ backgroundColor: brokerFlowBackground \},[\s\S]*\} as const;/);
   assert.match(rootSource, /<Stack\.Screen name='register-entry' options=\{registerScreenOptions\}/);
   assert.match(rootSource, /<Stack\.Screen name='register' options=\{registerScreenOptions\}/);
   assert.match(rootSource, /<Stack\.Screen name='settings\/brokers' options=\{brokerFlowScreenOptions\}/);
@@ -1366,11 +1341,9 @@ test('trade ticket execution actions use the immediate fast press path', () => {
   assert.match(source, /import \{ useDeferredRouteContentReady \} from '\.\.\/\.\.\/ui\/components\/DeferredRouteMount'/);
   assert.match(source, /const ORDER_TICKET_FULL_CONTENT_DELAY_MS = 0/);
   assert.match(source, /export function OrderTicketScreen\(\) \{[\s\S]*const isScreenFocused = useIsFocused\(\);[\s\S]*useDeferredRouteContentReady\(ORDER_TICKET_FULL_CONTENT_DELAY_MS, isScreenFocused\)/);
-  assert.match(source, /const ORDER_TICKET_DATA_READY_DELAY_MS = 0/);
-  assert.match(source, /const ORDER_TICKET_HEAVY_CONTENT_DELAY_MS = 0/);
-  assert.match(source, /const routeDataReady = useDeferredRouteContentReady\(ORDER_TICKET_DATA_READY_DELAY_MS\)/);
-  assert.match(source, /const heavyContentReady = useDeferredRouteContentReady\(ORDER_TICKET_HEAVY_CONTENT_DELAY_MS\)/);
-  assert.match(source, /const routeQueriesActive = isScreenFocused && routeDataReady/);
+  assert.doesNotMatch(source, /ORDER_TICKET_DATA_READY_DELAY_MS|ORDER_TICKET_HEAVY_CONTENT_DELAY_MS/);
+  assert.match(source, /const heavyContentReady = isScreenFocused/);
+  assert.match(source, /const routeQueriesActive = isScreenFocused/);
   assert.match(source, /useMarketSymbols\(routeQueriesActive\)/);
   assert.match(source, /useInstrumentMeta\(symbol, routeQueriesActive\)/);
   assert.match(source, /useLiveQuoteSubscription\(symbol, routeQueriesActive\)/);
@@ -1504,8 +1477,9 @@ test('chart native and web hot actions use the shared immediate action guard', (
   for (const action of ['timeframe', 'sltp', 'drawings', 'more']) {
     assert.ok(scrollableToolbar.includes(`onPress={() => routeChartWindowToolbarAction('${action}')}`));
   }
-  // Release activation keeps horizontal toolbar swipes from opening a sheet.
-  assert.doesNotMatch(scrollableToolbar, /activateOnTouchStart|activateOnPressIn|onPressIn=/);
+  // SL/TP opens on press-in; the other toolbar destinations activate on release.
+  assert.match(scrollableToolbar, /routeChartWindowToolbarAction\('sltp'\)\}[\s\S]*?activateOnPressIn/);
+  assert.doesNotMatch(scrollableToolbar.replace(/onPress=\{\(\) => routeChartWindowToolbarAction\('sltp'\)\}\s*activateOnPressIn/, ''), /activateOnTouchStart|activateOnPressIn|onPressIn=/);
   assert.match(
     nativeChartSource,
     /useChartWindowToolbarRouter\([\s\S]*timeframe: handleOpenTimeframePicker[\s\S]*drawings: handleOpenDrawingTools[\s\S]*more: handleOpenMoreMenu/,

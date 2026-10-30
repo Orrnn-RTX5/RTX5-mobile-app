@@ -50,19 +50,16 @@ test('native chart reactively disables Buy and Sell on the strict per-symbol quo
   assert.doesNotMatch(handler, /tradeQueueRef|processNextQueuedTrade/);
   assert.match(
     handler,
-    /const currentQuoteAvailability = resolveCurrentQuoteActionAvailability\(\);[\s\S]*if \(!currentQuoteAvailability\.allowed\)[\s\S]*if \(!oneClickAccepted && variant !== 'mt5-market'\)/,
+    /const currentQuoteAvailability = resolveCurrentQuoteActionAvailability\(\);[\s\S]*if \(!currentQuoteAvailability\.allowed\)[\s\S]*const volume = Number\(lotSize\)/,
   );
   assert.match(
     handler,
     /entryPrice: action\.side === 'buy'[\s\S]*currentQuoteAvailability\.ask[\s\S]*currentQuoteAvailability\.bid/,
   );
+  assert.doesNotMatch(handler, /showOrderTicketLaunch|scheduleOrderTicketLaunchNavigation/);
   assert.match(
     handler,
-    /if \(!oneClickAccepted && variant !== 'mt5-market'\)[\s\S]*showOrderTicketLaunch\(symbol, 'chart'\)[\s\S]*return;[\s\S]*One-click ON:/,
-  );
-  assert.match(
-    handler,
-    /resolveChartTradeActionDisabled\(\{[\s\S]*isCurrentChartSymbol,[\s\S]*oneClickAccepted,[\s\S]*quoteActionAllowed,/,
+    /resolveChartTradeActionDisabled\(\{[\s\S]*isCurrentChartSymbol,[\s\S]*oneClickAccepted: true,[\s\S]*quoteActionAllowed,/,
   );
   assert.match(
     handler,
@@ -89,7 +86,7 @@ test('web chart quick trades use the same strict current quote without candle fa
   );
   assert.match(
     tradeButtons,
-    /disabled=\{isPending \|\| !quoteActionAvailability\.allowed\}/,
+    /disabled=\{!quoteActionAvailability\.allowed\}/,
   );
   assert.match(
     tradeButtons,

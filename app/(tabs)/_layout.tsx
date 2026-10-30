@@ -252,8 +252,8 @@ const FastTabBarButton = memo(function FastTabBarButton({
   const runTabPress = useCallback((event: TabPressEvent) => {
     if (disabledRef.current || !interactionLifecycle.isForeground()) return;
     if (
-      routeName === 'trade'
-      && requestOrrnnDemoTradeAuth({ kind: 'trade-tab' })
+      (routeName === 'trade' || routeName === 'history')
+      && requestOrrnnDemoTradeAuth({ kind: routeName === 'trade' ? 'trade-tab' : 'history-tab' })
     ) {
       return;
     }
@@ -340,6 +340,7 @@ const FastTabBarButton = memo(function FastTabBarButton({
 
 const GlobalActionSheetHost = memo(function GlobalActionSheetHost() {
   const actionSheet = useUIState((s) => s.actionSheet);
+  const openRevision = useUIState((s) => s.actionSheetOpenRevision);
   const preloadConfig = useUIState((s) => s.preloadedActionSheet);
   const scopedActionSheets = useUIState((s) => s.scopedActionSheets);
   const preloadedScopedActionSheets = useUIState((s) => s.preloadedScopedActionSheets);
@@ -368,6 +369,7 @@ const GlobalActionSheetHost = memo(function GlobalActionSheetHost() {
   return (
     <ActionSheet
       visible={visible}
+      openRevision={openRevision}
       title={activeConfig?.title}
       titleAlign={activeConfig?.titleAlign}
       compactText={activeConfig?.compactText}

@@ -1,6 +1,6 @@
 import { useTheme } from '../../../ui/theme/useTheme';
 import React, { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, type StyleProp, type TextStyle } from 'react-native';
 import {
   type TradeVolumeBounds,
 } from '../../../utils/tradeVolume';
@@ -11,10 +11,21 @@ import {
   type FooterLotPickerMode,
 } from '../chartTradeInteractionUtils';
 import { useTranslation } from '../../../i18n/useTranslation';
+import { formatBackendPrice } from '../../../utils/backendPrice';
+import { formatBackendDailyChange } from '../../../utils/backendDailyChange';
 
 
 
-export const LivePriceHeader = React.memo(({ styles, displayDecimals, priceSource, bid, ask, changePct = 0 }: any) => {
+type PriceHeaderProps = {
+  styles: Record<string, StyleProp<TextStyle>>;
+  displayDecimals?: number;
+  priceSource?: 'bid' | 'ask';
+  bid?: number;
+  ask?: number;
+  changePct?: number;
+};
+
+export const LivePriceHeader = React.memo(({ styles, displayDecimals, priceSource, bid, ask, changePct }: PriceHeaderProps) => {
   const T = useTheme();
   const { t } = useTranslation();
   const priceLabel = t('Price');
@@ -33,9 +44,8 @@ export const LivePriceHeader = React.memo(({ styles, displayDecimals, priceSourc
     );
   }
 
-  const numericChangePct = typeof changePct === 'number' && Number.isFinite(changePct) ? changePct : 0;
-  const change = currentPrice * (numericChangePct / 100);
-  const isUp = numericChangePct >= 0;
+  const hasDailyChange = typeof changePct === 'number' && Number.isFinite(changePct);
+  const isUp = typeof changePct === 'number' && changePct >= 0;
 
   return (
     <View style={styles.priceSection}>
@@ -43,26 +53,26 @@ export const LivePriceHeader = React.memo(({ styles, displayDecimals, priceSourc
         {priceLabel}
       </Text>
       <Text style={styles.livePriceText} numberOfLines={1} adjustsFontSizeToFit>
-        {currentPrice.toFixed(displayDecimals)}
+        {formatBackendPrice(currentPrice)}
       </Text>
       <Text
-        style={[styles.priceChangeText, { color: isUp ? T.trading.profit : '#F23645' }]}
+        style={[styles.priceChangeText, { color: hasDailyChange ? (isUp ? T.trading.profit : '#F23645') : T.textMuted }]}
         numberOfLines={1}
         adjustsFontSizeToFit
       >
-        {change > 0 ? '+' : ''}
-        {(change || 0).toFixed(displayDecimals)} ({numericChangePct > 0 ? '+' : ''}
-        {(numericChangePct || 0).toFixed(2)}%)
+        {formatBackendDailyChange(changePct)}
       </Text>
     </View>
   );
 });
 
-export const LiveQuotePairHeader = React.memo(({ bid, ask, changePct, styles, displayDecimals }: any) => {
+export const LiveQuotePairHeader = React.memo(({ bid, ask, changePct, styles, displayDecimals }: PriceHeaderProps) => {
   const T = useTheme();
-  const tone = typeof changePct === 'number' && changePct >= 0 ? T.trading.profit : '#F23645';
-  const hasBid = Number.isFinite(bid) && bid > 0;
-  const hasAsk = Number.isFinite(ask) && ask > 0;
+  const tone = typeof changePct === 'number' && Number.isFinite(changePct)
+    ? (changePct >= 0 ? T.trading.profit : '#F23645')
+    : T.textMuted;
+  const hasBid = typeof bid === 'number' && Number.isFinite(bid) && bid > 0;
+  const hasAsk = typeof ask === 'number' && Number.isFinite(ask) && ask > 0;
 
   return (
     <View style={styles.quoteSection}>
@@ -70,21 +80,23 @@ export const LiveQuotePairHeader = React.memo(({ bid, ask, changePct, styles, di
         <Text
           style={[styles.quoteValueText, !hasBid && styles.quoteValuePlaceholder, hasBid && { color: tone }]}
           numberOfLines={1}
+          adjustsFontSizeToFit
         >
-          {hasBid ? bid.toFixed(displayDecimals) : '---'}
+          {hasBid ? formatBackendPrice(bid) : '---'}
         </Text>
         <Text
           style={[styles.quoteValueText, !hasAsk && styles.quoteValuePlaceholder, hasAsk && { color: tone }]}
           numberOfLines={1}
+          adjustsFontSizeToFit
         >
-          {hasAsk ? ask.toFixed(displayDecimals) : '---'}
+          {hasAsk ? formatBackendPrice(ask) : '---'}
         </Text>
       </View>
     </View>
   );
 });
 
-export const LiveClock = React.memo(({ styles, active = true }: any) => {
+export const LiveClock = React.memo(({ styles, active = true }: { styles: Record<string, StyleProp<TextStyle>>; active?: boolean }) => {
   const [timeStr, setTimeStr] = useState('');
 
   useEffect(() => {

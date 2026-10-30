@@ -1,4 +1,4 @@
-import type { PositionItem } from '../../dev/mock/tradingData';
+import type { PositionItem } from '../../domain/tradingModels';
 import type { ChartColorsConfig } from '../../state/userPreferences';
 import type { ChartShowOnChartSettings } from './chartShowOnChart';
 import { buildChartOverlayPayload } from './chartOverlays';

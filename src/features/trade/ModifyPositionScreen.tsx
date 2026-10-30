@@ -24,6 +24,7 @@ import { normalizeSymbol } from '../../domain/symbols';
 import { useInstrumentMeta } from '../../query/instruments';
 import { useMarketSymbols } from '../../query/market';
 import { DEFAULT_CHART_SYMBOLS, resolveChartSymbolFullName } from '../chart/chartSymbolMetadata';
+import { splitFormattedChartTradePrice } from '../chart/components/ChartTradeButtonsFeature/pricePresentation';
 import { normalizePriceDigits, resolveDecimalsFromPriceStep } from '../../utils/pricePrecision';
 import { usePositionsState } from '../../state/positionsState';
 import { resolveTradingLoginString } from '../../state/tradingLogin';
@@ -34,7 +35,8 @@ import { ActionSheet } from '../../ui/components/ActionSheet';
 import { useDeferredRouteContentReady } from '../../ui/components/DeferredRouteMount';
 import { findPositionById } from './tradeFlow';
 import { CRITICAL_TRADE_ACTION_MAX_LATENCY_MS, runImmediateAction } from '../../utils/actionLatency';
-import { fmt } from '../../utils/format';
+import { formatBrokerPrice } from '../../utils/brokerPrice';
+import { validatePositionLevelChange } from './positionLevelValidation';
 import { safeRouterBack } from '../../utils/navigation';
 import { useTranslation } from '../../i18n/useTranslation';
 import { resolveModifyPositionMarkerYPositions } from './modifyPositionChartLayout';
@@ -93,6 +95,7 @@ export type ModifyPositionScreenProps = Readonly<{
   hosted?: boolean;
   hostedActive?: boolean;
   hostedPositionId?: string | null;
+  hostedProtectionLevel?: 'tp' | 'sl' | null;
   onHostedBack?: () => void;
 }>;
 
@@ -100,12 +103,8 @@ function formatModifyPrice(val: number, decimals: number) {
   if (!Number.isFinite(val) || val <= 0) {
     return { main: '—', huge: '' };
   }
-  const str = val.toFixed(decimals);
-  // Splitting off the exact last two digits that the user circled
-  return {
-    main: str.slice(0, -2),
-    huge: str.slice(-2)
-  };
+  const parts = splitFormattedChartTradePrice(formatBrokerPrice(val, decimals));
+  return { main: parts.leading, huge: parts.trailing };
 }
 
 type ModifyPositionChartTick = Readonly<{ bid: number; ask: number }>;
@@ -334,13 +333,13 @@ const ModifyPositionTickChart = memo(function ModifyPositionTickChart({
           <G x={w - 60} y={lineY('ask', ASK) - 10}>
             <Rect width={60} height={20} fill={sellColor} />
             <SvgText x={30} y={14} fill="#FFF" fontSize="11" fontWeight="bold" textAnchor="middle">
-              {ASK.toFixed(decimals)}
+              {formatBrokerPrice(ASK, decimals)}
             </SvgText>
           </G>
           <G x={w - 60} y={lineY('bid', BID) - 10}>
             <Rect width={60} height={20} fill={buyColor} />
             <SvgText x={30} y={14} fill="#FFF" fontSize="11" fontWeight="bold" textAnchor="middle">
-              {BID.toFixed(decimals)}
+              {formatBrokerPrice(BID, decimals)}
             </SvgText>
           </G>
         </Svg>
@@ -356,6 +355,7 @@ export function ModifyPositionScreen({
   hosted = false,
   hostedActive = true,
   hostedPositionId = null,
+  hostedProtectionLevel = null,
   onHostedBack,
 }: ModifyPositionScreenProps = {}) {
   const params = useLocalSearchParams<{ positionId?: string }>();
@@ -436,6 +436,9 @@ export function ModifyPositionScreen({
 
   const [stopLoss, setStopLoss] = useState<number | null>(null);
   const [takeProfit, setTakeProfit] = useState<number | null>(null);
+  const slInputRef = useRef<TextInput | null>(null);
+  const tpInputRef = useRef<TextInput | null>(null);
+  const focusedProtectionRef = useRef<string | null>(null);
   // While the hidden numeric input is being typed, the raw text is the source
   // of truth for what the field shows. Deriving the input value from the
   // parsed number erased a trailing decimal point on every keystroke, which
@@ -455,6 +458,20 @@ export function ModifyPositionScreen({
   const positionSymbol = normalizeSymbol(position?.symbol ?? '');
   const viewSymbol = viewSymbolOverride ?? positionSymbol;
   const symbolsMatch = viewSymbol === positionSymbol;
+  useEffect(() => {
+    if (!hosted || !isScreenFocused || !symbolsMatch || !hostedProtectionLevel || !position
+      || position.id !== hostedPositionId) return;
+    const focusKey = `${position.id}:${hostedProtectionLevel}`;
+    if (focusedProtectionRef.current === focusKey) return;
+    const frame = requestAnimationFrame(() => {
+      const input = hostedProtectionLevel === 'sl' ? slInputRef.current : tpInputRef.current;
+      if (input) {
+        focusedProtectionRef.current = focusKey;
+        input.focus();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hosted, isScreenFocused, symbolsMatch, hostedProtectionLevel, hostedPositionId, position?.id]);
   useEffect(() => {
     // Switching the modified position re-anchors the view to its symbol.
     setViewSymbolOverride(null);
@@ -538,11 +555,6 @@ export function ModifyPositionScreen({
     stopLoss,
     takeProfit,
   };
-  // Header open-price precision always follows the POSITION's symbol, even
-  // while the live view is pointed at another instrument.
-  const positionHeaderDecimals = symbolsMatch
-    ? decimals
-    : (positionSymbol.includes('JPY') ? 3 : 5);
 
   // Init S/L and T/P from existing
   useEffect(() => {
@@ -667,9 +679,12 @@ export function ModifyPositionScreen({
 
       return symbolPositions.map((target) => {
         const targetId = String(target.id);
+        const targetDecimals = normalizeSymbol(target.symbol) === viewSymbol
+          ? decimals
+          : (Math.abs(target.openPrice) < 10 ? 4 : 2);
         const targetLabel =
           `${target.side.toUpperCase()} ${(target.volume || 0).toFixed(2)} ` +
-          `#${targetId} @ ${fmt.price(target.openPrice, 8)}`;
+          `#${targetId} @ ${formatBrokerPrice(target.openPrice, targetDecimals)}`;
         return {
           label: candidate,
           subtitle: targetId === currentPositionId
@@ -679,7 +694,7 @@ export function ModifyPositionScreen({
         };
       });
     });
-  }, [handlePickPosition, handlePickViewSymbol, marketSymbols, marketSymbolsFetching, position?.id, position?.symbol, positions, symbolsMatch, t, viewSymbol]);
+  }, [decimals, handlePickPosition, handlePickViewSymbol, marketSymbols, marketSymbolsFetching, position?.id, position?.symbol, positions, symbolsMatch, t, viewSymbol]);
 
   // A buy closes at the Bid and a sell closes at the Ask — the broker validates
   // SL/TP against that closing price. The client validates only the correct
@@ -722,27 +737,36 @@ export function ModifyPositionScreen({
     marketPrice = closingMarketPrice,
   ): string | null => {
     if (!position || !(marketPrice > 0)) return null;
-    const priceLabel = marketPrice.toFixed(decimals);
+    const snappedSl = stopLoss !== null && stopLoss > 0 ? snapStopTarget(stopLoss) : (stopLoss ?? 0);
+    const snappedTp = takeProfit !== null && takeProfit > 0 ? snapStopTarget(takeProfit) : (takeProfit ?? 0);
+    for (const role of ['sl', 'tp'] as const) {
+      const brokerError = validatePositionLevelChange({
+        side: position.side, role, proposed: role === 'sl' ? snappedSl : snappedTp,
+        previous: (role === 'sl' ? position.sl : position.tp) ?? 0,
+        marketPrice, tickSize: tickSize ?? 0, point: instrumentMeta?.point,
+        stopsLevel: instrumentMeta?.stopsLevel, freezeLevel: instrumentMeta?.freezeLevel,
+      });
+      if (brokerError) return brokerError;
+    }
+    const priceLabel = formatBrokerPrice(marketPrice, decimals);
     if (
-      stopLoss !== null &&
-      stopLoss > 0 &&
-      !isStopTargetOnCorrectSide('sl', position.side, stopLoss, marketPrice)
+      snappedSl > 0 &&
+      !isStopTargetOnCorrectSide('sl', position.side, snappedSl, marketPrice)
     ) {
       return position.side === 'buy'
         ? t('Stop Loss must be below the current Bid ({price}) for a buy position.').replace('{price}', priceLabel)
         : t('Stop Loss must be above the current Ask ({price}) for a sell position.').replace('{price}', priceLabel);
     }
     if (
-      takeProfit !== null &&
-      takeProfit > 0 &&
-      !isStopTargetOnCorrectSide('tp', position.side, takeProfit, marketPrice)
+      snappedTp > 0 &&
+      !isStopTargetOnCorrectSide('tp', position.side, snappedTp, marketPrice)
     ) {
       return position.side === 'buy'
         ? t('Take Profit must be above the current Bid ({price}) for a buy position.').replace('{price}', priceLabel)
         : t('Take Profit must be below the current Ask ({price}) for a sell position.').replace('{price}', priceLabel);
     }
     return null;
-  }, [closingMarketPrice, decimals, position, stopLoss, t, takeProfit]);
+  }, [closingMarketPrice, decimals, position, snapStopTarget, stopLoss, t, takeProfit, tickSize, instrumentMeta]);
 
   const stopValidationError = useMemo(() => validateStopTargets(), [validateStopTargets]);
   // Prefer the live side-direction banner over a stale submit-time message.
@@ -896,7 +920,7 @@ export function ModifyPositionScreen({
       return;
     }
     const val = parseFloat(text);
-    if (!isNaN(val)) setStopLoss(val);
+    if (!isNaN(val)) setStopLoss(val === 0 && !text.includes('.') ? null : val);
   };
 
   /**
@@ -909,7 +933,7 @@ export function ModifyPositionScreen({
       return;
     }
     const val = parseFloat(text);
-    if (!isNaN(val)) setTakeProfit(val);
+    if (!isNaN(val)) setTakeProfit(val === 0 && !text.includes('.') ? null : val);
   };
 
   // Leaving a field commits the typed text to a tick-snapped price and hands
@@ -1126,7 +1150,7 @@ export function ModifyPositionScreen({
   };
 
   // Inactive retained layers skip heavy paint while another screen is visible.
-  if (!isScreenFocused) {
+  if (hosted && !isScreenFocused) {
     return <View style={styles.screen} />;
   }
 
@@ -1164,8 +1188,8 @@ export function ModifyPositionScreen({
     );
   }
 
-  const slDisplay = stopLoss ? stopLoss.toFixed(decimals) : 'SL';
-  const tpDisplay = takeProfit ? takeProfit.toFixed(decimals) : 'TP';
+  const slDisplay = stopLoss ? formatBrokerPrice(stopLoss, decimals) : 'SL';
+  const tpDisplay = takeProfit ? formatBrokerPrice(takeProfit, decimals) : 'TP';
   const isBuy = position.side === 'buy';
 
   const bidFmt = formatModifyPrice(BID, decimals);
@@ -1219,7 +1243,7 @@ export function ModifyPositionScreen({
           <Text style={styles.headerVol}>{position.volume.toFixed(2)}</Text>
           <Text style={styles.headerSymbol}>{position.symbol.replace(/\//g, '')}</Text>
           <Text style={styles.headerAt}>{t('at')}</Text>
-          <Text style={styles.headerPrice}>{position.openPrice.toFixed(positionHeaderDecimals)}</Text>
+          <Text style={styles.headerPrice}>{formatBrokerPrice(position.openPrice, decimals)}</Text>
         </View>
       </View>
 
@@ -1254,14 +1278,14 @@ export function ModifyPositionScreen({
         <View style={styles.priceHero}>
           <View style={styles.priceCard}>
             <Text style={styles.priceLabel}>{t('BID')}</Text>
-            <Text style={[styles.priceNormal, { color: isBuy ? T.trading.sell.primary : T.trading.buy.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            <Text style={[styles.priceNormal, { color: isBuy ? T.trading.sell.primary : T.trading.buy.primary }]} numberOfLines={1} adjustsFontSizeToFit>
               {bidFmt.main}<Text style={styles.priceHuge}>{bidFmt.huge}</Text>
             </Text>
           </View>
           <View style={styles.priceCardDivider} />
           <View style={styles.priceCard}>
             <Text style={styles.priceLabel}>{t('ASK')}</Text>
-            <Text style={[styles.priceNormal, { color: isBuy ? T.trading.buy.primary : T.trading.sell.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            <Text style={[styles.priceNormal, { color: isBuy ? T.trading.buy.primary : T.trading.sell.primary }]} numberOfLines={1} adjustsFontSizeToFit>
               {askFmt.main}<Text style={styles.priceHuge}>{askFmt.huge}</Text>
             </Text>
           </View>
@@ -1314,8 +1338,7 @@ export function ModifyPositionScreen({
 
           const splitPrice = (val: number | null) => {
             if (val === null) return { main: '—', huge: '' };
-            const str = val.toFixed(decimals);
-            return { main: str.slice(0, -2), huge: str.slice(-2) };
+            return formatModifyPrice(val, decimals);
           };
           const slParts = splitPrice(stopLoss);
           const tpParts = splitPrice(takeProfit);
@@ -1342,7 +1365,7 @@ export function ModifyPositionScreen({
           ) => {
             const distanceInvalid = Boolean(impact && !impact.distanceValid);
             const distanceColor = distanceInvalid ? T.trading.sell.primary : T.text;
-            const cardBorderColor = distanceInvalid ? T.trading.sell.primary : T.border;
+            const cardBorderColor = distanceInvalid ? T.trading.sell.primary : hostedProtectionLevel === kind ? color : T.border;
             return (
             <View style={[styles.stepperCard, { borderColor: cardBorderColor }]}>
               <View style={[styles.stepperAccent, { backgroundColor: color }]} />
@@ -1405,6 +1428,9 @@ export function ModifyPositionScreen({
                     <Text style={styles.stepperPriceEmpty}>{t('Not set')}</Text>
                   )}
                   <TextInput
+                    ref={kind === 'sl' ? slInputRef : tpInputRef}
+                    testID={`modify-position-${kind}-input`}
+                    accessibilityLabel={`${title} for position ${position.id}`}
                     style={styles.stepperHiddenInput}
                     keyboardType="numeric"
                     value={inputText ?? (rawValue !== null ? rawValue.toString() : '')}

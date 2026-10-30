@@ -6,6 +6,7 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { memo, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { enableFreeze } from 'react-native-screens';
 import { AppProviders } from '../src/state/providers/AppProviders';
@@ -72,9 +73,19 @@ function ThemedNavigatorShell() {
   const T = navigationThemeMode === 'light' ? GLight : GDark;
   const { t } = useTranslation();
   const router = useRouter();
+  const baseNavigationTheme = isDark ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...baseNavigationTheme,
+    colors: {
+      ...baseNavigationTheme.colors,
+      background: T.bg,
+      card: T.bg,
+    },
+  };
   const chartPageScreenOptions = {
     headerShown: false,
     animation: 'none',
+    presentation: 'containedTransparentModal',
     freezeOnBlur: false,
     contentStyle: { backgroundColor: T.bg },
   } as const;
@@ -91,30 +102,37 @@ function ThemedNavigatorShell() {
   const sidebarDetailScreenOptions = {
     headerShown: false,
     animation: 'none',
+    presentation: 'containedTransparentModal',
   } as const;
   const sidebarHeaderScreenOptions = {
     animation: 'none',
+    presentation: 'containedTransparentModal',
   } as const;
   const brokerFlowBackground = T.bg;
   const brokerFlowScreenOptions = {
     headerShown: false,
     animation: 'none',
+    presentation: 'containedTransparentModal',
     freezeOnBlur: false,
     contentStyle: { backgroundColor: brokerFlowBackground },
   } as const;
   const registerScreenOptions = {
     headerShown: false,
     animation: 'none',
-    presentation: 'card',
+    presentation: 'containedTransparentModal',
     gestureEnabled: false,
     freezeOnBlur: false,
     contentStyle: { backgroundColor: brokerFlowBackground },
   } as const;
 
   return (
-      <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={navigationTheme}>
         <Stack
           screenOptions={{
+            animation: 'none',
+            presentation: 'containedTransparentModal',
+            gestureDirection: 'horizontal',
+            freezeOnBlur: false,
             headerStyle: { backgroundColor: T.bg },
             headerTintColor: T.text,
             contentStyle: { backgroundColor: T.bg },
@@ -139,15 +157,17 @@ function ThemedNavigatorShell() {
           }}
         >
           <Stack.Screen name='index' options={{ headerShown: false }} />
-          <Stack.Screen name='(tabs)' options={{ headerShown: false }} />
+          <Stack.Screen name='(tabs)' options={{ headerShown: false, freezeOnBlur: false }} />
           <Stack.Screen name='quotes/details' options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name='quotes/market-statistics' options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name='trade/order-ticket' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='trade/pending-order' options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name='trade/one-click-terms' options={{ title: t('One Click Trading') }} />
           <Stack.Screen name='trade/close-position' options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name='trade/close-by' options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name='trade/modify-position' options={{ headerShown: false, animation: 'none' }} />
-          <Stack.Screen name='trade/bulk' options={{ headerShown: false }} />
+          <Stack.Screen name='trade/bulk' options={historyFilterScreenOptions} />
+          <Stack.Screen name='trade/pending-bulk' options={historyFilterScreenOptions} />
           <Stack.Screen name='login' options={brokerFlowScreenOptions} />
           <Stack.Screen name='register-entry' options={registerScreenOptions} />
           <Stack.Screen name='register' options={registerScreenOptions} />
@@ -238,11 +258,13 @@ import { bootstrapApp } from '../src/services/bootstrapApp';
 import { prefetchBrokerServers } from '../src/query/broker';
 import { installGlobalStartupErrorHandlers, logStartupDiagnostic } from '../src/utils/startupDiagnostics';
 import { restoreBrokerSession } from '../src/services/brokerSessionCoordinator';
+import { createForegroundSessionRecovery } from '../src/services/foregroundSessionRecovery';
 import {
   captureActiveBrokerSession,
   getActiveBrokerSessionIdentity,
   getActiveBrokerSessionProvenance,
   isActiveBrokerSessionCurrent,
+  subscribeActiveBrokerSession,
 } from '../src/state/activeBrokerSession';
 import { redactDiagnosticValue } from '../src/utils/securityRedaction';
 
@@ -267,7 +289,6 @@ function RootLayout() {
   const accountLogin = useUserPreferences((s) => s.accountDetails?.id);
   const [sessionRestoreComplete, setSessionRestoreComplete] = useState(false);
   const sessionRestoreStartedRef = useRef(false);
-  const lifecycleResumeEpochRef = useRef(0);
 
   useEffect(() => {
     // This anonymous directory is needed by both restore validation and the
@@ -357,60 +378,40 @@ function RootLayout() {
   useEffect(() => {
     if (!sessionRestoreComplete || !isLoggedIn) return;
 
+    const recovery = createForegroundSessionRecovery({
+      captureIdentity: () => {
+        const capture = captureActiveBrokerSession();
+        return capture ? getActiveBrokerSessionIdentity(capture.session) : undefined;
+      },
+      isCurrent: (identity) => isActiveBrokerSessionCurrent(identity),
+      isForeground: () => AppState.currentState === 'active',
+      validate: () => brokerApi.getValidAccessToken(false),
+      resume: () => {
+        brokerRealtimeService.resume();
+        accountWsService.resume();
+        candlesWsService.resume();
+        wsService.resume();
+      },
+      refresh: (identity) => bootstrapApp({ accountLogin: identity.accountLogin }),
+      onError: (error) => {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.log('[Lifecycle] Broker session recovery will retry:', redactDiagnosticValue(error));
+        }
+      },
+    });
+
     const suspendSocketDemand = () => {
-      lifecycleResumeEpochRef.current += 1;
+      recovery.suspend();
       brokerRealtimeService.suspend();
       accountWsService.suspend();
       candlesWsService.suspend();
       wsService.suspend();
     };
 
-    const resumeSocketDemand = () => {
-      const resumeEpoch = lifecycleResumeEpochRef.current + 1;
-      lifecycleResumeEpochRef.current = resumeEpoch;
-      const capture = captureActiveBrokerSession();
-      if (!capture) return;
-      const identity = getActiveBrokerSessionIdentity(capture.session);
-
-      void brokerApi.getValidAccessToken(false)
-        .then((accessToken) => {
-          if (
-            !accessToken ||
-            lifecycleResumeEpochRef.current !== resumeEpoch ||
-            AppState.currentState !== 'active' ||
-            !isActiveBrokerSessionCurrent(identity)
-          ) {
-            return;
-          }
-
-          brokerRealtimeService.resume();
-          accountWsService.resume();
-          candlesWsService.resume();
-          wsService.resume();
-          return bootstrapApp({ accountLogin: identity.accountLogin });
-        })
-        .catch((error) => {
-          // Expected when offline or the token needs a fresh login; the next
-          // foreground or socket reconnect retries.
-          if (typeof __DEV__ !== 'undefined' && __DEV__) {
-            console.log(
-              '[Lifecycle] Failed to validate broker session on foreground:',
-              redactDiagnosticValue(error),
-            );
-          }
-        });
-    };
-
     if (AppState.currentState !== 'active') {
       suspendSocketDemand();
     } else {
-      // A native cold start can report a non-active state while singleton
-      // services initialize, then become active before this effect mounts.
-      // Session restore has already completed, so release retained demand now.
-      brokerRealtimeService.resume();
-      accountWsService.resume();
-      candlesWsService.resume();
-      wsService.resume();
+      recovery.request();
     }
 
     const subscription = AppState.addEventListener('change', (nextState) => {
@@ -418,12 +419,22 @@ function RootLayout() {
         suspendSocketDemand();
         return;
       }
-      resumeSocketDemand();
+      recovery.request();
+    });
+
+    const unsubscribeNetwork = NetInfo.addEventListener((state) => {
+      if (state.isConnected === true && state.isInternetReachable !== false) recovery.request();
+    });
+    const unsubscribeSession = subscribeActiveBrokerSession((event) => {
+      if (event.type === 'transition') suspendSocketDemand();
+      else recovery.request();
     });
 
     return () => {
-      lifecycleResumeEpochRef.current += 1;
+      recovery.dispose();
       subscription.remove();
+      unsubscribeNetwork();
+      unsubscribeSession();
     };
   }, [sessionRestoreComplete, isLoggedIn]);
 

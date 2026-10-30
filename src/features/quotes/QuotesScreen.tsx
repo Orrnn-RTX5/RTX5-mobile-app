@@ -40,6 +40,8 @@ import {
   useReplaceWatchlistMutation,
 } from '../../query/watchlist';
 import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
+import { formatBackendDailyChange } from '../../utils/backendDailyChange';
 import { AppHeader } from '../../ui/components/AppHeader';
 import { Screen } from '../../ui/components/Screen';
 import { resolveQuoteCardLayout, type QuoteCardLayout } from './quoteCardLayout';
@@ -873,10 +875,11 @@ const QuoteCard = React.memo(function QuoteCard({
       digits: 5,
     };
 
+  const hasDailyChange = Number.isFinite(item.changePct);
   const isUp = item.changePct >= 0;
   const POSITIVE = T.trading.profit;
   const NEGATIVE = T.trading.loss;
-  const color = isUp ? POSITIVE : NEGATIVE;
+  const color = hasDailyChange ? (isUp ? POSITIVE : NEGATIVE) : T.textMuted;
   // Card chrome always uses the Quotes surface palette (light #FFFFFF / dark #1E1E1E
   // via cardBackground + normal border). Quote freshness remains an execution and
   // tick-direction concern, but the row always presents the daily percentage change.
@@ -888,11 +891,7 @@ const QuoteCard = React.memo(function QuoteCard({
   const hasDelayedPrice = !noData && rowFreshness.status !== 'live';
 
   const displaySymbol = pairLabel(item.symbol);
-  const pct = `${isUp ? '+' : ''}${(item.changePct || 0).toFixed(2)}%`;
-  const priceDigits =
-    typeof item.digits === 'number' && Number.isFinite(item.digits)
-      ? item.digits
-      : 2;
+  const pct = formatBackendDailyChange(item.changePct);
 
   const bidDirection = item.prevBid
     ? item.bid > item.prevBid
@@ -1036,13 +1035,12 @@ const QuoteCard = React.memo(function QuoteCard({
               style={[sc.priceValue, { color: bidColor }]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.7}
             >
-              {noData ? '--' : fmt.price(item.bid, priceDigits)}
+              {noData ? '--' : formatBackendPrice(item.bid)}
             </Text>
             {!isSimpleMode && !noData && item.low > 0 && (
-              <Text style={[sc.lowHighText, { color: mutedText }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                L: {fmt.price(item.low, priceDigits)}
+              <Text style={[sc.lowHighText, { color: mutedText }]} numberOfLines={1} adjustsFontSizeToFit>
+                L: {formatBackendPrice(item.low)}
               </Text>
             )}
           </View>
@@ -1063,13 +1061,12 @@ const QuoteCard = React.memo(function QuoteCard({
               style={[sc.priceValue, { color: askColor }]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.7}
             >
-              {noData ? '--' : fmt.price(item.ask, priceDigits)}
+              {noData ? '--' : formatBackendPrice(item.ask)}
             </Text>
             {!isSimpleMode && !noData && item.high > 0 && (
-              <Text style={[sc.lowHighText, { color: mutedText }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                H: {fmt.price(item.high, priceDigits)}
+              <Text style={[sc.lowHighText, { color: mutedText }]} numberOfLines={1} adjustsFontSizeToFit>
+                H: {formatBackendPrice(item.high)}
               </Text>
             )}
           </View>
@@ -2691,7 +2688,7 @@ const QuotesScreenInner = React.memo(function QuotesScreenInner({ isScreenFocuse
         }
       });
     }, { routeChange: true });
-  }, [router, runQuoteSheetOption]);
+  }, [quoteFeedSymbolByDisplay, router, runQuoteSheetOption]);
 
   const goDetail = useCallback((sym: string) => {
     openQuoteInfoForSymbol('properties', sym);
@@ -2708,8 +2705,8 @@ const QuotesScreenInner = React.memo(function QuotesScreenInner({ isScreenFocuse
       // example XAUUSD while BTCUSD was opening), which is incorrect even for
       // a single frame. The history warm-up is exact backend candle data; it
       // never builds OHLC from Bid/Ask or another symbol.
-      const chartTimeframe = prepareChartSymbol(sym);
-      void prefetchChartSelectionHistory(sym, chartTimeframe);
+      const targetSymbol = quoteFeedSymbolByDisplay.get(sym) ?? sym; const chartTimeframe = prepareChartSymbol(targetSymbol); void prefetchChartSelectionHistory(targetSymbol, chartTimeframe);
+
 
       const revealRequestedChart = () => {
         const visualRevision = showFastTabVisual('chart');
@@ -2729,7 +2726,7 @@ const QuotesScreenInner = React.memo(function QuotesScreenInner({ isScreenFocuse
       // instead of exposing OHLC owned by the previous symbol.
       scheduleQuoteSheetVisualBoundary(revealRequestedChart);
     }, { routeChange: true });
-  }, [router, runQuoteSheetOption]);
+  }, [quoteFeedSymbolByDisplay, router, runQuoteSheetOption]);
 
   const openOrderTicketForSymbol = useCallback((sym: string) => {
     if (requestOrrnnDemoTradeAuth({
@@ -2754,7 +2751,7 @@ const QuotesScreenInner = React.memo(function QuotesScreenInner({ isScreenFocuse
         }
       });
     }, { routeChange: true });
-  }, [router, runQuoteSheetOption]);
+  }, [quoteFeedSymbolByDisplay, router, runQuoteSheetOption]);
 
   const quoteTapActionSheetConfigs = useMemo(() => {
     const configs = new Map<string, QuotesSymbolActionSheetConfig>();
@@ -2892,8 +2889,8 @@ const QuotesScreenInner = React.memo(function QuotesScreenInner({ isScreenFocuse
       // Quotes animation frame. A normal row tap still warms its exact symbol,
       // but only after the dedicated sheet has visibly settled.
       if (prefetchChartHistory) {
-        const { chartTimeframe } = useUserPreferences.getState();
-        void prefetchChartSelectionHistory(sym, chartTimeframe);
+        const { chartTimeframe } = useUserPreferences.getState(); const targetSymbol = quoteFeedSymbolByDisplay.get(sym) ?? sym; void prefetchChartSelectionHistory(targetSymbol, chartTimeframe);
+  
       }
       prepareOrderTicketLaunch(sym, 'quotes');
       prepareQuoteInfoLaunch(sym);
@@ -2920,7 +2917,7 @@ const QuotesScreenInner = React.memo(function QuotesScreenInner({ isScreenFocuse
       prepareDestinationShells,
       QUOTE_SHEET_DESTINATION_PREP_DELAY_MS + 16,
     );
-  }, [cancelPendingQuoteSheetDestinationPreparation]);
+  }, [cancelPendingQuoteSheetDestinationPreparation, quoteFeedSymbolByDisplay]);
 
   const openQuotesSymbolSheet = useCallback((
     config: QuotesSymbolActionSheetConfig,

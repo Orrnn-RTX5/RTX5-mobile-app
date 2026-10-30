@@ -10,6 +10,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import {
   createChartTradeSheetPortalController,
   type ChartTradeSheetPortalController,
@@ -155,6 +156,8 @@ type ChartTradeFeedbackPortalProps = PropsWithChildren<{
  * declared inside ChartScreen would otherwise be buried underneath it.
  */
 export function ChartTradeFeedbackPortal({ children, enabled }: ChartTradeFeedbackPortalProps) {
+  const isFocused = useIsFocused();
+  const portalEnabled = enabled && isFocused;
   const controller = useContext(ChartTradeFeedbackPortalContext);
   const ownerRef = useRef<symbol | null>(null);
   const latestChildrenRef = useRef<ReactNode>(children);
@@ -166,14 +169,14 @@ export function ChartTradeFeedbackPortal({ children, enabled }: ChartTradeFeedba
   const renderCurrent = useCallback(() => latestChildrenRef.current, []);
 
   useLayoutEffect(() => {
-    if (!controller || !enabled) {
+    if (!controller || !portalEnabled) {
       return undefined;
     }
     return controller.register(owner, renderCurrent);
-  }, [controller, enabled, owner, renderCurrent]);
+  }, [controller, portalEnabled, owner, renderCurrent]);
 
   useLayoutEffect(() => {
-    if (!controller || !enabled) {
+    if (!controller || !portalEnabled) {
       return;
     }
     // Full-screen entry; visibility is managed by the children themselves.
@@ -186,9 +189,10 @@ export function ChartTradeFeedbackPortal({ children, enabled }: ChartTradeFeedba
     if (!presentationChanged) {
       controller.invalidate(owner);
     }
-  }, [children, controller, enabled, owner]);
+  }, [children, controller, portalEnabled, owner]);
 
-  return controller && enabled ? null : <>{children}</>;
+  if (!isFocused) return null;
+  return controller && portalEnabled ? null : <>{children}</>;
 }
 
 const SubscribedChartTradeFeedbackPortalHost = memo(function SubscribedChartTradeFeedbackPortalHost({

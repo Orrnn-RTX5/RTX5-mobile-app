@@ -34,6 +34,8 @@ export type ChartOverlayPriceLine = {
   labelPlacement?: 'floating' | 'line';
   labelMinTop?: number;
   dragKey?: string;
+  positionControl?: import('../chartPositionControls').ChartPositionControl;
+  pendingOrderControl?: { ticket: number; sessionScope: string; dataContextSig: string; chartGeneration: number; symbol: string };
 };
 
 export type ChartOverlayMarkerPosition =

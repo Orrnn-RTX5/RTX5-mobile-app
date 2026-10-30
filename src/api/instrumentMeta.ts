@@ -12,6 +12,7 @@ export interface InstrumentMetaDTO {
   sector?: string;
   spreadMode?: string;
   stopsLevel?: string;
+  freezeLevel?: number;
   calculation?: string;
   chartMode?: string;
   contractSize?: number;
@@ -34,6 +35,15 @@ export interface InstrumentMetaDTO {
 }
 
 const instrumentMetaCache = new Map<string, InstrumentMetaDTO>();
+// Bootstrap, symbol discovery and metadata queries can consume the same parsed
+// response. Normalize it once without retaining response objects after their
+// owning request/query is collected. A fresh response always normalizes again.
+let normalizedCatalogs = new WeakMap<object, readonly InstrumentMetaDTO[]>();
+
+export const resetInstrumentMetaCache = (): void => {
+  instrumentMetaCache.clear();
+  normalizedCatalogs = new WeakMap();
+};
 
 const INSTRUMENT_LIST_KEYS = [
   'instruments',
@@ -404,6 +414,7 @@ export const normalizeInstrumentMetaPayload = (
   const maxVolume = pickPositiveNumber(record, MAX_VOLUME_FIELD_KEYS);
   const stepVolume = pickPositiveNumber(record, STEP_VOLUME_FIELD_KEYS);
   const stopsLevel = pickStringLikeField(record, STOPS_LEVEL_FIELD_KEYS);
+  const freezeLevel = pickFiniteNumber(record, ['freeze_level', 'freezeLevel', 'trade_freeze_level', 'FreezeLevel']);
   const swapLong = pickFiniteNumber(record, SWAP_LONG_FIELD_KEYS);
   const swapShort = pickFiniteNumber(record, SWAP_SHORT_FIELD_KEYS);
   const marginInitial = pickFiniteNumber(record, MARGIN_INITIAL_FIELD_KEYS);
@@ -462,6 +473,7 @@ export const normalizeInstrumentMetaPayload = (
   if (stopsLevel !== undefined) {
     meta.stopsLevel = stopsLevel;
   }
+  if (freezeLevel !== undefined && freezeLevel >= 0) meta.freezeLevel = freezeLevel;
 
   if (swapLong !== undefined) {
     meta.swapLong = swapLong;
@@ -552,13 +564,16 @@ const collectInstrumentItems = (value: unknown, items: unknown[], visited: Set<u
 };
 
 export const primeInstrumentMetaCacheFromCatalogPayload = (payload: unknown, scope?: string): void => {
-  const items: unknown[] = [];
-  collectInstrumentItems(payload, items, new Set());
-  for (const item of items) {
-    const meta = normalizeInstrumentMetaPayload(item);
-    if (meta.symbol) {
-      cacheInstrumentMeta(meta, scope);
-    }
+  if (!payload || typeof payload !== 'object') return;
+  let normalized = normalizedCatalogs.get(payload);
+  if (!normalized) {
+    const items: unknown[] = [];
+    collectInstrumentItems(payload, items, new Set());
+    normalized = items.map((item) => normalizeInstrumentMetaPayload(item)).filter((meta) => Boolean(meta.symbol));
+    normalizedCatalogs.set(payload, normalized);
+  }
+  for (const meta of normalized) {
+    cacheInstrumentMeta(meta, scope);
   }
 };
 

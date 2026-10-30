@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { useTheme, type ThemeColors } from '../theme/useTheme';
+import { useTranslation } from '../../i18n/useTranslation';
 import {
   ActivityIndicator,
   Modal,
@@ -14,7 +17,7 @@ import type { OtaUpdatePromptController } from '../../utils/otaUpdates';
 type OtaUpdateModalProps = OtaUpdatePromptController;
 
 /**
- * Blocking OTA install prompt. Uses RN Pressable (not FastPressable) so install
+ * OTA install prompt with safe deferral before installation. Uses RN Pressable (not FastPressable) so install
  * remains tappable even when the trading tree is unhealthy or gesture systems
  * are wedged after a crash recovery.
  */
@@ -25,16 +28,21 @@ export function OtaUpdateModal({
   errorMessage,
   onInstall,
   onRetry,
+  onDismiss,
 }: OtaUpdateModalProps) {
+  const T = useTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => makeStyles(T), [T]);
   const isInstalling = status === 'downloading' || status === 'restarting';
   const showProgress = isInstalling;
-  const buttonText = status === 'error' ? 'Retry install' : 'Install latest version';
+  const buttonText = t(status === 'error' ? 'Retry install' : 'Install latest version');
   const handlePress = status === 'error' ? onRetry : onInstall;
 
   return (
     <Modal
       visible={visible}
       transparent
+      onRequestClose={() => { if (!isInstalling) onDismiss(); }}
       animationType="fade"
       statusBarTranslucent
       presentationStyle="overFullScreen"
@@ -46,26 +54,26 @@ export function OtaUpdateModal({
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="always" canCancelContentTouches={Platform.OS === 'ios'}>
         <View style={styles.panel} accessibilityViewIsModal importantForAccessibility="yes">
           <Text style={styles.title}>
-            {status === 'error' ? 'Update failed' : 'Update available'}
+            {t(status === 'error' ? 'Update failed' : 'Update available')}
           </Text>
           <Text style={styles.message}>
             {status === 'error'
-              ? errorMessage ?? 'Please check your internet connection and try again.'
-              : 'Install the latest version to continue with the newest app update.'}
+              ? t(errorMessage ?? 'Please check your internet connection and try again.')
+              : t('Install the latest version to get the newest app update.')}
           </Text>
 
           {showProgress ? (
             <View style={styles.progressSection}>
               <View style={styles.progressHeader}>
                 <Text style={styles.progressLabel}>
-                  {status === 'restarting' ? 'Finishing update' : 'Installing update'}
+                  {t(status === 'restarting' ? 'Finishing update' : 'Installing update')}
                 </Text>
                 <Text style={styles.progressValue}>{progressPercent}%</Text>
               </View>
-              <View style={styles.progressTrack}>
+              <View style={styles.progressTrack} accessible accessibilityRole="progressbar" accessibilityLabel={t('Installing update')} accessibilityValue={{ min: 0, max: 100, now: progressPercent }}>
                 <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
               </View>
-              <ActivityIndicator color="#38bdf8" />
+              <ActivityIndicator color={T.accent} />
             </View>
           ) : null}
 
@@ -83,9 +91,14 @@ export function OtaUpdateModal({
             ]}
           >
             <Text style={styles.buttonText}>
-              {isInstalling ? 'Installing...' : buttonText}
+              {isInstalling ? t('Installing...') : buttonText}
             </Text>
           </Pressable>
+          {!isInstalling ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={t('Later')} onPress={onDismiss} style={styles.laterButton}>
+              <Text style={styles.laterText}>{t('Later')}</Text>
+            </Pressable>
+          ) : null}
         </View>
         </ScrollView>
       </SafeAreaView>
@@ -94,7 +107,7 @@ export function OtaUpdateModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (T: ThemeColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.78)',
@@ -111,20 +124,20 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.22)',
+    borderColor: T.border,
     padding: 20,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: T.glass2,
     elevation: 24,
     zIndex: 100000,
   },
   title: {
-    color: '#f8fafc',
+    color: T.text,
     fontSize: 20,
     fontWeight: '700',
   },
   message: {
     marginTop: 10,
-    color: '#cbd5e1',
+    color: T.textSub,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -139,12 +152,12 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     flexShrink: 1,
-    color: '#e2e8f0',
+    color: T.text,
     fontSize: 13,
     fontWeight: '600',
   },
   progressValue: {
-    color: '#38bdf8',
+    color: T.accent,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -152,12 +165,12 @@ const styles = StyleSheet.create({
     height: 8,
     overflow: 'hidden',
     borderRadius: 999,
-    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+    backgroundColor: T.glass3,
   },
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#38bdf8',
+    backgroundColor: T.accent,
   },
   button: {
     alignItems: 'center',
@@ -165,16 +178,18 @@ const styles = StyleSheet.create({
     minHeight: 52,
     marginTop: 22,
     borderRadius: 8,
-    backgroundColor: '#0ea5e9',
+    backgroundColor: T.accent,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   buttonPressed: {
-    backgroundColor: '#0284c7',
+    backgroundColor: T.accent,
   },
   buttonDisabled: {
     opacity: 0.72,
   },
+  laterButton: { minHeight: 48, marginTop: 8, alignItems: 'center', justifyContent: 'center' },
+  laterText: { color: T.textSub, fontSize: 15 },
   buttonText: {
     textAlign: 'center',
     color: '#ffffff',

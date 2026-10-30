@@ -30,7 +30,7 @@ test('trade markers reposition from their real price on every visible-range chan
   );
   assertSourceContains(
     repositionBody,
-    /anchoredLabelRecords\.sort\(function\(left, right\) \{ return left\.y - right\.y; \}\)[\s\S]*resolveAnchoredOverlayLabelTops\(anchoredLabelRecords\)[\s\S]*record\.node\.style\.top = labelTop/,
+    /anchoredLabelRecords\.sort\(function\(left, right\) \{ return left\.y - right\.y[^}]*; \}\)[\s\S]*resolveAnchoredOverlayLabelTops\(anchoredLabelRecords\)[\s\S]*record\.node\.style\.top = labelTop/,
     'reposition pass must rewrite trade labels through the shared vertical row layout',
   );
   assertSourceContains(
@@ -40,8 +40,8 @@ test('trade markers reposition from their real price on every visible-range chan
   );
   assertSourceContains(
     repositionBody,
-    /var rowY = resolveAnchoredOverlayRowY\(labelTop\)[\s\S]*record\.lineNode\.style\.top = rowY \+ 'px'[\s\S]*record\.boxNode\.style\.top = Math\.round\(rowY - OVERLAY_POSITION_BOX_HEIGHT \/ 2\) \+ 'px'/,
-    'each open-position connector and right-axis box must share the displayed row center',
+    /var rowY = record\.y[\s\S]*record\.lineNode\.style\.top = rowY \+ 'px'[\s\S]*record\.boxNode\.style\.top = Math\.round\(rowY - OVERLAY_POSITION_BOX_HEIGHT \/ 2\) \+ 'px'/,
+    'entry lines and price boxes must stay on the actual execution price',
   );
   assertSourceOmits(
     repositionBody,
@@ -248,9 +248,11 @@ test('vertical fling glides with unbounded reach and stays interruptible', () =>
     /startVerticalPanGlide\(flingVelocityPxMs, flingPricePerPixel, finalRange\)/,
     'finger-up with velocity must hand the pan to the kinetic glide',
   );
+  const pointerDown = source.match(/var onPointerDown = function\(event\) \{([\s\S]*?)\n {8}\};/);
+  assert.ok(pointerDown, 'chart pointer-down handler must exist');
   assertSourceContains(
-    source,
-    /var onPointerDown = function\(event\) \{[\s\S]{0,400}stopVerticalPanGlide\(\)/,
+    pointerDown[1],
+    /stopVerticalPanGlide\(\);[\s\S]*postChartTouchState\(true\)/,
     'touching the chart must catch the glide',
   );
   assertSourceContains(

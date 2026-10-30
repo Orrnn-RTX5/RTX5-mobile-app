@@ -50,23 +50,24 @@ const buildPendingSnapshot = (count = RAPID_TRADE_COUNT): ChartTradeReceiptSnaps
 const queueIds = (snapshot: ChartTradeReceiptSnapshot): number[] =>
   snapshot.map((entry) => entry.queueId);
 
-test('100 rapid pending trades are never truncated and remain newest-first', () => {
+test('100 rapid pending trades are never truncated and remain in click order from top to bottom', () => {
   const snapshot = buildPendingSnapshot();
   const ids = queueIds(snapshot);
 
   assert.equal(snapshot.length, RAPID_TRADE_COUNT);
   assert.equal(new Set(ids).size, RAPID_TRADE_COUNT);
-  assert.equal(ids[0], RAPID_TRADE_COUNT, 'the newest trade must be at the top');
-  assert.equal(ids.at(-1), 1, 'the first trade must remain at the bottom');
-  assert.deepEqual(ids, Array.from({ length: RAPID_TRADE_COUNT }, (_, index) => RAPID_TRADE_COUNT - index));
+  assert.equal(ids[0], 1, 'the first trade must remain at the top');
+  assert.equal(ids.at(-1), RAPID_TRADE_COUNT, 'the newest trade must appear at the bottom');
+  assert.deepEqual(ids, Array.from({ length: RAPID_TRADE_COUNT }, (_, index) => index + 1));
 });
 
-test('100 indistinguishable confirmations settle by queue identity without reordering', () => {
+test('100 out-of-order confirmations settle by queue identity without changing click order', () => {
   let snapshot = buildPendingSnapshot();
   const originalOrder = queueIds(snapshot);
 
-  for (let queueId = 1; queueId <= RAPID_TRADE_COUNT; queueId += 1) {
+  for (let queueId = RAPID_TRADE_COUNT; queueId >= 1; queueId -= 1) {
     snapshot = reduceChartTradeReceiptStack(snapshot, confirmedEvent(queueId));
+    assert.deepEqual(queueIds(snapshot), originalOrder, `confirmation ${queueId} must update its existing row`);
   }
 
   assert.deepEqual(queueIds(snapshot), originalOrder);
@@ -118,7 +119,7 @@ test('cancelled removes exactly its pending receipt', () => {
     status: 'cancelled',
   });
 
-  assert.deepEqual(queueIds(cancelled), [5, 4, 2, 1]);
+  assert.deepEqual(queueIds(cancelled), [1, 2, 4, 5]);
   assert.equal(cancelled.length, before.length - 1);
   for (const receipt of cancelled) {
     assert.equal(
@@ -218,10 +219,10 @@ test('terminal timers independently dismiss only their own rows and dispose clea
     assert.deepEqual([...scheduled.values()].map((timer) => timer.delay), [7, 7, 7]);
 
     scheduled.get(2)?.callback();
-    assert.deepEqual(queueIds(controller.getSnapshot()), [4, 3, 1]);
+    assert.deepEqual(queueIds(controller.getSnapshot()), [1, 3, 4]);
 
     scheduled.get(1)?.callback();
-    assert.deepEqual(queueIds(controller.getSnapshot()), [4, 3]);
+    assert.deepEqual(queueIds(controller.getSnapshot()), [3, 4]);
 
     controller.applyEvent(confirmedEvent(4));
     assert.equal(scheduled.size, 4);
@@ -256,4 +257,57 @@ test('controller source has no receipt-count cap or truncating slice', () => {
     /\b(?:RECEIPT|STACK|ROW|TRADE)[A-Z0-9_]*(?:MAX|LIMIT|CAP)[A-Z0-9_]*\s*=/i,
   );
   assert.match(source, /const next = snapshot\.slice\(\);/);
+});
+
+test('pendingDismissMs starts each popup 1s timer on click and never leaves popups stuck', () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const scheduled = new Map<number, {
+    callback: () => void;
+    delay: number | undefined;
+    cleared: boolean;
+  }>();
+  let nextTimerId = 1;
+
+  globalThis.setTimeout = ((callback: (...args: any[]) => void, delay?: number) => {
+    const timerId = nextTimerId++;
+    scheduled.set(timerId, {
+      callback: () => callback(),
+      delay,
+      cleared: false,
+    });
+    return timerId as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  globalThis.clearTimeout = ((timer: ReturnType<typeof setTimeout>) => {
+    const scheduledTimer = scheduled.get(Number(timer));
+    if (scheduledTimer) scheduledTimer.cleared = true;
+  }) as typeof clearTimeout;
+
+  try {
+    const controller = createChartTradeReceiptStackController({
+      pendingDismissMs: 1_000,
+      terminalDismissMs: 1_000,
+    });
+    controller.applyEvent(pendingEvent(1));
+    controller.applyEvent(pendingEvent(2));
+    assert.equal(scheduled.size, 2);
+    assert.deepEqual([...scheduled.values()].map((t) => t.delay), [1_000, 1_000]);
+
+    // Confirming within the 1s window replaces the pending timer with a full 1s terminal timer.
+    controller.applyEvent(confirmedEvent(1));
+    assert.equal(scheduled.size, 3);
+    assert.equal(scheduled.get(1)?.cleared, true);
+    assert.equal(scheduled.get(3)?.delay, 1_000);
+    assert.equal(controller.getSnapshot()[0]?.status, 'confirmed');
+
+    // Expiring in click sequence removes popups one by one after 1 second.
+    scheduled.get(3)?.callback();
+    assert.deepEqual(queueIds(controller.getSnapshot()), [2]);
+    scheduled.get(2)?.callback();
+    assert.deepEqual(queueIds(controller.getSnapshot()), []);
+    controller.dispose();
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
 });

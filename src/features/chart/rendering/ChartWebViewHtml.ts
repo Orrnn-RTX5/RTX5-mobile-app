@@ -1,3 +1,5 @@
+import { POSITION_CONTROLS_WEBVIEW_JS } from './positionControlsScript';
+import { VALUE_BASED_PRICE_WEBVIEW_JS } from "../../../utils/backendPrice";
 import { LIGHTWEIGHT_CHARTS_JS } from "./lightweightChartsBundle";
 import { RTX5_CUSTOM_CANDLESTICK_SERIES_WEBVIEW_JS } from "../../../domain/candles/rendering/customCandlestickSeriesWebView";
 import { ENHANCED_DRAWING_TOOLS_JS } from "../plugins/enhancedDrawingToolsString";
@@ -22,6 +24,7 @@ export const CH_HTML = `
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta name="color-scheme" content="light dark">
+    <script>${VALUE_BASED_PRICE_WEBVIEW_JS}</script>
     <script>${LIGHTWEIGHT_CHARTS_JS}</script>
     <script>${RTX5_CUSTOM_CANDLESTICK_SERIES_WEBVIEW_JS}</script>
 
@@ -30,6 +33,8 @@ export const CH_HTML = `
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; position: relative; }
       #chart { width: 100%; height: 100%; position: relative; z-index: 1; background: transparent; }
+      [data-trade-stop-drag-key] { touch-action: none; user-select: none; -webkit-user-select: none; cursor: ns-resize; }
+      [data-trade-stop-drag-key]::before { content: ''; position: absolute; inset: -12px 0; }
       .rtx5-chart-pane-background {
         position: absolute;
         pointer-events: none;
@@ -1266,7 +1271,7 @@ export const CH_HTML = `
 
       function resolveRightPriceScaleFallbackConfiguredDecimals() {
         return typeof lastDisplayDecimals === 'number' && isFinite(lastDisplayDecimals) && lastDisplayDecimals >= 0
-          ? Math.max(0, Math.min(8, Math.round(lastDisplayDecimals)))
+          ? Math.max(0, Math.min(10, Math.round(lastDisplayDecimals)))
           : null;
       }
 
@@ -1301,7 +1306,7 @@ export const CH_HTML = `
 
       function formatRightPriceScaleFallbackLabel(price, decimals) {
         var resolvedDecimals = resolveRightPriceScaleFallbackDecimals(decimals);
-        return Number(price).toFixed(resolvedDecimals);
+        return formatChartBrokerPrice(price);
       }
 
       function resolveRightPriceScaleFallbackStepDecimals(step) {
@@ -1501,7 +1506,7 @@ export const CH_HTML = `
           var y = labelTop + (labelBottom - labelTop) * ratio;
           appendInterpolatedTick(roundRightPriceScaleFallbackPrice(price, decimals), y);
         }
-        ticks.sort(function(left, right) { return left.y - right.y; });
+        ticks.sort(function(left, right) { return left.y - right.y || String(left.id || '').localeCompare(String(right.id || '')); });
         return ticks;
         var plotHeightPx = Math.max(1, metrics.plotHeight || 1);
         var targetLabelGap = resolveRightPriceScaleFallbackTargetLabelGap();
@@ -1636,7 +1641,7 @@ export const CH_HTML = `
           plotBottom - RIGHT_PRICE_SCALE_FALLBACK_LABEL_HEIGHT / 2,
           false
         );
-        ticks.sort(function(left, right) { return left.y - right.y; });
+        ticks.sort(function(left, right) { return left.y - right.y || String(left.id || '').localeCompare(String(right.id || '')); });
         return ticks;
       }
 
@@ -2910,6 +2915,13 @@ export const CH_HTML = `
         return /^(open-|order-entry-|order-stop-limit-|order-sl-|order-tp-|sl-|tp-|chart-trade-)/.test(line.id);
       }
 
+      function isPendingOrderDraftLine(line) {
+        return !!line && (
+          line.id === 'chart-trade-entry-preview' ||
+          line.id === 'chart-trade-stop-limit-preview'
+        );
+      }
+
       function shouldRenderRightAxisTradePriceBox(line) {
         if (!line || typeof line.id !== 'string') {
           return false;
@@ -2917,9 +2929,8 @@ export const CH_HTML = `
         if (/^(open-|order-entry-|order-stop-limit-|order-sl-|order-tp-|sl-|tp-)/.test(line.id)) {
           return true;
         }
-        // Only direct Market Execution protection drafts receive an MT5-style
-        // right-scale marker. Pending entry/stop-limit previews stay untouched.
-        return line.id === 'chart-trade-sl-preview' || line.id === 'chart-trade-tp-preview';
+        return isPendingOrderDraftLine(line) ||
+          line.id === 'chart-trade-sl-preview' || line.id === 'chart-trade-tp-preview';
       }
 
       function isTradeOverlayNearScaleRange(price, range) {
@@ -3542,7 +3553,10 @@ export const CH_HTML = `
       function healCollapsedPriceScaleRange(reason, allowManualReset) {
         try {
           void allowManualReset;
-          if (activeTradeLineDrag) {
+          // Check at execution time too: a recovery RAF may have been queued
+          // before the finger went down. No layout/scale repair owns that frame.
+          if (lastPostedChartTouchActive || isHorizontalScrollMotionActive()
+            || verticalPricePanGestureActive || chartScaleGestureActive || activeTradeLineDrag) {
             return;
           }
           if (!isRightPriceScaleLayoutHealthy()) {
@@ -3911,6 +3925,8 @@ export const CH_HTML = `
       function healVisiblePriceScaleDuringActiveScroll(reason) {
         try {
           if (
+            lastPostedChartTouchActive ||
+            isHorizontalScrollMotionActive() ||
             verticalPricePanGestureActive ||
             isManualVerticalPanRangePreserved() ||
             activeTradeLineDrag ||
@@ -4035,6 +4051,7 @@ export const CH_HTML = `
         // candle drag is the exception: it temporarily owns the price range.
         void attempt;
         try {
+          if (lastPostedChartTouchActive || isHorizontalScrollMotionActive() || chartScaleGestureActive) return;
           if (isManualVerticalPanRangeLocked() && forceAutoScale !== true) {
             applyManualVerticalPanLockedRange();
             postChartGeometry();
@@ -4445,6 +4462,7 @@ export const CH_HTML = `
         visibleRangeIdleTimer = setTimeout(function() {
           visibleRangeIdleTimer = null;
           if (
+            lastPostedChartTouchActive ||
             activeHorizontalScrollGesture ||
             verticalPricePanGestureActive ||
             chartScaleGestureActive ||
@@ -4459,6 +4477,10 @@ export const CH_HTML = `
           if (wasHorizontalMotionActive) {
             activeHorizontalScrollGestureUntil = Date.now() + ACTIVE_SCROLL_PRICE_SCALE_GESTURE_GRACE_MS;
           }
+          // Correct the live-side boundary once motion is idle. Rewriting the
+          // range inside every drag callback fights the library's scroll origin
+          // and kinetic animation, repeatedly snapping/blanking the canvas.
+          clampVisibleLogicalRangeToLiveEdge(getVisibleLogicalRangeSnapshot());
           applyDeferredHorizontalOverlayPayload();
           scheduleMovingVerticalGridUpdate(false);
           schedulePeriodSeparatorsUpdate(false);
@@ -4552,15 +4574,18 @@ export const CH_HTML = `
           return { x: x, y: y };
         };
 
-        var resolveTradeLineDragPrice = function(point) {
+        var resolveTradeLineDragPrice = function(point, dragState) {
           if (!point || !series || typeof series.coordinateToPrice !== 'function') {
             return null;
           }
-          var coordinatePrice = sanitizeOverlayDragPrice(series.coordinateToPrice(point.y));
+          var drag = dragState || activeTradeLineDrag;
+          var pointerOffset = drag && typeof drag.pointerOffsetY === 'number' && isFinite(drag.pointerOffsetY) ? drag.pointerOffsetY : 0;
+          var lineY = point.y - pointerOffset;
+          var coordinatePrice = sanitizeOverlayDragPrice(series.coordinateToPrice(lineY));
           if (typeof coordinatePrice === 'number' && isFinite(coordinatePrice) && coordinatePrice > 0) {
             return coordinatePrice;
           }
-          var lock = activeTradeLineDrag && activeTradeLineDrag.priceScaleRangeLock;
+          var lock = drag && drag.priceScaleRangeLock;
           if (!isValidPriceRange(lock)) {
             return null;
           }
@@ -4570,7 +4595,7 @@ export const CH_HTML = `
             return null;
           }
           var plotTop = metrics.plotTop || 0;
-          var normalizedY = (point.y - plotTop) / plotHeight;
+          var normalizedY = (lineY - plotTop) / plotHeight;
           var price = lock.to - normalizedY * (lock.to - lock.from);
           return sanitizeOverlayDragPrice(price);
         };
@@ -5274,11 +5299,17 @@ export const CH_HTML = `
           if (!pointFromEvent) return null;
           var point = getClampedRelativePoint(pointFromEvent.x, pointFromEvent.y);
           if (!point) return null;
-          var hit = pickDraggableOverlayLineAtY(point.y);
+          var handle = event.target && typeof event.target.closest === 'function'
+            ? event.target.closest('[data-trade-stop-drag-key]') : null;
+          var handleKey = handle && handle.getAttribute('data-trade-stop-drag-key');
+          var handleLine = handleKey && resolveDraggableOverlayPriceLines().find(function(line) { return line.dragKey === handleKey; });
+          var hit = handleLine ? { dragKey: handleLine.dragKey, price: handleLine.price, y: series.priceToCoordinate(handleLine.price) }
+            : pickDraggableOverlayLineAtY(point.y);
           if (!hit || !hit.dragKey) return null;
           return {
             hit: hit,
             pointFromEvent: pointFromEvent,
+            handle: !!handleLine,
           };
         };
 
@@ -5289,6 +5320,10 @@ export const CH_HTML = `
             hit = resolvedHit && resolvedHit.hit;
           }
           if (!hit || !hit.dragKey) return false;
+          var positionDragLine = ((_overlayPayload && _overlayPayload.priceLines) || []).find(function(line) { return line.dragKey === hit.dragKey; });
+          var positionDragControl = positionDragLine && positionDragLine.positionControl;
+          if (positionDragControl && (positionControlPending[positionDragControl.positionKey]
+            || positionControlModifyPending[positionDragControl.positionKey] || positionControlMutationPending[positionDragControl.positionKey])) return false;
           var startPrice = sanitizeOverlayDragPrice(hit.price);
           cancelChartTradeLineDragMove();
           // Capture the pointer so subsequent move/up events route to us
@@ -5319,17 +5354,22 @@ export const CH_HTML = `
               : null;
           activeTradeLineDrag = {
             dragKey: hit.dragKey,
+            startPrice: typeof startPrice === 'number' && isFinite(startPrice) ? startPrice : hit.price,
             lastPrice: typeof startPrice === 'number' && isFinite(startPrice) ? startPrice : hit.price,
             pointerX: startPoint && typeof startPoint.x === 'number' ? startPoint.x : null,
             pointerY: startPoint && typeof startPoint.y === 'number' ? startPoint.y : hit.y,
+            pointerOffsetY: startPoint && typeof startPoint.y === 'number' && typeof hit.y === 'number' ? startPoint.y - hit.y : 0,
             pointerId: capturedPointerId,
             prevTouchAction: prevTouchAction,
             priceScaleRangeLock: captureTradeLineDragPriceScaleLock(),
+            logicalRangeLock: getVisibleLogicalRangeSnapshot(),
             manualRangeBeforeDrag: manualRangeBeforeDrag,
             manualReferenceSpanBeforeDrag: manualReferenceSpanBeforeDrag,
           };
           prepareTradeLineMagnifierSources();
           suspendChartTouchInteractions();
+          // Reapplying the current range also stops the chart's kinetic scroll.
+          keepTradeLineDragTimeScaleLocked(true);
           pendingPointerTap = null;
           vertPanState = null;
           vertPanPending = null;
@@ -5345,17 +5385,36 @@ export const CH_HTML = `
           return true;
         };
 
+        var pendingPositionStopHold = null;
+        var cancelPositionStopHold = function() {
+          if (pendingPositionStopHold) clearTimeout(pendingPositionStopHold.timer);
+          pendingPositionStopHold = null;
+        };
         var beginTradeLineDragFromHit = function(event, resolvedHit) {
           if (!resolvedHit || !resolvedHit.hit || !resolvedHit.hit.dragKey) {
             return false;
           }
-          // SL/TP is direct manipulation: capture the line on pointer-down so
-          // a normal vertical swipe cannot be cancelled by a hold timer.
+          if (/^position-stop:/.test(resolvedHit.hit.dragKey) && !resolvedHit.handle) {
+            cancelPositionStopHold();
+            var point = getClientPoint(event);
+            if (!point) return false;
+            var pending = { x:point.x, y:point.y, timer:null };
+            pending.timer = setTimeout(function() {
+              if (pendingPositionStopHold !== pending) return;
+              pendingPositionStopHold = null;
+              beginTradeLineDrag(event, resolvedHit.hit);
+            }, 320);
+            pendingPositionStopHold = pending;
+            return false;
+          }
+          // Draft levels retain their existing direct manipulation.
           return beginTradeLineDrag(event, resolvedHit.hit);
         };
 
         var continueTradeLineDrag = function(event) {
           if (!activeTradeLineDrag) return false;
+          keepTradeLineDragTimeScaleLocked(false);
+          keepTradeLineDragPriceScaleLocked(activeTradeLineDrag.priceScaleRangeLock);
           var pointFromEvent = getClientPoint(event);
           if (!pointFromEvent) {
             stopChartEvent(event);
@@ -5391,6 +5450,7 @@ export const CH_HTML = `
 
         var finishTradeLineDrag = function(event, cancelled) {
           if (!activeTradeLineDrag) return false;
+          keepTradeLineDragTimeScaleLocked(false);
           var drag = activeTradeLineDrag;
           activeTradeLineDrag = null;
           hideTradeLineMagnifier();
@@ -5408,12 +5468,15 @@ export const CH_HTML = `
             var pointFromEvent = getClientPoint(event);
             var point = pointFromEvent ? getTradeLineDragPoint(pointFromEvent.x, pointFromEvent.y) : null;
             if (point) {
-              var finalPrice = resolveTradeLineDragPrice(point);
+              var finalPrice = resolveTradeLineDragPrice(point, drag);
               if (typeof finalPrice === 'number' && isFinite(finalPrice) && finalPrice > 0) {
                 drag.lastPrice = finalPrice;
                 updateDraggedOverlayLinePreview(drag.dragKey, finalPrice);
               }
             }
+          } else if (typeof drag.startPrice === 'number' && isFinite(drag.startPrice) && drag.startPrice > 0) {
+            drag.lastPrice = drag.startPrice;
+            updateDraggedOverlayLinePreview(drag.dragKey, drag.startPrice);
           }
 
           cancelChartTradeLineDragMove();
@@ -5429,7 +5492,7 @@ export const CH_HTML = `
             // ownership on an otherwise auto-owned chart.
             enableRightPriceAutoScale();
           }
-          postChartTradeLineDrag('end', drag.dragKey, roundOverlayDragPrice(drag.lastPrice) || drag.lastPrice);
+          postChartTradeLineDrag(cancelled ? 'cancel' : 'end', drag.dragKey, roundOverlayDragPrice(drag.lastPrice) || drag.lastPrice);
           pendingPointerTap = null;
           scheduleTradeLineDragDomRefresh();
           stopChartEvent(event);
@@ -5437,6 +5500,8 @@ export const CH_HTML = `
         };
 
         var onPointerDown = function(event) {
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('[data-pending-order]')) return;
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('.rtx5-overlay-trade-label button')) return;
           rememberPointerDown(event);
           cancelFreshSeriesVerticalCenter();
           // Touching the chart catches an in-flight kinetic vertical glide,
@@ -5460,6 +5525,7 @@ export const CH_HTML = `
             return;
           }
           if (isScaleGestureEvent(event)) {
+            finishTradeLineDrag(event, true);
             horizontalScrollMotionActive = false;
             chartScaleGestureActive = true;
             clearCompletedChartTap();
@@ -5469,6 +5535,15 @@ export const CH_HTML = `
           }
           var point = getClientPoint(event);
           if (!point) return;
+          // A labelled SL/TP handle owns its exact level, including on the axis.
+          // Bare axis touches retain their normal price-scale gesture.
+          var stopHandleHit = resolveTradeLineDragHitFromEvent(event);
+          if (stopHandleHit && stopHandleHit.handle) {
+            beginTradeLineDragFromHit(event, stopHandleHit);
+            clearCompletedChartTap();
+            stopChartEvent(event);
+            return;
+          }
           if (isRightPriceScaleGesturePoint(point.x, point.y)) {
             if (isVerticalChartMovementBlocked()) {
               pendingPointerTap = null;
@@ -5500,6 +5575,12 @@ export const CH_HTML = `
         };
 
         var onPointerMove = function(event) {
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('[data-pending-order]')) return;
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('.rtx5-overlay-trade-label button')) return;
+          if (pendingPositionStopHold) {
+            var holdPoint = getClientPoint(event);
+            if (!holdPoint || isScaleGestureEvent(event) || Math.hypot(holdPoint.x - pendingPositionStopHold.x, holdPoint.y - pendingPositionStopHold.y) > 8) cancelPositionStopHold();
+          }
           if (isCrosshairInteractionActive()) return;
           if (isScaleGestureEvent(event)) {
             horizontalScrollMotionActive = false;
@@ -5583,6 +5664,9 @@ export const CH_HTML = `
         };
 
         var onPointerUp = function(event) {
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('[data-pending-order]')) return;
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('.rtx5-overlay-trade-label button')) return;
+          cancelPositionStopHold();
           if (isCrosshairInteractionActive()) {
             releasePointer(event);
             pendingPointerTap = null;
@@ -5683,6 +5767,7 @@ export const CH_HTML = `
         };
 
         var onPointerCancel = function(event) {
+          cancelPositionStopHold();
           clearCompletedChartTap();
           if (finishTradeLineDrag(event, true)) {
             releasePointer(event);
@@ -5745,6 +5830,8 @@ export const CH_HTML = `
         };
 
         var onClick = function(event) {
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('[data-pending-order]')) return;
+          if (event.target && typeof event.target.closest === 'function' && event.target.closest('.rtx5-overlay-trade-label button')) return;
           if (Date.now() <= suppressNextChartClickUntil || Date.now() <= suppressChartTapUntil) {
             return;
           }
@@ -5757,6 +5844,10 @@ export const CH_HTML = `
         };
 
         var onWindowPointerMove = function(event) {
+          if (pendingPositionStopHold) {
+            var holdPoint = getClientPoint(event);
+            if (!holdPoint || isScaleGestureEvent(event) || Math.hypot(holdPoint.x - pendingPositionStopHold.x, holdPoint.y - pendingPositionStopHold.y) > 8) cancelPositionStopHold();
+          }
           if (activeTradeLineDrag) {
             continueTradeLineDrag(event);
             return;
@@ -5771,6 +5862,7 @@ export const CH_HTML = `
         };
 
         var onWindowPointerUp = function(event) {
+          cancelPositionStopHold();
           if (finishTradeLineDrag(event, false)) {
             releasePointer(event);
             if (activePointerCount <= 0) {
@@ -5790,6 +5882,7 @@ export const CH_HTML = `
         };
 
         var onWindowPointerCancel = function(event) {
+          cancelPositionStopHold();
           if (finishTradeLineDrag(event, true)) {
             releasePointer(event);
             if (activePointerCount <= 0) {
@@ -5835,6 +5928,7 @@ export const CH_HTML = `
         window.addEventListener('touchcancel', onWindowPointerCancel, listenerOptions);
         el.addEventListener('click', onClick, true);
         detachChartTapListeners = function() {
+          cancelPositionStopHold();
           if (supportsPointerEvents) {
             el.removeEventListener('pointerdown', onPointerDown, listenerOptions);
             el.removeEventListener('pointermove', onPointerMove, listenerOptions);
@@ -5994,6 +6088,10 @@ export const CH_HTML = `
       function clampVisibleLogicalRangeToLiveEdge(range) {
         try {
           if (liveRightEdgeClampActive) return false;
+          // The library owns all active gesture frames, including momentum.
+          // The shared idle pass enforces the same boundary after release.
+          if (lastPostedChartTouchActive || isHorizontalScrollMotionActive()
+            || verticalPricePanGestureActive || chartScaleGestureActive || activeTradeLineDrag) return false;
           if (!chart || !chart.timeScale || typeof chart.timeScale().setVisibleLogicalRange !== 'function') return false;
           if (
             !range ||
@@ -6100,8 +6198,29 @@ export const CH_HTML = `
         return null;
       }
 
+      function keepTradeLineDragTimeScaleLocked(force) {
+        var lock = activeTradeLineDrag && activeTradeLineDrag.logicalRangeLock;
+        if (!lock || tradeLineTimeScaleLockActive || !chart || !chart.timeScale ||
+            !isFinite(lock.from) || !isFinite(lock.to) || lock.to <= lock.from) return false;
+        var current = getVisibleLogicalRangeSnapshot();
+        if (!force && current && Math.abs(current.from - lock.from) < 0.000001 &&
+            Math.abs(current.to - lock.to) < 0.000001) return false;
+        var timeScaleApi = chart.timeScale();
+        if (!timeScaleApi || typeof timeScaleApi.setVisibleLogicalRange !== 'function') return false;
+        tradeLineTimeScaleLockActive = true;
+        try {
+          timeScaleApi.setVisibleLogicalRange({ from: lock.from, to: lock.to });
+          return true;
+        } catch (_dragRangeErr) {
+          return false;
+        } finally {
+          tradeLineTimeScaleLockActive = false;
+        }
+      }
+
       function shouldFollowLiveRightEdge(range, lengthOverride) {
         try {
+          if (activeTradeLineDrag) return false;
           if (
             !range ||
             typeof range.from !== 'number' ||
@@ -6126,6 +6245,7 @@ export const CH_HTML = `
 
       function followLiveRightEdge(previousRange, lengthOverride) {
         try {
+          if (activeTradeLineDrag) return false;
           if (
             !previousRange ||
             typeof previousRange.from !== 'number' ||
@@ -6317,12 +6437,23 @@ export const CH_HTML = `
       };
       window.__rtx5RestoreManualPriceScale = restoreManualPriceScale;
 
+      function formatChartBrokerPrice(value) {
+        var price = Number(value);
+        return isFinite(price) ? price.toFixed(Math.max(0, Math.min(10, lastDisplayDecimals))) : '--';
+      }
+
+      var lastBrokerPriceStep = 0;
+      function setBrokerPriceStep(step) {
+        lastBrokerPriceStep = typeof step === 'number' && isFinite(step) && step > 0 ? step : 0;
+        setDisplayDecimals(lastDisplayDecimals);
+      }
       function makePriceFormat(displayDecimals) {
         var decimals = (typeof displayDecimals === 'number' && displayDecimals >= 0) ? displayDecimals : 2;
         return {
-          type: 'price',
+          type: 'custom',
+          formatter: formatChartBrokerPrice,
           precision: decimals,
-          minMove: 1 / Math.pow(10, decimals)
+          minMove: lastBrokerPriceStep > 0 ? lastBrokerPriceStep : 1 / Math.pow(10, decimals)
         };
       }
 
@@ -7060,6 +7191,7 @@ export const CH_HTML = `
             typeof chart.timeScale().subscribeVisibleLogicalRangeChange === 'function'
           ) {
             chart.timeScale().subscribeVisibleLogicalRangeChange(function(range) {
+              if (keepTradeLineDragTimeScaleLocked(false)) return;
               if (clampVisibleLogicalRangeToLiveEdge(range)) {
                 return;
               }
@@ -8430,7 +8562,8 @@ export const CH_HTML = `
         dataContextSig,
         paintToken,
         displayDecimals,
-        requestId
+        requestId,
+        preparedData
       ) {
         var requestedDataContextSig =
           typeof dataContextSig === 'string' ? dataContextSig : '';
@@ -8451,6 +8584,14 @@ export const CH_HTML = `
             return false;
           }
 
+          // Native may prepare an exact timeframe's REST history while the
+          // confirmed chart stays visible. Use the same guarded activation
+          // transaction for its first visit as for a warm revisit.
+          if (Array.isArray(preparedData) && preparedData.length > 0) {
+            rememberCachedChartContextSnapshot(
+              requestedDataContextSig, seriesType, preparedData, displayDecimals
+            );
+          }
           var cachedSnapshot = readCachedChartContextSnapshot(
             requestedDataContextSig,
             seriesType
@@ -8576,6 +8717,8 @@ export const CH_HTML = `
           });
         } catch (_logErr) {}
         series.update(bar);
+        // New bars can shift the time scale even with touch scrolling disabled.
+        keepTradeLineDragTimeScaleLocked(false);
         refreshAreaSeriesDirection(false);
         if (window._drawingManager && typeof window._drawingManager.refreshCrosshairData === 'function') {
           try { window._drawingManager.refreshCrosshairData(); } catch (_crosshairRefreshErr) {}
@@ -9481,6 +9624,7 @@ export const CH_HTML = `
       // (open-trade lines are DOM-only with native lineVisible:false).
       var _overlayDomNodesByKey = Object.create(null);
       var activeTradeLineDrag = null;
+      var tradeLineTimeScaleLockActive = false;
       var suppressNextChartClickUntil = 0;
       var TRADE_LINE_DRAG_HIT_SLOP = 30;
       var CHART_TRADE_LINE_DRAG_NATIVE_MOVE_INTERVAL_MS = 96;
@@ -10043,7 +10187,8 @@ export const CH_HTML = `
       // recomputes each node's y from the trade's REAL price via
       // series.priceToCoordinate on every visible-range change — including
       // active pan / pinch / momentum frames — so markers stay glued to their
-      // price while the chart moves. Price-line nodes are never rebuilt here;
+      // price while the chart moves. The position action bars use the same
+      // price projection as their entry lines and axis boxes. Price-line nodes are never rebuilt here;
       // keyed closed-trade connectors are recalculated from their two exact
       // coordinates and pruned independently when history changes.
       function repositionTradeOverlayDomNodes() {
@@ -10081,6 +10226,7 @@ export const CH_HTML = `
             if (!lineNode && !labelNode && !boxNode) continue;
             var y = series.priceToCoordinate(ln.price);
             if (typeof y !== 'number' || !isFinite(y)) continue;
+            renderPendingOrderDraftAdornment(_overlayLabelLayer, ln, y, bounds, null);
             var visibility = isTradeOverlayYInsidePane(y, bounds) ? 'visible' : 'hidden';
             var isOpenPosition = isOpenPositionOverlayLine(ln);
             if (lineNode) {
@@ -10090,15 +10236,22 @@ export const CH_HTML = `
               lineNode.style.visibility = visibility;
             }
             if (labelNode) {
-              applyAnchoredOverlayLabelLane(
+              if (!ln.positionControl) applyAnchoredOverlayLabelLane(
                 labelNode,
                 isOpenPosition ? openPositionLabelLane : anchoredLabelLane
               );
+              if (isPendingOrderDraftLine(ln) || ln.id.indexOf('order-entry-') === 0) applyPendingOrderDraftLabelLayout(labelNode);
               labelNode.style.visibility = visibility;
             }
             if (labelNode || isOpenPosition) {
               anchoredLabelRecords.push({
                 boxNode: boxNode,
+                positionControl: ln.positionControl,
+                labelSideText: ln.labelSideText,
+                labelSideColor: ln.labelSideColor,
+                labelValueText: ln.labelValueText,
+                labelValueColor: ln.labelValueColor,
+                color: ln.color,
                 id: ln.id,
                 isOpenPosition: isOpenPosition,
                 labelMinTop: typeof ln.labelMinTop === 'number' && isFinite(ln.labelMinTop)
@@ -10112,21 +10265,25 @@ export const CH_HTML = `
             }
             if (boxNode) {
               if (!isOpenPosition) {
-                boxNode.style.top = Math.round(y - OVERLAY_POSITION_BOX_HEIGHT / 2) + 'px';
+                var boxHeight = isPendingOrderDraftLine(ln) ? 14 : OVERLAY_POSITION_BOX_HEIGHT;
+                boxNode.style.top = Math.round(y - boxHeight / 2) + 'px';
               }
               boxNode.style.visibility = visibility;
             }
           }
-          anchoredLabelRecords.sort(function(left, right) { return left.y - right.y; });
+          anchoredLabelRecords.sort(function(left, right) { return left.y - right.y || String(left.id || '').localeCompare(String(right.id || '')); });
           var anchoredLabelTops = resolveAnchoredOverlayLabelTops(anchoredLabelRecords);
           for (var labelIndex = 0; labelIndex < anchoredLabelRecords.length; labelIndex++) {
             var record = anchoredLabelRecords[labelIndex];
             var labelTop = anchoredLabelTops[labelIndex];
             if (record.node) {
               record.node.style.top = labelTop + 'px';
+              if (record.positionControl && record.isOpenPosition) {
+                renderPositionControl(record.node, record, labelTop, _overlayLabelLayer, [], 'label:anchored:' + record.id);
+              }
             }
             if (record.isOpenPosition) {
-              var rowY = resolveAnchoredOverlayRowY(labelTop);
+              var rowY = record.y;
               if (record.lineNode) {
                 record.lineNode.style.top = rowY + 'px';
               }
@@ -10179,15 +10336,23 @@ export const CH_HTML = `
         return Number(price).toFixed(decimals);
       }
 
+      var positionStopDragRequestId = 0;
       function postChartTradeLineDrag(phase, dragKey, price) {
         if (!dragKey) return;
         try {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
+          var lines = (_overlayPayload && _overlayPayload.priceLines) || [];
+          var dragLine = lines.find(function(line) { return line.dragKey === dragKey; });
+          var control = dragLine && dragLine.positionControl;
+          if (control && phase === 'start') positionStopDragRequestId = ++positionControlRequestId;
+          window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({}, control || {}, {
+            dataContextSig: lastInitDataContextSig,
+            requestId: control ? positionStopDragRequestId : undefined,
+            levelRole: dragKey.indexOf('position-stop:sl:') === 0 ? 'sl' : 'tp',
             type: 'CHART_TRADE_LINE_DRAG',
             phase: phase,
             dragKey: dragKey,
             price: typeof price === 'number' && isFinite(price) ? price : null,
-          }));
+          })));
         } catch (_e) {}
       }
 
@@ -10295,7 +10460,7 @@ export const CH_HTML = `
           : [];
         var nextLines = lines.map(function(line) {
           if (line && line.dragKey === dragKey) {
-            return Object.assign({}, line, { price: price });
+            return withDraggedOverlayLinePrice(line, price);
           }
           return line;
         });
@@ -10304,7 +10469,7 @@ export const CH_HTML = `
           _appliedOverlayPayload = Object.assign({}, _appliedOverlayPayload, {
             priceLines: _appliedOverlayPayload.priceLines.map(function(line) {
               if (line && line.dragKey === dragKey) {
-                return Object.assign({}, line, { price: price });
+                return withDraggedOverlayLinePrice(line, price);
               }
               return line;
             }),
@@ -10323,11 +10488,38 @@ export const CH_HTML = `
         return Object.assign({}, payload, {
           priceLines: payload.priceLines.map(function(line) {
             if (line && line.dragKey === activeTradeLineDrag.dragKey) {
-              return Object.assign({}, line, { price: activeTradeLineDrag.lastPrice });
+              return withDraggedOverlayLinePrice(line, activeTradeLineDrag.lastPrice);
             }
             return line;
           }),
         });
+      }
+
+      function isTradeStopDragKey(dragKey) {
+        return dragKey === 'sl' || dragKey === 'tp' || /^position-stop:(?:sl|tp):/.test(dragKey || '');
+      }
+
+      function withDraggedOverlayLinePrice(line, price) {
+        if (!isTradeStopDragKey(line.dragKey)) return Object.assign({}, line, { price: price });
+        var role = line.dragKey === 'sl' || /^position-stop:sl:/.test(line.dragKey) ? 'SL' : 'TP';
+        var value = formatChartBrokerPrice(price);
+        return Object.assign({}, line, { price: price, title: role + ' ' + value, labelSideText: role, labelValueText: value });
+      }
+
+      function configureTradeStopDragHandle(node, line) {
+        var enabled = isTradeStopDragKey(line && line.dragKey);
+        if (enabled) {
+          node.setAttribute('data-trade-stop-drag-key', line.dragKey);
+          node.setAttribute('aria-label', (line.dragKey === 'sl' || /^position-stop:sl:/.test(line.dragKey) ? 'Stop loss' : 'Take profit')
+            + ' ' + formatChartBrokerPrice(line.price) + '. Drag vertically to change price.');
+          node.style.pointerEvents = 'auto';
+          node.style.overflow = 'visible';
+          node.style.touchAction = 'none';
+        } else {
+          node.removeAttribute('data-trade-stop-drag-key');
+          node.removeAttribute('aria-label');
+          node.style.touchAction = '';
+        }
       }
 
       function isActiveSltpDragLine(line) {
@@ -10344,13 +10536,16 @@ export const CH_HTML = `
           /^position-stop:(?:sl|tp):/.test(line.dragKey);
       }
 
-      function resolveActiveSltpDragLine() {
+      function resolveActiveTradeLineMagnifierLine() {
         if (!activeTradeLineDrag) return null;
         var lines = Array.isArray(_overlayPayload && _overlayPayload.priceLines)
           ? _overlayPayload.priceLines
           : [];
         for (var i = 0; i < lines.length; i++) {
-          if (isActiveSltpDragLine(lines[i])) {
+          if (isActiveSltpDragLine(lines[i]) || (
+            isPendingOrderDraftLine(lines[i]) &&
+            lines[i].dragKey === activeTradeLineDrag.dragKey
+          )) {
             return lines[i];
           }
         }
@@ -10426,7 +10621,7 @@ export const CH_HTML = `
 
       function prepareTradeLineMagnifierSources() {
         discardTradeLineMagnifierSources();
-        if (!resolveActiveSltpDragLine()) {
+        if (!resolveActiveTradeLineMagnifierLine()) {
           hideTradeLineMagnifier();
           return;
         }
@@ -10630,7 +10825,7 @@ export const CH_HTML = `
 
       function renderTradeLineMagnifier() {
         try {
-          var activeLine = resolveActiveSltpDragLine();
+          var activeLine = resolveActiveTradeLineMagnifierLine();
           if (!activeLine || !series || typeof series.priceToCoordinate !== 'function') {
             hideTradeLineMagnifier();
             return;
@@ -10746,6 +10941,61 @@ export const CH_HTML = `
         label.style.textAlign = 'center';
       }
 
+      function applyPendingOrderDraftLabelLayout(label) {
+        var metrics = resolvePrimaryPaneMetrics();
+        label.style.left = (Math.max(0, Math.round(metrics.leftAxisWidth || 0)) + 4) + 'px';
+        label.style.width = 'auto';
+        label.style.maxWidth = Math.max(0, Math.round(metrics.paneWidth || 0) - 8) + 'px';
+        label.style.textAlign = 'left';
+      }
+
+      function renderPendingOrderDraftAdornment(layer, line, y, bounds, liveKeys) {
+        if (!layer || !isPendingOrderDraftLine(line) || typeof y !== 'number' || !isFinite(y)) return;
+        var metrics = resolvePrimaryPaneMetrics();
+        var paneLeft = Math.max(0, Math.round(metrics.leftAxisWidth || 0));
+        var paneWidth = Math.max(0, Math.round(metrics.paneWidth || 0));
+        if (!(paneWidth > 0)) return;
+        var visible = isTradeOverlayYInsidePane(y, bounds);
+        var ringKey = 'line:pending-handle:' + line.id;
+        if (liveKeys) liveKeys.push(ringKey);
+        var ring = upsertOverlayDomNode(layer, ringKey, 'rtx5-pending-order-drag-handle');
+        if (ring) {
+          ring.style.position = 'absolute';
+          ring.style.left = (paneLeft + paneWidth / 2 - 5) + 'px';
+          ring.style.top = (y - 5) + 'px';
+          ring.style.width = '10px';
+          ring.style.height = '10px';
+          ring.style.boxSizing = 'border-box';
+          ring.style.border = '2px solid ' + (line.color || '#2962FF');
+          ring.style.borderRadius = '50%';
+          ring.style.background = '#FFFFFF';
+          ring.style.pointerEvents = 'none';
+          ring.style.zIndex = '19';
+          ring.style.visibility = visible ? 'visible' : 'hidden';
+        }
+        if (line.id !== 'chart-trade-stop-limit-preview') return;
+        var edgeKey = 'label:pending-edge:' + line.id;
+        if (liveKeys) liveKeys.push(edgeKey);
+        var edge = upsertOverlayDomNode(layer, edgeKey, 'rtx5-pending-order-edge-label');
+        if (!edge) return;
+        var above = !bounds || y < bounds.top;
+        edge.textContent = (line.title || 'STOP LIMIT PRICE') + (above ? ' ▲' : ' ▼');
+        edge.style.position = 'absolute';
+        edge.style.left = paneLeft + 'px';
+        edge.style.width = Math.max(0, paneWidth - 3) + 'px';
+        edge.style.top = (bounds ? (above ? bounds.top + 2 : bounds.bottom - 16) : 2) + 'px';
+        edge.style.color = line.color || '#000000';
+        edge.style.fontSize = '12px';
+        edge.style.fontWeight = '400';
+        edge.style.height = '14px';
+        edge.style.lineHeight = '14px';
+        edge.style.textAlign = 'right';
+        edge.style.whiteSpace = 'nowrap';
+        edge.style.pointerEvents = 'none';
+        edge.style.zIndex = '19';
+        edge.style.visibility = visible || !bounds ? 'hidden' : 'visible';
+      }
+
       function resolveAnchoredOverlayLabelTops(labels) {
         var tops = [];
         var anchoredStep = Math.max(
@@ -10756,11 +11006,16 @@ export const CH_HTML = `
         for (var i = 0; i < labels.length; i++) {
           var item = labels[i];
           var top = Math.round(item.y - OVERLAY_LABEL_LINE_HEIGHT - OVERLAY_LABEL_LINE_GAP);
-          // Open positions always stay on their real price coordinate. Close
+          if (isPendingOrderDraftLine(item)) top = Math.round(item.y - OVERLAY_LABEL_LINE_HEIGHT - 2);
+          var isPendingEntry = typeof item.id === 'string' && item.id.indexOf('order-entry-') === 0;
+          if (isPendingEntry) top = Math.round(item.y - 12);
+          // Open-position price lines stay on their real price coordinate. Close
           // entries may overlap at the default scale; zooming the price scale
           // naturally separates them as its numeric interval becomes finer.
-          // Draft/order/SL/TP labels retain their existing collision layout.
-          if (!isOpenPositionOverlayLine(item) && item.paneVisible !== false) {
+          // Pending entries and drafts also stay on their exact line. SL/TP
+          // labels retain their existing collision layout. Position action bars
+          // receive their centered price coordinates below.
+          if (!isOpenPositionOverlayLine(item) && !isPendingOrderDraftLine(item) && !isPendingEntry && item.paneVisible !== false) {
             if (typeof item.labelMinTop === 'number' && isFinite(item.labelMinTop)) {
               top = Math.max(top, Math.round(item.labelMinTop));
             }
@@ -10771,6 +11026,9 @@ export const CH_HTML = `
           }
           tops[i] = top;
         }
+        var positionControls = labels.map(function(item, index) { return { item:item, index:index }; })
+          .filter(function(record) { return record.item.positionControl && isOpenPositionOverlayLine(record.item); });
+        if (positionControls.length) resolvePricePositionControlTops(positionControls, tops);
         return tops;
       }
 
@@ -10810,7 +11068,7 @@ export const CH_HTML = `
           : 'hidden';
         line.style.width = paneWidth + 'px';
         line.style.height = '0px';
-        // Keep the dot spacing while rendering the open-trade stroke as a hairline.
+        // Render the open-trade entry stroke as a hairline.
         line.style.transformOrigin = 'top left';
         line.style.transform = isOpenPositionOverlayLine(item) ? 'scaleY(0.5)' : 'none';
         line.style.borderTop =
@@ -10919,8 +11177,7 @@ export const CH_HTML = `
       }
 
       function formatMarketPriceScaleBadgeLabel(price) {
-        var decimals = resolveOverlayDisplayDecimals();
-        return Number(price).toFixed(decimals);
+        return formatChartBrokerPrice(price);
       }
 
       function collectMarketPriceScaleBadge(layer, axisMetrics, price, color, role) {
@@ -11065,7 +11322,7 @@ export const CH_HTML = `
       function formatMoveDirectionOverlayBadgeLabel(value) {
         var decimals =
           typeof lastDisplayDecimals === 'number' && isFinite(lastDisplayDecimals) && lastDisplayDecimals >= 0
-            ? Math.min(8, Math.max(0, Math.floor(lastDisplayDecimals)))
+            ? Math.min(10, Math.max(0, Math.floor(lastDisplayDecimals)))
             : resolveOverlayDisplayDecimals();
         var rounded = Number(value).toFixed(decimals);
         if (value > 0) {
@@ -11139,6 +11396,8 @@ export const CH_HTML = `
         el.style.zIndex = '14';
       }
 
+      ${POSITION_CONTROLS_WEBVIEW_JS}
+
       function refreshOverlayDomLabels(payload) {
         try {
           // NEVER wipe the whole overlay layer on routine refreshes.
@@ -11167,12 +11426,16 @@ export const CH_HTML = `
             if (typeof series.priceToCoordinate !== 'function') continue;
             var y = series.priceToCoordinate(ln.price);
             if (typeof y !== 'number' || !isFinite(y)) continue;
+            renderPendingOrderDraftAdornment(layer, ln, y, tradeOverlayPaneBounds, liveOverlayKeys);
             var labelRecord = {
               paneVisible: isTradeOverlayYInsidePane(y, tradeOverlayPaneBounds),
               color: ln.color || '#2962FF',
-              drawAnchoredTradeLine: ln.labelPlacement === 'line',
+              drawAnchoredTradeLine: ln.labelPlacement === 'line' || isPendingOrderDraftLine(ln),
+              price: ln.price,
               dragKey: typeof ln.dragKey === 'string' ? ln.dragKey : '',
               id: ln.id || '',
+              positionControl: ln.positionControl,
+              pendingOrderControl: ln.pendingOrderControl,
               labelSideColor: typeof ln.labelSideColor === 'string' && ln.labelSideColor ? ln.labelSideColor : '',
               labelSideText: typeof ln.labelSideText === 'string' ? ln.labelSideText : '',
               labelValueColor: typeof ln.labelValueColor === 'string' && ln.labelValueColor ? ln.labelValueColor : '',
@@ -11189,7 +11452,7 @@ export const CH_HTML = `
               floatingLabels.push(labelRecord);
             }
           }
-          floatingLabels.sort(function(left, right) { return left.y - right.y; });
+          floatingLabels.sort(function(left, right) { return left.y - right.y || String(left.id || '').localeCompare(String(right.id || '')); });
           var step = OVERLAY_LABEL_HEIGHT + OVERLAY_LABEL_GAP;
           var tops = [];
           for (var j = 0; j < floatingLabels.length; j++) {
@@ -11199,7 +11462,7 @@ export const CH_HTML = `
             }
             tops[j] = desiredTop;
           }
-          anchoredLabels.sort(function(left, right) { return left.y - right.y; });
+          anchoredLabels.sort(function(left, right) { return left.y - right.y || String(left.id || '').localeCompare(String(right.id || '')); });
           var anchoredTops = resolveAnchoredOverlayLabelTops(anchoredLabels);
           var anchoredLabelLane = resolveAnchoredOverlayLabelLane(layer, false);
           var openPositionLabelLane = resolveAnchoredOverlayLabelLane(layer, true);
@@ -11218,9 +11481,15 @@ export const CH_HTML = `
             liveOverlayKeys.push(key);
             var label = upsertOverlayDomNode(layer, key, 'rtx5-overlay-trade-label');
             if (!label) return;
+            if (isOpenPositionOverlayLine(item) && item.positionControl) {
+              renderPositionControl(label, item, top, layer, liveOverlayKeys, key);
+              return;
+            }
             var hasSplitTradeLabel = !!(item.labelSideText && item.labelValueText);
             var isAnchoredTradeLabel = item.drawAnchoredTradeLine === true;
             var isOpenPositionTradeLabel = isOpenPositionOverlayLine(item);
+            var isPendingDraftLabel = isPendingOrderDraftLine(item);
+            var isPendingEntryLabel = typeof item.id === 'string' && item.id.indexOf('order-entry-') === 0;
             var activeAnchoredLabelLane = isOpenPositionTradeLabel
               ? openPositionLabelLane
               : anchoredLabelLane;
@@ -11255,10 +11524,8 @@ export const CH_HTML = `
                 label.appendChild(valueSpan);
               }
               sideSpan.textContent = item.labelSideText;
-              sideSpan.style.color = isOpenPositionTradeLabel
-                ? (item.labelValueColor || item.color)
-                : (item.labelSideColor || item.color);
-              separatorSpan.textContent = ', ';
+              sideSpan.style.color = item.labelSideColor || item.color;
+              separatorSpan.textContent = isPendingEntryLabel ? ' ' : ', ';
               separatorSpan.style.color = sideSpan.style.color;
               valueSpan.textContent = item.labelValueText;
               valueSpan.style.color = item.labelValueColor || item.color;
@@ -11311,18 +11578,41 @@ export const CH_HTML = `
               label.style.maxWidth = labelMaxWidth + 'px';
               label.style.textAlign = 'left';
             }
+            if (isPendingDraftLabel || isPendingEntryLabel) applyPendingOrderDraftLabelLayout(label);
             label.style.top = top + 'px';
             label.style.color = item.labelSideColor || item.color;
-            label.style.fontSize = hasSplitTradeLabel ? '9px' : '12px';
+            label.style.fontSize = isPendingEntryLabel ? '11px' : hasSplitTradeLabel ? '9px' : '12px';
             label.style.fontWeight = '700';
-            label.style.height = OVERLAY_LABEL_LINE_HEIGHT + 'px';
-            label.style.lineHeight = OVERLAY_LABEL_LINE_HEIGHT + 'px';
+            if (isPendingDraftLabel) label.style.fontWeight = '400';
+            label.style.height = isPendingEntryLabel ? '24px' : OVERLAY_LABEL_LINE_HEIGHT + 'px';
+            label.style.lineHeight = isPendingEntryLabel ? '22px' : OVERLAY_LABEL_LINE_HEIGHT + 'px';
+            label.style.boxSizing = isPendingEntryLabel ? 'border-box' : 'content-box';
+            label.style.backgroundColor = isPendingEntryLabel ? (lastChartBackgroundColor || '#FFFFFF') : 'transparent';
+            label.style.border = isPendingEntryLabel ? '1px solid ' + item.color : 'none';
+            label.style.borderRadius = isPendingEntryLabel ? '3px' : '0';
+            label.style.padding = isPendingEntryLabel ? '0 5px' : '0';
+            if (isPendingEntryLabel) {
+              label.setAttribute('aria-label', item.text);
+              label.setAttribute('title', item.text);
+            }
             label.style.whiteSpace = 'nowrap';
             label.style.overflow = 'hidden';
             label.style.textOverflow = 'ellipsis';
             label.style.textShadow = 'none';
             label.style.zIndex = isAnchoredTradeLabel ? '18' : '11';
-            label.style.pointerEvents = 'none';
+            label.style.pointerEvents = item.pendingOrderControl ? 'auto' : 'none';
+            if (item.pendingOrderControl) {
+              label.setAttribute('data-pending-order', String(item.pendingOrderControl.ticket));
+              label.style.cursor = 'pointer';
+              label.onclick = function(event) {
+                if (event) { event.preventDefault(); event.stopPropagation(); }
+                window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({}, item.pendingOrderControl, { type: 'CHART_PENDING_ORDER_ACTION' })));
+              };
+            } else {
+              label.removeAttribute('data-pending-order');
+              label.onclick = null;
+            }
+            configureTradeStopDragHandle(label, item);
             if (isAnchoredTradeLabel) {
               // Clip labels of off-pane trades instead of deleting them; the
               // node stays keyed and reappears when the price scrolls back.
@@ -11346,12 +11636,10 @@ export const CH_HTML = `
               anchoredItem,
               lineKey,
               isOpenPositionOverlayLine(anchoredItem)
-                ? openPositionRowYById[anchoredItem.id]
+                ? anchoredItem.y
                 : anchoredItem.y
             );
-            if (!isActiveSltpDragLine(anchoredItem)) {
-              renderLabel(anchoredItem, anchoredTop, 'label:anchored:' + (anchoredItem.id || anchoredIndex));
-            }
+            renderLabel(anchoredItem, anchoredTop, 'label:anchored:' + (anchoredItem.id || anchoredIndex));
           }
 
           // MT5-parity: render OUTLINED right-axis price box for every
@@ -11373,19 +11661,19 @@ export const CH_HTML = `
           for (var pi = 0; pi < lines.length; pi++) {
             var pln = lines[pi];
             if (!shouldRenderRightAxisTradePriceBox(pln)) continue;
-            if (isActiveSltpDragLine(pln)) continue;
             if (typeof pln.price !== 'number' || !isFinite(pln.price)) continue;
             if (typeof series.priceToCoordinate !== 'function') continue;
             var isOpenPositionBox = isOpenPositionOverlayLine(pln);
+            var isPendingDraftBox = isPendingOrderDraftLine(pln);
             var boxKey = Number(pln.price).toFixed(boxDecimals);
-            if (!isOpenPositionBox && seenBoxLevels[boxKey]) continue;
+            if (!isOpenPositionBox && !isPendingDraftBox && seenBoxLevels[boxKey]) continue;
             var ry = series.priceToCoordinate(pln.price);
             if (typeof ry !== 'number' || !isFinite(ry)) continue;
-            if (!isOpenPositionBox) {
+            if (!isOpenPositionBox && !isPendingDraftBox) {
               seenBoxLevels[boxKey] = true;
             }
             var sharedRowY = isOpenPositionBox && typeof openPositionRowYById[pln.id] === 'number'
-              ? openPositionRowYById[pln.id]
+              ? ry
               : ry;
             var desiredBoxTop = Math.round(sharedRowY - POSITION_BOX_HEIGHT / 2);
             var positionBox = {
@@ -11394,8 +11682,11 @@ export const CH_HTML = `
               top: desiredBoxTop,
               color: pln.color || '#2962FF',
               price: pln.price,
-              text: boxKey,
+              text: formatChartBrokerPrice(pln.price),
               id: pln.id,
+              pendingDraft: isPendingDraftBox,
+              pendingEntry: typeof pln.id === 'string' && pln.id.indexOf('order-entry-') === 0,
+              dragKey: isTradeStopDragKey(pln.dragKey) ? pln.dragKey : undefined,
             };
             if (isOpenPositionBox) {
               openPositionBoxes.push(positionBox);
@@ -11407,7 +11698,7 @@ export const CH_HTML = `
           var positionBoxStep = POSITION_BOX_HEIGHT + resolvePositionBoxGap(positionBoxes.length);
           for (var boxLayoutIndex = 0; boxLayoutIndex < positionBoxes.length; boxLayoutIndex++) {
             var nextBoxTop = positionBoxes[boxLayoutIndex].desiredTop;
-            if (boxLayoutIndex > 0) {
+            if (boxLayoutIndex > 0 && !positionBoxes[boxLayoutIndex].pendingDraft && !positionBoxes[boxLayoutIndex].pendingEntry) {
               nextBoxTop = Math.max(nextBoxTop, positionBoxes[boxLayoutIndex - 1].top + positionBoxStep);
             }
             positionBoxes[boxLayoutIndex].top = nextBoxTop;
@@ -11416,6 +11707,7 @@ export const CH_HTML = `
           positionBoxes.sort(function(left, right) { return left.top - right.top; });
           for (var bi = 0; bi < positionBoxes.length; bi++) {
             var box = positionBoxes[bi];
+            var renderedBoxHeight = box.pendingDraft ? 14 : POSITION_BOX_HEIGHT;
             var boxNodeKey = 'box:' + (box.id || box.text);
             liveOverlayKeys.push(boxNodeKey);
             var boxEl = upsertOverlayDomNode(layer, boxNodeKey, 'rtx5-position-price-scale-box');
@@ -11426,25 +11718,26 @@ export const CH_HTML = `
             // scale, not floating beside it. Use the same measured axis strip
             // as the bid/ask badges so panning the chart cannot detach them.
             boxEl.style.left = (positionBoxMetrics ? positionBoxMetrics.axisLeft : Math.max(0, (layer.clientWidth || 0) - 72)) + 'px';
-            boxEl.style.top = Math.round(box.top) + 'px';
+            boxEl.style.top = Math.round(box.pendingDraft ? box.y - renderedBoxHeight / 2 : box.top) + 'px';
             boxEl.style.width = (positionBoxMetrics ? positionBoxMetrics.axisWidth : Math.min(72, layer.clientWidth || 72)) + 'px';
-            boxEl.style.background = '#FFFFFF';
+            boxEl.style.background = box.pendingEntry ? (lastChartBackgroundColor || '#FFFFFF') : '#FFFFFF';
             boxEl.style.color = box.color;
             boxEl.style.border = '1px solid ' + box.color;
-            boxEl.style.borderRadius = '2px';
-            boxEl.style.fontSize = '11px';
-            boxEl.style.fontWeight = '700';
+            boxEl.style.borderRadius = box.pendingDraft ? '0' : '2px';
+            boxEl.style.fontSize = box.pendingDraft ? '12px' : '11px';
+            boxEl.style.fontWeight = box.pendingDraft ? '400' : '700';
             boxEl.style.padding = '0 2px';
-            boxEl.style.height = POSITION_BOX_HEIGHT + 'px';
-            boxEl.style.lineHeight = POSITION_BOX_HEIGHT + 'px';
+            boxEl.style.height = renderedBoxHeight + 'px';
+            boxEl.style.lineHeight = renderedBoxHeight + 'px';
             boxEl.style.boxSizing = 'border-box';
             boxEl.style.textAlign = 'right';
             boxEl.style.whiteSpace = 'nowrap';
             boxEl.style.overflow = 'hidden';
             boxEl.style.pointerEvents = 'none';
+            configureTradeStopDragHandle(boxEl, box);
             boxEl.style.fontVariantNumeric = 'tabular-nums';
             boxEl.style.fontFeatureSettings = '"tnum" 1, "lnum" 1';
-            boxEl.style.zIndex = '16';
+            boxEl.style.zIndex = box.pendingDraft ? '20' : '16';
             // Same clip-don't-delete rule as the trade line itself: gate on
             // the RAW price coordinate so stacking offsets cannot smear an
             // off-pane trade's box back into the visible axis strip.
@@ -11750,6 +12043,12 @@ export const CH_HTML = `
             if (!Object.prototype.hasOwnProperty.call(patchById, id)) continue;
             var nextPatch = patchById[id];
             var label = _overlayDomNodesByKey['label:anchored:' + id];
+            if (label && label._rtx5ValueSpan) {
+              if (label._positionControl && label._positionControl.groupPositionIds && label._positionControl.groupPositionIds.length > 1) continue;
+              label._rtx5ValueSpan.textContent = nextPatch.labelValueText;
+              label._rtx5ValueSpan.style.color = nextPatch.labelValueColor;
+              continue;
+            }
             if (!label || label.childNodes.length !== 3) continue;
             var valueSpan = label.childNodes[2];
             if (!valueSpan || valueSpan.nodeName !== 'SPAN') continue;
@@ -11757,9 +12056,7 @@ export const CH_HTML = `
             valueSpan.style.color = nextPatch.labelValueColor;
             var sideSpan = label.childNodes[0];
             var separatorSpan = label.childNodes[1];
-            if (sideSpan && sideSpan.nodeName === 'SPAN') {
-              sideSpan.style.color = nextPatch.labelValueColor;
-            }
+            // BUY/SELL color belongs to the side, not the floating result.
             if (separatorSpan && separatorSpan.nodeName === 'SPAN') {
               separatorSpan.style.color = nextPatch.labelValueColor;
             }

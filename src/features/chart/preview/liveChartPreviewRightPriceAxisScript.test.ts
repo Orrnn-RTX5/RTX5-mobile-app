@@ -59,7 +59,7 @@ class FakeElement {
   }
 }
 
-const evaluateAxisRuntime = () => {
+const evaluateAxisRuntime = (displayDecimals = 2) => {
   const chartHost = new FakeElement();
   const callbacks: Array<() => void> = [];
   const logicalRangeListeners: Listener[] = [];
@@ -94,7 +94,7 @@ const evaluateAxisRuntime = () => {
   const windowObject: Record<string, any> = {
     _fullChartParity: true,
     _lastChartData: [{ time: 1, open: 1, high: 2, low: 1, close: 2 }],
-    _previewDisplayDecimals: 2,
+    _previewDisplayDecimals: displayDecimals,
   };
   const sandbox: Record<string, any> = {
     Math,
@@ -183,5 +183,19 @@ test('split price-axis runtime refreshes values and detaches without owning gest
   harness.window.clearPreviewRightPriceAxis();
   assert.equal(harness.chartHost.children.length, 0);
   assert.equal(harness.logicalRangeListeners.length, 0);
+});
+
+test('Android split-axis labels use value-based decimals even when broker metadata specifies one digit', () => {
+  const harness = evaluateAxisRuntime(1);
+  harness.window.installPreviewRightPriceAxis();
+  harness.flush();
+  const layer = harness.chartHost.children[0];
+  const labels = layer.children.filter(child => child.className === 'rtx5-preview-right-price-axis-label');
+  assert.ok(labels.length > 0);
+  for (const label of labels) assert.match(label.textContent, /^\d+\.\d{2}$/);
+  harness.setPriceOffset(-199);
+  harness.window.schedulePreviewRightPriceAxisRefresh();
+  harness.flush();
+  assert.match(labels[0].textContent, /^-?\d\.\d{4}$/);
 });
 

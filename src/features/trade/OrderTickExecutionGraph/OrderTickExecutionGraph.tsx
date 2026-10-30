@@ -3,8 +3,9 @@
  * latest-tick price labels on the right axis. Pure presentation; the
  * `LiveOrderTickExecutionGraph` wrapper subscribes to live data.
  */
+import { formatBackendPrice } from '../../../utils/backendPrice';
 import React, { useMemo, useState } from 'react';
-import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, LayoutChangeEvent, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Svg, { G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { clampValue, isValidTickPoint, resolveFallbackTickSize } from './tickHelpers';
 import { useOrderExecutionTicks } from './useOrderExecutionTicks';
@@ -37,7 +38,11 @@ export const OrderTickExecutionGraph = React.memo(function OrderTickExecutionGra
   isDark = false,
   backgroundColor,
 }: OrderTickExecutionGraphProps) {
-  const [layoutWidth, setLayoutWidth] = useState(0);
+  const { width: windowWidth } = useWindowDimensions();
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  const layoutWidth = measuredWidth > 0
+    ? measuredWidth
+    : Math.max(0, Math.round(windowWidth - 32));
   // Keep the embedded execution graph visually attached to the parent order
   // sheet. Without these theme-aware drawing colors, dark mode still showed a
   // light graph card at the bottom of the SL/TP flow.
@@ -66,16 +71,19 @@ export const OrderTickExecutionGraph = React.memo(function OrderTickExecutionGra
   );
 
   const { chartMin, chartMax } = useMemo(() => {
-    const bidValues = visibleTicks.map((tick) => tick.bid);
-    const askValues = visibleTicks.map((tick) => tick.ask);
-    const allValues = [...bidValues, ...askValues];
-
-    if (allValues.length === 0) {
+    if (visibleTicks.length === 0) {
       return { chartMin: 0, chartMax: fallbackTickSize * 6 };
     }
 
-    const minPrice = Math.min(...allValues);
-    const maxPrice = Math.max(...allValues);
+    let minPrice = Number.POSITIVE_INFINITY;
+    let maxPrice = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < visibleTicks.length; i += 1) {
+      const tick = visibleTicks[i];
+      if (tick.bid < minPrice) minPrice = tick.bid;
+      if (tick.ask < minPrice) minPrice = tick.ask;
+      if (tick.bid > maxPrice) maxPrice = tick.bid;
+      if (tick.ask > maxPrice) maxPrice = tick.ask;
+    }
     const pricePadding = (maxPrice - minPrice) * 0.15 || fallbackTickSize;
 
     return {
@@ -106,23 +114,24 @@ export const OrderTickExecutionGraph = React.memo(function OrderTickExecutionGra
   const yForPrice = (price: number) =>
     GRAPH_TOP_PADDING + plotHeight - ((price - chartMin) / chartSpan) * plotHeight;
 
-  const buildTracePath = (values: number[]) => {
-    if (values.length === 0) return '';
+  const buildTracePath = (side: 'bid' | 'ask') => {
+    const total = visibleTicks.length;
+    if (total === 0) return '';
 
-    let path = `M ${xForTick(0, values.length)} ${yForPrice(values[0])}`;
-    for (let index = 1; index < values.length; index += 1) {
-      path += ` L ${xForTick(index, values.length)} ${yForPrice(values[index])}`;
+    let path = `M ${xForTick(0, total)} ${yForPrice(visibleTicks[0][side])}`;
+    for (let index = 1; index < total; index += 1) {
+      path += ` L ${xForTick(index, total)} ${yForPrice(visibleTicks[index][side])}`;
     }
     return path;
   };
 
   const askPath = useMemo(
-    () => (layoutWidth > 0 ? buildTracePath(visibleTicks.map((tick) => tick.ask)) : ''),
-    [layoutWidth, visibleTicks],
+    () => (layoutWidth > 0 ? buildTracePath('ask') : ''),
+    [layoutWidth, visibleTicks, chartMin, chartSpan, plotWidth, plotHeight],
   );
   const bidPath = useMemo(
-    () => (layoutWidth > 0 ? buildTracePath(visibleTicks.map((tick) => tick.bid)) : ''),
-    [layoutWidth, visibleTicks],
+    () => (layoutWidth > 0 ? buildTracePath('bid') : ''),
+    [layoutWidth, visibleTicks, chartMin, chartSpan, plotWidth, plotHeight],
   );
 
   const priceLevels = useMemo(
@@ -154,12 +163,15 @@ export const OrderTickExecutionGraph = React.memo(function OrderTickExecutionGra
   }, [latestTick, plotHeight]);
 
   const handleLayout = (event: LayoutChangeEvent) => {
-    setLayoutWidth(event.nativeEvent.layout.width);
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    if (nextWidth > 0) {
+      setMeasuredWidth((current) => (current === nextWidth ? current : nextWidth));
+    }
   };
 
   return (
     <View style={[styles.card, { height, backgroundColor: surfaceColor }]} onLayout={handleLayout}>
-      {layoutWidth > 0 ? (
+      {layoutWidth > 0 && visibleTicks.length > 0 ? (
         <Svg width={layoutWidth} height={height}>
           {priceLevels.map((priceLevel, index) => {
             const y = yForPrice(priceLevel);
@@ -191,7 +203,7 @@ export const OrderTickExecutionGraph = React.memo(function OrderTickExecutionGra
               x={priceLabelX} y={yForPrice(priceLevel) + 4}
               fill={labelColor} fontSize="10" fontWeight="500" textAnchor="end"
             >
-              {priceLevel.toFixed(priceDecimals)}
+              {formatBackendPrice(priceLevel)}
             </SvgText>
           ))}
 
@@ -203,7 +215,7 @@ export const OrderTickExecutionGraph = React.memo(function OrderTickExecutionGra
             x={priceLabelX} y={graphBottomGuideY + 4}
             fill={labelColor} fontSize="10" fontWeight="500" textAnchor="end"
           >
-            {bottomGuidePriceLevel.toFixed(priceDecimals)}
+            {formatBackendPrice(bottomGuidePriceLevel)}
           </SvgText>
 
           {latestTick ? (
@@ -218,24 +230,26 @@ export const OrderTickExecutionGraph = React.memo(function OrderTickExecutionGra
               <G x={layoutWidth - GRAPH_BADGE_WIDTH - GRAPH_BADGE_GAP} y={badgePositions.askTop}>
                 <Rect width={GRAPH_BADGE_WIDTH} height={GRAPH_BADGE_HEIGHT} rx={5} fill={askColor} />
                 <SvgText x={GRAPH_BADGE_WIDTH / 2} y={GRAPH_BADGE_HEIGHT / 2 + 3} fill="#FFFFFF" fontSize="9" fontWeight="700" textAnchor="middle">
-                  {latestTick.ask.toFixed(priceDecimals)}
+                  {formatBackendPrice(latestTick.ask)}
                 </SvgText>
               </G>
               <G x={layoutWidth - GRAPH_BADGE_WIDTH - GRAPH_BADGE_GAP} y={badgePositions.bidTop}>
                 <Rect width={GRAPH_BADGE_WIDTH} height={GRAPH_BADGE_HEIGHT} rx={5} fill={bidColor} />
                 <SvgText x={GRAPH_BADGE_WIDTH / 2} y={GRAPH_BADGE_HEIGHT / 2 + 3} fill="#FFFFFF" fontSize="9" fontWeight="700" textAnchor="middle">
-                  {latestTick.bid.toFixed(priceDecimals)}
+                  {formatBackendPrice(latestTick.bid)}
                 </SvgText>
               </G>
             </>
           ) : null}
         </Svg>
-      ) : null}
+      ) : <ActivityIndicator accessibilityLabel="Loading live prices" style={{ height }} />}
     </View>
   );
 });
 
-export function LiveOrderTickExecutionGraph(props: LiveOrderTickExecutionGraphProps) {
+export const LiveOrderTickExecutionGraph = React.memo(function LiveOrderTickExecutionGraph(
+  props: LiveOrderTickExecutionGraphProps,
+) {
   const ticks = useOrderExecutionTicks(props);
 
   return (
@@ -249,7 +263,7 @@ export function LiveOrderTickExecutionGraph(props: LiveOrderTickExecutionGraphPr
       backgroundColor={props.backgroundColor}
     />
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

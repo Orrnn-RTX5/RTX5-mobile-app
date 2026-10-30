@@ -92,7 +92,13 @@ async function launch() {
     tunnel: !reuseOnly && connection.hostType === 'tunnel',
     projectRoot,
     sdkVersion: startOptions.useExpoGo ? `exposdk:${sdkVersion}` : undefined,
+    readManifest: (port) => readMetroManifest(port, {
+      onRetry: () => console.log('[expo:start] Metro is still preparing its manifest; retrying...'),
+    }),
     lanHost: env.REACT_NATIVE_PACKAGER_HOSTNAME,
+    lanAddresses: Object.values(networkInterfaces()).flat()
+      .filter((address) => address && !address.internal)
+      .map((address) => address.address),
     onLanReuse: (url) => {
       printProjectQr(url);
     },
@@ -213,6 +219,6 @@ async function launch() {
 }
 
 launch().catch((error) => {
-  console.error(`[android:usb] ${error.message}`);
+  console.error(`[expo:start] ${error.message}`);
   process.exitCode = 1;
 });

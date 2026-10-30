@@ -178,7 +178,7 @@ export const useSavedAccounts = create<SavedAccountsState>()(
           // hasCredentials should never regress from true → false on a
           // backfill upsert (e.g. AccountsScreen recording the current
           // session before the user has typed their password into the form
-          // post-update). A true value can only be cleared by removeAccount.
+          // post-update). Secure password removal explicitly clears this flag.
           const previousEnvironment: AccountEnvironmentState | null =
             existing && existing.accountType !== 'unknown'
               ? {
@@ -202,7 +202,9 @@ export const useSavedAccounts = create<SavedAccountsState>()(
               mergedEnvironment?.accountEnvironmentSource
               ?? account.accountEnvironmentSource,
             rawGroup: account.rawGroup || existing?.rawGroup,
-            hasCredentials: account.hasCredentials || !!existing?.hasCredentials,
+            hasCredentials:
+              account.hasCredentials
+              || (existing ? existing.hasCredentials : savedCredentialKeys.has(accountKey)),
           };
           return { accounts: [merged, ...others] };
         });
@@ -304,14 +306,23 @@ export const makeSavedAccountCredentialKey = (brokerId: string, login: string) =
   `rtx5_saved_account_pass.${encodeCredentialKeyPart(brokerId)}.${encodeCredentialKeyPart(login)}`;
 
 const enqueueCredentialOperation = createSavedAccountCredentialQueue();
+const savedCredentialKeys = new Set<string>();
 
 export async function setSavedAccountPassword(
   brokerId: string,
   login: string,
   password: string,
 ): Promise<void> {
-  await enqueueCredentialOperation(makeSavedAccountCredentialKey(brokerId, login), () =>
-    setSecureItemAsync(makeSavedAccountCredentialKey(brokerId, login), password));
+  await enqueueCredentialOperation(makeSavedAccountCredentialKey(brokerId, login), async () => {
+    await setSecureItemAsync(makeSavedAccountCredentialKey(brokerId, login), password);
+    const accountKey = buildAccountEnvironmentKey(brokerId, login);
+    savedCredentialKeys.add(accountKey);
+    useSavedAccounts.setState((state) => ({
+      accounts: state.accounts.map((account) =>
+        buildAccountEnvironmentKey(account.brokerId, account.login) === accountKey
+          ? { ...account, hasCredentials: true } : account),
+    }));
+  });
 }
 
 export async function getSavedAccountPassword(
@@ -326,6 +337,16 @@ export async function removeSavedAccountPassword(
   brokerId: string,
   login: string,
 ): Promise<void> {
-  await enqueueCredentialOperation(makeSavedAccountCredentialKey(brokerId, login), () =>
-    removeSecureItemAsync(makeSavedAccountCredentialKey(brokerId, login)));
+  await enqueueCredentialOperation(makeSavedAccountCredentialKey(brokerId, login), async () => {
+    await removeSecureItemAsync(makeSavedAccountCredentialKey(brokerId, login));
+    const accountKey = buildAccountEnvironmentKey(brokerId, login);
+    if (typeof savedCredentialKeys !== 'undefined') {
+      savedCredentialKeys.delete(accountKey);
+    }
+    useSavedAccounts.setState((state) => ({
+      accounts: state.accounts.map((account) =>
+        buildAccountEnvironmentKey(account.brokerId, account.login) === accountKey
+          ? { ...account, hasCredentials: false } : account),
+    }));
+  });
 }

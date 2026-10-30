@@ -34,7 +34,7 @@ test('trade summary keeps equity in expanded details, not the floating pnl heade
   assert.match(details, /\{t\('Equity'\)\}[\s\S]*\{fmt\.decimal\(safeEquity\)\}/);
 });
 
-test('trade floating pnl readout stays blank until a position is open', () => {
+test('trade floating pnl readout remains visible when collapsed and is blank with no open positions', () => {
   const { hero, summarySource } = summaryHeaderHalves();
 
   const gateStart = hero.indexOf('{hasOpenPositions ? (');
@@ -46,12 +46,12 @@ test('trade floating pnl readout stays blank until a position is open', () => {
   assert.notEqual(gateEnd, -1);
   assert.ok(
     gateStart < valueIndex && valueIndex < gateEnd,
-    'the floating P/L value must sit inside the hasOpenPositions gate',
+    'the floating P/L value and currency depend only on having open positions',
   );
 
   assert.match(hero, /hasOpenPositions: boolean/);
   assert.match(summarySource, /hasOpenPositions=\{positions\.length > 0\}/);
-  // The label stays put so the row reads as "nothing open yet", not as a layout bug.
+  assert.doesNotMatch(hero, /detailsVisible\s*(?:\?|&& hasOpenPositions)/);
   assert.match(hero, /\{t\('Floating Profit\/Loss'\)\}/);
 });
 
@@ -60,10 +60,11 @@ test('trade summary renders normalized margin fields and uses the REST summary a
 
   assert.match(summarySource, /label=\{t\('Margin'\)\} value=\{fmt\.decimal\(safeMargin\)\}/);
   assert.match(summarySource, /label=\{t\('Free Margin'\)\} value=\{fmt\.decimal\(safeFreeMargin\)\}/);
-  // margin_level 0 means no margin is used and renders as an em dash.
+  // Backend zero and unavailable margin levels render as an explicit zero.
   assert.match(summarySource, /label=\{t\('Margin Level'\)\} value=\{formatMarginLevel\(safeMarginLevel, fmt\.decimal\)\}/);
   assert.match(summarySource, /floating: restAccountSummary\.profit/);
   assert.match(summarySource, /restTradingAccount \?\? selectedTradingAccount/);
+  assert.match(summarySource, /staleMetrics: restAccountSummary\.staleMetrics/);
   assert.match(summarySource, /metricFlags: state\.metricFlags/);
 });
 

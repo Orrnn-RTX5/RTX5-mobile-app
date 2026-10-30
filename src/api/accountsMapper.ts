@@ -64,13 +64,13 @@ export function resolveServerMetric(
   };
 }
 
-/** `margin_level: 0` means no margin is used; display it as an em dash. */
+/** Show a backend margin percentage, with an explicit zero for missing values. */
 export function formatMarginLevel(
   marginLevel: number | null | undefined,
   format: (value: number) => string = (value) => value.toFixed(2),
 ): string {
   if (typeof marginLevel !== 'number' || !Number.isFinite(marginLevel) || marginLevel === 0) {
-    return '—';
+    return '0%';
   }
   return `${format(marginLevel)}%`;
 }

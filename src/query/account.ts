@@ -20,6 +20,7 @@ export const getAccountSummaryQueryKey = (
 type PollingQueryOptions = {
   enabled?: boolean;
   refetchInterval?: number | false;
+  subscribed?: boolean;
 };
 
 export function useAccountSummary(
@@ -46,6 +47,7 @@ export function useAccountSummary(
       );
     },
     enabled,
+    subscribed: options.subscribed,
     refetchInterval: enabled ? (options.refetchInterval ?? 30_000) : false,
     staleTime: 10_000,
   });

@@ -1,8 +1,7 @@
 import { captureActiveBrokerSession, subscribeActiveBrokerSession, getActiveBrokerSessionIdentity, updateActiveBrokerSessionCredentials } from '../state/activeBrokerSession';
 import { isInvestorReadOnlySession } from '../api/investorSession';
 import { publicRows } from '../api/orrnnDemoPublicMarket';
-import { useTradingState } from '../state/tradingState';
-import { normalizeSymbol } from '../domain/symbols';
+import { readExecutionQuote } from '../market/executionQuoteSource';
 import { resolveQuoteActionAvailability } from '../market/quoteIntegrity';
 import { checkOrderPolicy } from './tradingPolicy';
 let hydrated: { namespace: string; instruments: Record<string, unknown>[]; account: any } | null = null;
@@ -27,23 +26,15 @@ export function assertTradingSession(namespace: string) {
   if (hydrated?.namespace !== namespace) throw new Error('Account and trading policy are still loading.');
   if (hydrated.account.trade_enabled === false || hydrated.account.trading_enabled === false || ['disabled', 'blocked', 'closed'].includes(String(hydrated.account.status).toLowerCase())) throw new Error('Trading is disabled for this account.');
 }
-export async function assertOrderReadiness(namespace: string, body: any, read: (endpoint: string, options?: RequestInit) => Promise<Response>) {
+// The order endpoint owns final market/margin acceptance. The ticket prepares
+// those previews before enabling Buy/Sell; submission rechecks local state only.
+export function assertOrderReadiness(namespace: string, body: any): void {
   assertTradingSession(namespace);
   const symbol = String(body?.symbol ?? '');
   const instrument = hydrated!.instruments.find(row => row.symbol === symbol);
-  const quote = useTradingState.getState().quotes[normalizeSymbol(symbol)];
+  const quote = readExecutionQuote(namespace, symbol);
   const availability = resolveQuoteActionAvailability(quote);
   if (!availability.allowed) throw new Error('A fresh executable quote is required.');
   const policyError = checkOrderPolicy(instrument, Number(body.volume ?? body.lots), body.side, hydrated!.account);
   if (policyError) throw new Error(policyError);
-  const marketResponse = await read('/market/status/' + encodeURIComponent(symbol));
-  if (!marketResponse.ok) throw new Error('Market status could not be verified.');
-  const market: any = await marketResponse.json();
-  if (market.trade_open !== true && market.market_state !== 'open') throw new Error('The market is closed or its status is unknown.');
-  const marginResponse = await read('/calculate/margin', { method: 'POST', body: JSON.stringify({ account_login: body.account_login, symbol, side: body.side, volume: body.volume ?? body.lots }) });
-  if (!marginResponse.ok) throw new Error('The broker could not verify margin and risk.');
-  const margin: any = await marginResponse.json();
-  if (!Number.isFinite(margin.required_margin) || margin.required_margin < 0 || !Number.isFinite(margin.free_margin) || margin.free_margin < margin.required_margin || !Number.isFinite(margin.max_lots) || Number(body.volume ?? body.lots) > margin.max_lots) throw new Error('Insufficient margin or incomplete risk calculation.');
-  assertTradingSession(namespace);
-  if (!resolveQuoteActionAvailability(useTradingState.getState().quotes[normalizeSymbol(symbol)]).allowed) throw new Error('The executable quote expired during risk checks.');
 }

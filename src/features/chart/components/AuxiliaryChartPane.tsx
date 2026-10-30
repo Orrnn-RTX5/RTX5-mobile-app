@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
-import type { PositionItem } from '../../../dev/mock/tradingData';
+import type { PositionItem } from '../../../domain/tradingModels';
+import { formatBackendPrice } from '../../../utils/backendPrice';
 import { useInstrumentMeta } from '../../../query/instruments';
 import { useMarketStatus } from '../../../query/marketStatus';
 import { useActiveBrokerQuerySession } from '../../../query/authenticatedQueryScope';
@@ -348,8 +349,8 @@ const AuxiliaryChartPaneSessionScoped = memo(function AuxiliaryChartPaneSessionS
     instrumentMeta?.minVolume,
     instrumentMeta?.stepVolume,
   ]);
-  const formattedBid = bid === null ? '---' : bid.toFixed(safeDisplayDecimals);
-  const formattedAsk = ask === null ? '---' : ask.toFixed(safeDisplayDecimals);
+  const formattedBid = bid === null ? '---' : formatBackendPrice(bid);
+  const formattedAsk = ask === null ? '---' : formatBackendPrice(ask);
   const formattedLot = formatTradeVolume(lotSize, paneVolumeBounds);
   const normalizedVolumeBounds = resolveTradeVolumeBounds(paneVolumeBounds);
   const canDecreaseLot = lotSize > normalizedVolumeBounds.minVolume + 1e-9;

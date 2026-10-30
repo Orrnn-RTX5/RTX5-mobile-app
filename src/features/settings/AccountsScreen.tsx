@@ -11,7 +11,7 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { usePathname, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, FlatList, Image, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, FlatList, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../ui/components/Screen';
 import { FastPressable } from '../../ui/components/FastPressable';
 
@@ -40,9 +40,11 @@ import { dismissAuthFlow } from '../trade/authFlowState';
 import { enrichSignedInAccountProfile } from '../../api/authSessionProfile';
 import { isLoginRequestAbortedError } from '../../api/auth';
 import { redactAuthPayload, redactSensitiveString } from '../../api/authRedaction';
-import { removeSecureItemAsync } from '../../utils/secureStorage';
+import { getSecureItemAsync, removeSecureItemAsync, setSecureItemAsync } from '../../utils/secureStorage';
+import { clearSavedLoginPassword } from '../../state/savedLoginCredentials';
 import { fmt } from '../../utils/format';
 import { ChangePasswordSheet } from './ChangePasswordSheet';
+import { CertificationDialog } from './CertificationDialog';
 import { ActionSheet } from '../../ui/components/ActionSheet';
 
 
@@ -912,17 +914,6 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
     safeRouterBack(router, '/(tabs)/settings');
   }, [finishPendingBrokerReturnClose, router]);
 
-  React.useEffect(
-    () => sidebarDestinationController.registerBackHandler('accounts', () => {
-      if (sidebarDestinationController.getSnapshot().activeDestination !== 'accounts') {
-        return false;
-      }
-      closeAccountsScreen();
-      return true;
-    }),
-    [closeAccountsScreen],
-  );
-
   /**
    * Navigates the user to the Brokers screen to search for and connect a new trading account.
    */
@@ -955,11 +946,46 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
   }
   const [expandedAccountKey, setExpandedAccountKey] = React.useState<string | null>(null);
   const [passwordSheetVisible, setPasswordSheetVisible] = React.useState(false);
+  const [certificationVisible, setCertificationVisible] = React.useState(false);
+  React.useEffect(() => {
+    if (!isScreenFocused) setCertificationVisible(false);
+  }, [isScreenFocused]);
   const [passwordType, setPasswordType] = React.useState<'master' | 'investor'>('master');
   const [successMessage, setSuccessMessage] = React.useState('');
   const [deleteTarget, setDeleteTarget] = React.useState<DeleteAccountTarget | null>(null);
   const [tradeNotificationsSheetVisible, setTradeNotificationsSheetVisible] = React.useState(false);
   const [brokerLogoFailed, setBrokerLogoFailed] = React.useState<Record<string, boolean>>({});
+  const clearPasswordInFlightRef = React.useRef(false);
+
+  const dismissAccountsPopup = React.useCallback(() => {
+    if (passwordSheetVisible) { setPasswordSheetVisible(false); return true; }
+    if (tradeNotificationsSheetVisible) { setTradeNotificationsSheetVisible(false); return true; }
+    if (deleteTarget) { setDeleteTarget(null); return true; }
+    if (useUIState.getState().scopedActionSheets.settingsAccounts) {
+      useUIState.getState().hideAccountsActionSheet();
+      return true;
+    }
+    return false;
+  }, [deleteTarget, passwordSheetVisible, tradeNotificationsSheetVisible]);
+
+  React.useEffect(
+    () => sidebarDestinationController.registerBackHandler('accounts', () => {
+      if (sidebarDestinationController.getSnapshot().activeDestination !== 'accounts') return false;
+      if (!dismissAccountsPopup()) closeAccountsScreen();
+      return true;
+    }),
+    [closeAccountsScreen, dismissAccountsPopup],
+  );
+
+  React.useEffect(() => {
+    if (!isScreenFocused) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      // The retained host owns its own Back dispatch. This handles routed Accounts.
+      if (sidebarDestinationController.isVisible()) return false;
+      return dismissAccountsPopup();
+    });
+    return () => subscription.remove();
+  }, [dismissAccountsPopup, isScreenFocused]);
 
   React.useEffect(() => {
     accountsMountedRef.current = true;
@@ -1340,6 +1366,23 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
     });
   };
 
+  const handleClearSavedPassword = React.useCallback(async () => {
+    if (clearPasswordInFlightRef.current || !brokerId || !displayLogin || displayLogin === '---') return;
+    clearPasswordInFlightRef.current = true;
+    try {
+      await removeSavedAccountPassword(brokerId, displayLogin);
+      await clearSavedLoginPassword(brokerId, displayLogin, {
+        getItem: (key) => getSecureItemAsync(key, true), setItem: setSecureItemAsync,
+      });
+      if (accountsMountedRef.current) setSuccessMessage(t('Saved password cleared'));
+    } catch (error) {
+      console.error('[Accounts] Failed to clear saved password', redactAuthPayload(error));
+      if (accountsMountedRef.current) Alert.alert(t('Error'), t('Unable to clear saved password. Please try again.'));
+    } finally {
+      clearPasswordInFlightRef.current = false;
+    }
+  }, [brokerId, displayLogin, t]);
+
   const accountsOptionsSheetConfig = React.useMemo<Parameters<typeof showAccountsActionSheet>[0]>(() => ({
     presentation: 'mt5Plain',
     detent: 'auto',
@@ -1350,10 +1393,10 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
     actions: [
       { label: t('Change master password'), onPress: () => openPasswordSheet('master') },
       { label: t('Change investor password'), onPress: () => openPasswordSheet('investor') },
-      { label: t('Clear saved password') },
+      { label: t('Clear saved password'), onPress: () => { void handleClearSavedPassword(); } },
       { label: t('Delete account'), danger: true, onPress: () => setDeleteTarget({ type: 'current' }) },
     ],
-  }), [openPasswordSheet, showAccountsActionSheet, t]);
+  }), [handleClearSavedPassword, openPasswordSheet, showAccountsActionSheet, t]);
 
   const preloadAccountsActionSheet = useUIState((s) => s.preloadScopedActionSheet);
   React.useEffect(() => {
@@ -1404,7 +1447,9 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
             <FastPressable
               style={styles.iconBtn}
               hitSlop={10}
-              onPress={() => Alert.alert(t('Certification'), t('Certification info will be displayed here.'))}
+              onPress={() => setCertificationVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('Certification')}
               activateOnPressIn
               latencyLabel="accounts.certification.open"
               unstable_pressDelay={0}
@@ -1772,6 +1817,11 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
           </View>
         </View>
       )}
+
+      <CertificationDialog
+        visible={isScreenFocused && certificationVisible}
+        onClose={() => setCertificationVisible(false)}
+      />
 
       {/* Trade Notifications Modal */}
       {isScreenFocused && tradeNotificationsSheetVisible && (

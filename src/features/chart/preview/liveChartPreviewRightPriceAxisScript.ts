@@ -1,3 +1,4 @@
+import { VALUE_BASED_PRICE_WEBVIEW_JS } from '../../../utils/backendPrice';
 import {
   CHART_PRICE_SCALE_LABEL_FONT_SIZE,
   CHART_PRICE_SCALE_LABEL_FONT_WEIGHT,
@@ -13,6 +14,7 @@ import {
  * pointer events and is refreshed through one requestAnimationFrame per change.
  */
 export const LIVE_CHART_PREVIEW_RIGHT_PRICE_AXIS_SCRIPT = String.raw`
+      ${VALUE_BASED_PRICE_WEBVIEW_JS}
       var PREVIEW_RIGHT_PRICE_AXIS_LABEL_HEIGHT = ${CHART_PRICE_SCALE_LABEL_HEIGHT};
       var PREVIEW_RIGHT_PRICE_AXIS_LABEL_FONT_SIZE = ${CHART_PRICE_SCALE_LABEL_FONT_SIZE};
       var PREVIEW_RIGHT_PRICE_AXIS_LABEL_FONT_WEIGHT = '${CHART_PRICE_SCALE_LABEL_FONT_WEIGHT}';
@@ -191,7 +193,7 @@ export const LIVE_CHART_PREVIEW_RIGHT_PRICE_AXIS_SCRIPT = String.raw`
           var ratio = index / intervals;
           var price = topPrice + (bottomPrice - topPrice) * ratio;
           var y = labelTop + (labelBottom - labelTop) * ratio;
-          label.textContent = Number(price).toFixed(decimals);
+          label.textContent = formatValueBasedPrice(price);
           label.style.position = 'absolute';
           label.style.boxSizing = 'border-box';
           label.style.left = Math.round(metrics.axisLeft + 3) + 'px';

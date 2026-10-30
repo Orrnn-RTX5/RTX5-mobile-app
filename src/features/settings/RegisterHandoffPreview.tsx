@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import React from 'react';
 import {
   Platform,
@@ -46,6 +47,8 @@ export const RegisterHandoffPreview = React.memo(function RegisterHandoffPreview
         <Pressable
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel={t('Back')}
           activateOnPressIn
           activateOnTouchStart
           latencyLabel={backLatencyLabel}
@@ -53,7 +56,10 @@ export const RegisterHandoffPreview = React.memo(function RegisterHandoffPreview
           unstable_pressDelay={0}
           style={styles.headerBackButton}
         >
-          <Ionicons name="arrow-back" size={22} color={T.text} />
+          <Svg width={24} height={24} viewBox="0 0 24 24" pointerEvents="none">
+            <Path d="M19 12H5M12 5l-7 7 7 7" fill="none" stroke={T.text}
+              strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>Demo Account</Text>
         <View style={styles.headerRightSpacer} />
@@ -111,16 +117,14 @@ export const RegisterHandoffPreview = React.memo(function RegisterHandoffPreview
           <PasswordPreview
             styles={styles}
             iconColor={iconColor}
-            label={t('Master password')}
+            label={t('Investor password')}
             strengthLabel={t('Password strength:')}
           />
-          <PreviewInput
+          <PasswordPreview
             styles={styles}
-            icon="lock-closed-outline"
             iconColor={iconColor}
-            label={t('Investor password')}
-            value=""
-            rightIcon="eye-outline"
+            label={t('Master password')}
+            strengthLabel={t('Password strength:')}
           />
 
           <View style={styles.twoColumnRow}>
@@ -293,10 +297,13 @@ const makeStyles = (T: ThemeColors, isDark: boolean, safeTop: number) => {
       elevation: 0,
     },
     headerBackButton: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
+      alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
+      padding: 0,
+      flexShrink: 0,
     },
     headerTitle: {
       color: T.text,
@@ -309,8 +316,9 @@ const makeStyles = (T: ThemeColors, isDark: boolean, safeTop: number) => {
       paddingHorizontal: 12,
     },
     headerRightSpacer: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
+      flexShrink: 0,
     },
     scrollContent: {
       paddingTop: 16,

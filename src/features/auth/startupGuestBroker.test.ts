@@ -59,10 +59,10 @@ test('the launch route stays on Quotes and broker search requires an explicit re
   const host = readFileSync(resolve(process.cwd(), 'src/features/auth/GuestFlowHost.tsx'), 'utf8');
   assert.match(index, /<Redirect href='\/quotes'/);
   assert.match(host, /\[brokerPickerVisible, setBrokerPickerVisible\] = useState\(false\)/);
-  assert.match(host, /<Modal visible=\{brokerPickerVisible\}/);
+  assert.match(host, /<Modal visible=\{brokerPickerVisible \|\| visible &&/);
   assert.doesNotMatch(host, /<Modal visible=\{!context\}/);
-  assert.match(host, /else if \(!isLoggedIn && !brokerPickerVisible && !startupBrokerSelectionAttempted.current\)/);
+  assert.match(host, /if \(!isLoggedIn && !brokerPickerVisible && getAuthFlowState\(\).screen !== 'select-broker' && !startupBrokerSelectionAttempted.current\)/);
   assert.match(host, /const verified = createPublicBrokerContext\(selected\);[\s\S]*?startupBrokerSelectionAttempted.current = true;/);
   assert.match(host, /const changeBroker = \(\) => \{[\s\S]*?setBrokerPickerVisible\(true\)/);
-  assert.match(host, /<GuestBrokerPicker onBack=\{\(\) => setBrokerPickerVisible\(false\)\}/);
+  assert.match(host, /<ActionSheet visible=\{brokerPickerVisible\} onClose=\{closeBrokerPicker\}/);
 });

@@ -5,9 +5,10 @@ import { resolveLiveChartPnlColor } from './livePnlColors';
  */
 import type { PriceAlert } from '../../../api/alerts';
 import type { LoginOrder } from '../../../api/orders';
-import type { PositionItem } from '../../../dev/mock/tradingData';
+import type { PositionItem } from '../../../domain/tradingModels';
 import type { ChartColorsConfig } from '../../../state/userPreferences';
-import { buildPendingOrderLabel, formatTpSlOverlayLabel, isActivePendingOrder } from './orderHelpers';
+import { buildPendingOrderLabel, formatTpSlOverlayLabel, isActivePendingOrder, normalizeOrderType } from './orderHelpers';
+import { formatPositionLots } from '../chartPositionControls';
 import { inferContractSize, normalizeChartOverlaySymbol } from './symbolUtils';
 import {
   CHART_LINE_STYLE,
@@ -20,7 +21,8 @@ import {
 export const buildPendingOrderLines = (
   orders: LoginOrder[],
   colors: ChartColorsConfig,
-  sellColor: string,
+  _sellColor: string,
+  scope?: import('../chartPositionControls').ChartPositionScope,
 ): ChartOverlayPriceLine[] => {
   return orders.reduce<ChartOverlayPriceLine[]>((accumulator, order) => {
     if (!isActivePendingOrder(order)) return accumulator;
@@ -29,17 +31,29 @@ export const buildPendingOrderLines = (
     const slValue = Number(order.price_sl);
     const tpValue = Number(order.price_tp);
     const stopLimitValue = Number(order.stopLimitPrice ?? order.stop_limit_price ?? order.price_stop_limit);
-    const entryColor = order.side === 'buy' ? colors.tradeOpen || '#2962FF' : sellColor;
+    // Pending orders stay orange until a broker-confirmed fill replaces them
+    // with a position rendered through the regular market-order path.
+    const entryColor = '#F59E0B';
+    const pendingType = normalizeOrderType(order.type).toUpperCase();
+    const typeLabel = /BUY|SELL/.test(pendingType)
+      ? pendingType
+      : `${order.side === 'sell' ? 'SELL' : 'BUY'} ${pendingType}`;
 
     if (Number.isFinite(entryPrice) && entryPrice > 0) {
       accumulator.push({
         id: `order-entry-${order.ticket}`,
         price: entryPrice,
         color: entryColor,
-        lineWidth: 2,
-        lineStyle: CHART_LINE_STYLE.Solid,
+        lineWidth: 1,
+        lineStyle: CHART_LINE_STYLE.Dashed,
         axisLabelVisible: false,
         title: buildPendingOrderLabel(order),
+        labelSideText: typeLabel,
+        labelValueText: formatPositionLots(Number(order.volume)),
+        labelSideColor: entryColor,
+        labelValueColor: colors.foreground || entryColor,
+        labelPlacement: 'line',
+        ...(scope ? { pendingOrderControl: { ...scope, ticket: order.ticket, symbol: order.symbol } } : {}),
       });
     }
 
@@ -61,7 +75,7 @@ export const buildPendingOrderLines = (
         id: `order-tp-${order.ticket}`,
         price: tpValue,
         color: colors.tradeTpSl || resolveLiveChartPnlColor(1, colors.background, '#4597FF'),
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: CHART_LINE_STYLE.Solid,
         axisLabelVisible: false,
         title: formatTpSlOverlayLabel(
@@ -81,7 +95,7 @@ export const buildPendingOrderLines = (
         id: `order-sl-${order.ticket}`,
         price: slValue,
         color: colors.tradeStopOut || '#F23645',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: CHART_LINE_STYLE.Solid,
         axisLabelVisible: false,
         title: formatTpSlOverlayLabel(

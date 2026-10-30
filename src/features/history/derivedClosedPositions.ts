@@ -18,7 +18,7 @@ import type { ClosedPosition } from '../../api/positions';
 const dealTimeAsc = (a: Deal, b: Deal): number =>
   (typeof a.time === 'number' ? a.time : 0) - (typeof b.time === 'number' ? b.time : 0);
 
-const hasUsablePositionTicket = (deal: Deal): boolean =>
+const hasUsablePositionTicket = (deal: Deal): deal is Deal & { position_ticket: number } =>
   typeof deal.position_ticket === 'number' && Number.isFinite(deal.position_ticket) && deal.position_ticket > 0;
 
 export function deriveClosedPositionsFromDeals(deals: Deal[] | undefined | null): ClosedPosition[] {
@@ -155,30 +155,40 @@ export function mergeClosedPositionSources(
   // Contract v3 deal rows carry no position_ticket, so a derived record is
   // usually keyed by its close-deal ticket and cannot match the history
   // record's position ticket. Merge on ticket where possible, otherwise on
-  // the close execution itself: same symbol, same volume, close time within
-  // one second.
-  // A multiset: each history close can absorb at most one derived close, so
-  // two same-size closes in the same second are not collapsed into one.
-  const historyExecutionCounts = new Map<string, number>();
-  for (const record of historyRecords) {
-    const [exactKey] = closedPositionExecutionKeys(record);
-    if (exactKey) {
-      historyExecutionCounts.set(exactKey, (historyExecutionCounts.get(exactKey) ?? 0) + 1);
-    }
-  }
-  const historyTicketKeys = new Set(historyRecords.map(closedPositionDedupKey));
+  // the close execution itself (same symbol, same volume, close time within
+  // one second) or the opening execution identity (same symbol, side, volume,
+  // open price, and open time within one second).
+  // Each history close can absorb at most one derived close, so two same-size
+  // closes in the same second are not collapsed into one.
+  const historyPool = historyRecords.map((record) => {
+    const [execKey] = closedPositionExecutionKeys(record);
+    const [openKey] = closedPositionOpeningKeys(record);
+    return {
+      dedupKey: closedPositionDedupKey(record),
+      execKey,
+      openKey,
+      consumed: false,
+    };
+  });
+  const historyTicketKeys = new Set(historyPool.map((item) => item.dedupKey));
 
   const byKey = new Map<string, ClosedPosition>();
   for (const record of derivedRecords) {
     const dedupKey = closedPositionDedupKey(record);
-    const matchedKey = closedPositionExecutionKeys(record).find(
-      (key) => (historyExecutionCounts.get(key) ?? 0) > 0,
+    const execKeys = new Set(closedPositionExecutionKeys(record));
+    const openKeys = new Set(closedPositionOpeningKeys(record));
+    const matchedEntry = historyPool.find(
+      (item) =>
+        !item.consumed &&
+        (item.dedupKey === dedupKey ||
+          (item.execKey !== undefined && execKeys.has(item.execKey)) ||
+          (item.openKey !== undefined && openKeys.has(item.openKey))),
     );
-    if (matchedKey) {
-      historyExecutionCounts.set(matchedKey, (historyExecutionCounts.get(matchedKey) ?? 0) - 1);
+    if (matchedEntry) {
+      matchedEntry.consumed = true;
     }
-    // Same ticket (history wins below) or same close execution: drop it.
-    if (historyTicketKeys.has(dedupKey) || matchedKey) continue;
+    // Same ticket (history wins below) or same execution: drop it.
+    if (historyTicketKeys.has(dedupKey) || matchedEntry) continue;
     byKey.set(dedupKey, record);
   }
   for (const record of historyRecords) {
@@ -204,5 +214,35 @@ function closedPositionExecutionKeys(record: ClosedPosition): string[] {
   const volumeKey = volume.toFixed(8);
   return [closeSeconds, closeSeconds - 1, closeSeconds + 1].map(
     (seconds) => `${symbol}|${volumeKey}|${seconds}`,
+  );
+}
+
+/**
+ * Opening identity keys for a closed position so optimistic session-retained
+ * closes reconcile cleanly once broker deal/history rows arrive with server
+ * close timestamps.
+ */
+function closedPositionOpeningKeys(record: ClosedPosition): string[] {
+  const source = record as unknown as Record<string, unknown>;
+  const symbol = typeof record.symbol === 'string' ? record.symbol.trim().toUpperCase() : '';
+  const side = record.side === 'buy' || record.side === 'sell' ? record.side : '';
+  const volume = Number(record.volume);
+  const openPrice = Number(source.price_open);
+  const openSeconds = normalizeTimestampToSeconds(source.time_create);
+  if (
+    !symbol ||
+    !side ||
+    !Number.isFinite(volume) ||
+    volume <= 0 ||
+    !Number.isFinite(openPrice) ||
+    openPrice <= 0 ||
+    openSeconds === null
+  ) {
+    return [];
+  }
+  const volumeKey = volume.toFixed(8);
+  const openPriceKey = openPrice.toFixed(8);
+  return [openSeconds, openSeconds - 1, openSeconds + 1].map(
+    (seconds) => `open:${symbol}|${side}|${volumeKey}|${openPriceKey}|${seconds}`,
   );
 }

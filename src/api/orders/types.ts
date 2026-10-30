@@ -65,6 +65,9 @@ export interface LoginOrder {
   stopLimitPrice?: number | null;
   stop_limit_price?: number | null;
   price_stop_limit?: number | null;
+  price_limit?: number | null;
+  time_in_force?: 'GTC' | 'DAY' | 'GTD';
+  expiry?: number | null;
 }
 
 /**
@@ -74,6 +77,12 @@ export interface LoginOrder {
  * The `volume` field is in standard lots (e.g. 0.01 = micro lot).
  */
 export interface PlaceOrderPayload {
+  /**
+   * Local identity allocated once for one deliberate click. Distinct clicks
+   * remain independent even while an identical order is still in flight.
+   * Generate with createMarketOrderIntentId; never copied as a wire field.
+   */
+  frontendIntentId?: string;
   account_login: number | string;
   broker_id?: string;
   symbol: string;
@@ -114,6 +123,11 @@ export interface PlacePendingOrderPayload extends PlaceOrderPayload {
   price_open?: number | string;
   stopLimitPrice?: number;
   stop_limit_price?: number;
+  price_limit?: number | string;
+  time_in_force?: 'GTC' | 'DAY' | 'GTD';
+  /** Local symbol precision; never copied to the gateway request. */
+  digits?: number;
+  tickSize?: number;
   /** Canonical pending-order protection inputs. */
   sl?: number | string | null;
   tp?: number | string | null;
@@ -179,6 +193,11 @@ export interface PlacePendingOrderResponse {
   time_create?: number;
   magic?: number;
   message?: string;
+  price_limit?: number | null;
+  sl?: number | null;
+  tp?: number | null;
+  time_in_force?: 'GTC' | 'DAY' | 'GTD';
+  expiry?: number | null;
 }
 
 /** Standard error response from the orders endpoint. */

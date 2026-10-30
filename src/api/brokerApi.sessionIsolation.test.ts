@@ -259,6 +259,58 @@ test('refresh is single-flight: concurrent callers share one rotation', async ()
   api.dispose();
 });
 
+test('ten distinct market orders survive one shared preflight credential refresh without merging or dropping a request', async () => {
+  const capture = activate();
+  updateActiveBrokerSessionCredentials(getActiveBrokerSessionIdentity(capture.session), {
+    ...capture.credentials,
+    expiresAt: new Date(Date.now() + 30_000).toISOString(),
+  });
+  const api = new BrokerAPI();
+  let refreshCount = 0;
+  let releaseRefresh!: () => void;
+  const refreshReady = new Promise<void>(resolve => { releaseRefresh = resolve; });
+  const testApi = api as unknown as {
+    performRefresh: (identity: unknown) => Promise<TestCredentialLease>;
+  };
+  testApi.performRefresh = async () => {
+    refreshCount++;
+    await refreshReady;
+    const current = captureActiveBrokerSession();
+    assert.ok(current);
+    updateActiveBrokerSessionCredentials(getActiveBrokerSessionIdentity(current.session), {
+      accessToken: 'access-shared-order-refresh',
+      refreshToken: 'refresh-shared-order-refresh',
+      expiresAt: '2099-01-01T00:00:00.000Z',
+    });
+    return currentCredentialLease();
+  };
+  const sentBodies: Record<string, unknown>[] = [];
+  globalThis.fetch = (async (_input, init) => {
+    assert.equal(new Headers(init?.headers).get('Authorization'), 'Bearer access-shared-order-refresh');
+    const body = JSON.parse(String(init?.body));
+    sentBodies.push(body);
+    return new Response(JSON.stringify({ client_order_id: body.client_order_id, status: 'filled' }), { status: 200 });
+  }) as typeof globalThis.fetch;
+  const ids = Array.from({ length: 10 }, (_, index) => `order-refresh-click-${index}`);
+  try {
+    const requests = ids.map(clientOrderId => api.request('/orders', {
+      method: 'POST',
+      body: JSON.stringify({ ...JSON.parse(testOrderBody), client_order_id: clientOrderId }),
+      headers: { 'Idempotency-Key': clientOrderId },
+    }));
+    assert.equal(refreshCount, 1);
+    assert.equal(sentBodies.length, 0, 'only actual credential refresh must finish before authorized POSTs');
+    releaseRefresh();
+    const responses = await Promise.all(requests);
+    const fills = await Promise.all(responses.map(response => response.json()));
+    assert.deepEqual(sentBodies.map(body => body.client_order_id), ids);
+    assert.deepEqual(fills.map(fill => fill.client_order_id), ids);
+    assert.equal(refreshCount, 1);
+  } finally {
+    api.dispose();
+  }
+});
+
 test('every credential rotation emits the credentials_updated signal for the trade socket', () => {
   activate();
   const events: ActiveBrokerSessionEvent[] = [];

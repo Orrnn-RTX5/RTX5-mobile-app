@@ -34,17 +34,22 @@ export const resolveChartMarketSessionPolicy = (
 ): ChartMarketSessionPolicy => {
   let quotePhase: ChartQuoteSessionPhase = 'unknown';
   let reason: ChartMarketSessionPolicy['reason'] = 'insufficient_backend_evidence';
+  const sessionClose = finiteTimestampOrNull(status?.session_close);
+  const isInstrumentUnavailableFallback =
+    typeof status?.message === 'string' &&
+    /^\s*instrument\s+unavailable\s*$/i.test(status.message) &&
+    sessionClose === null;
 
   if (status?.quote_open === true) {
     quotePhase = 'open';
     reason = 'quote_open';
-  } else if (status?.quote_open === false) {
+  } else if (status?.quote_open === false && !isInstrumentUnavailableFallback) {
     quotePhase = 'closed';
     reason = 'quote_closed';
   } else if (status?.status === 'open') {
     quotePhase = 'open';
     reason = 'status_open';
-  } else if (status?.status === 'closed') {
+  } else if (status?.status === 'closed' && !isInstrumentUnavailableFallback) {
     quotePhase = 'closed';
     reason = 'status_closed';
   }
@@ -54,7 +59,7 @@ export const resolveChartMarketSessionPolicy = (
     tradeOpen:
       typeof status?.trade_open === 'boolean' ? status.trade_open : null,
     sessionOpen: finiteTimestampOrNull(status?.session_open),
-    sessionClose: finiteTimestampOrNull(status?.session_close),
+    sessionClose,
     serverTime: finiteTimestampOrNull(status?.server_time),
     reason,
   };

@@ -20,7 +20,9 @@ import {
   useThemeMode,
 } from '../../state/themeMode';
 import { useUIState } from '../../state/uiState';
-import { useBrokerConfig } from '../../query/broker';
+import { useBrokerConfig, useBrokerServers } from '../../query/broker';
+import { PUBLIC_BROKER_DIRECTORY_BASE_URL } from '../../api/brokerRouting';
+import { resolveSidebarBrokerLogoCandidates } from './sidebarBrokerLogo';
 import { useDeferredActiveFlag } from '../../hooks/useDeferredActiveFlag';
 import type { ThemeMode } from '../../state/userPreferences/types';
 import { AppLogo } from './AppLogo';
@@ -39,11 +41,13 @@ import {
   sidebarDestinationController,
 } from './sidebarDestinationHostController';
 import {
+  clearFastTabVisual,
   scheduleFastTabNavigation,
   showFastTabVisualForSidebar,
   TAB_BAR_NAVIGATION_SETTLE_DELAY_MS,
 } from '../navigation/fastTabVisualController';
 import { requestOrrnnDemoTradeAuth } from '../../features/trade/tradeAuthPrompt';
+import { requestAccountEntry } from '../../features/trade/authFlowState';
 import { registerInteractionLifecycleHandler } from '../../utils/interactionLifecycle';
 
 // ─── Menu Items ──────────────────────────────────────────────────────────────
@@ -157,7 +161,7 @@ const SidebarMenuRow = memo(function SidebarMenuRow({
         pressed && ds.menuItemPressed,
       ]}
       onPress={() => onPressItem(item)}
-      activateOnPressIn
+      activateOnPressIn={Platform.OS !== 'ios'}
       hitSlop={SIDEBAR_MENU_ITEM_HIT_SLOP}
       latencyLabel={`sidebar.menu.${item.label}`}
       unstable_pressDelay={0}
@@ -196,18 +200,27 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
   const accountDetails = useUserPreferences((s) => s.accountDetails);
   const brokerId = useUserPreferences((s) => s.brokerId);
   const brokerLogoUrl = useUserPreferences((s) => s.brokerLogoUrl);
+  const brokerServerUrl = useUserPreferences((s) => s.brokerServerUrl);
   const sidebarProfileDataActive = useDeferredActiveFlag(interactive && isLoggedIn, SIDEBAR_PROFILE_DATA_DELAY_MS);
   const { data: brokerConfig } = useBrokerConfig(brokerId, sidebarProfileDataActive && !!brokerId);
+  // Read branding already cached by the login/broker picker without starting
+  // another directory request on the drawer's first frame.
+  const { data: brokerServers } = useBrokerServers(false);
   const displayAccountName = accountDetails?.name?.trim() || (accountDetails?.id ? `Account ${accountDetails.id}` : '---');
   const supportEmail = getConfiguredSupportEmail();
   const appName = Constants.expoConfig?.name ?? 'RTX5';
   const nativeAppVersion = Constants.expoConfig?.version ?? 'Local';
   const appVersion = resolveAppDisplayVersion(nativeAppVersion);
-  const activeBrokerLogoUrl = useMemo(
-    () => (isLoggedIn ? brokerLogoUrl.trim() : ''),
-    [brokerLogoUrl, isLoggedIn],
+  const brokerLogoCandidates = useMemo(
+    () => resolveSidebarBrokerLogoCandidates({
+      isLoggedIn, brokerId, persistedLogoUrl: brokerLogoUrl,
+      brokerApiBase: brokerServerUrl, directoryApiBase: PUBLIC_BROKER_DIRECTORY_BASE_URL,
+      brokerConfig, brokerServers,
+    }),
+    [brokerLogoUrl, brokerServerUrl, brokerId, isLoggedIn, brokerConfig, brokerServers],
   );
-  const [brokerLogoFailed, setBrokerLogoFailed] = useState(false);
+  const [failedBrokerLogoUrls, setFailedBrokerLogoUrls] = useState<string[]>([]);
+  const activeBrokerLogoUrl = brokerLogoCandidates.find((uri) => !failedBrokerLogoUrls.includes(uri)) || '';
 
   const [slideAnim] = useState(() => new Animated.Value(initialSidebarOpenRef.current ? 0 : DRAWER_CLOSED_TRANSLATE_X, { useNativeDriver: true }));
   const [overlayAnim] = useState(() => new Animated.Value(initialSidebarOpenRef.current ? 1 : 0, { useNativeDriver: true }));
@@ -282,8 +295,8 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
   }, []);
 
   useEffect(() => {
-    setBrokerLogoFailed(false);
-  }, [activeBrokerLogoUrl]);
+    if (interactive) setFailedBrokerLogoUrls([]);
+  }, [brokerId, accountDetails?.id, isLoggedIn, interactive]);
 
   const pauseLiveWorkForDrawer = useCallback(() => {
     if (liveWorkResumeTimerRef.current) {
@@ -338,6 +351,15 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
     });
 
     cancelOpenCommitRef.current?.();
+    cancelOpenCommitRef.current = null;
+    if (Platform.OS === 'ios') {
+      // Keep UIKit hit testing and React's visibility in the same commit.
+      // A native-only reveal can lose its input ownership during guest-flow
+      // renders before the deferred open bookkeeping gets a frame.
+      setInteractive(true);
+      setSidebarOpen(true);
+      return;
+    }
     cancelOpenCommitRef.current = scheduleAfterSidebarOpenVisual(() => {
       cancelOpenCommitRef.current = null;
       if (interactiveGenerationRef.current === generation && animatedVisibleRef.current) {
@@ -361,8 +383,9 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
   }, []);
 
   useEffect(() => registerSidebarOpenHandler(() => {
-    if (animatedVisibleRef.current) return;
-    revealDrawerImmediately();
+    // Every request advances the controller generation. Refresh the pending
+    // commit even when already visible so a rapid second tap cannot cancel it.
+    if (!animatedVisibleRef.current) revealDrawerImmediately();
     showInteractiveAfterVisualFrame();
   }), [showInteractiveAfterVisualFrame, revealDrawerImmediately]);
 
@@ -548,6 +571,18 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
       return;
     }
 
+    if (route === '/login') {
+      // Open the root form directly. Pushing and immediately popping /login
+      // can coalesce away its handoff or race native presentation on iOS.
+      navigationLockedRef.current = true;
+      clearFastTabVisual();
+      hideSidebarDestination();
+      closeForNavigation();
+      unlockSidebarNavigation();
+      requestAccountEntry('login');
+      return;
+    }
+
     if (route === '/trade' && requestOrrnnDemoTradeAuth({ kind: 'trade-tab' })) {
       // The trade-access dialog owns the next destination. Close the drawer underneath it so
       // choosing Demo Account or Log In cannot reveal a stale open overlay.
@@ -656,6 +691,7 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
   return (
     <View
       ref={containerRef}
+      collapsable={false}
       pointerEvents={interactive ? 'auto' : 'none'}
       importantForAccessibility={interactive ? 'auto' : 'no-hide-descendants'}
       accessibilityElementsHidden={!interactive}
@@ -676,7 +712,7 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => handleClose()}
-            activateOnTouchStart
+            activateOnTouchStart={Platform.OS !== 'ios'}
             latencyLabel="sidebar.closeOverlay"
             unstable_pressDelay={0}
           />
@@ -701,13 +737,16 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
           <View style={ds.profileHeader}>
             <View style={ds.profileRow}>
               <View style={ds.avatarWrap}>
-                {activeBrokerLogoUrl && !brokerLogoFailed ? (
+                {activeBrokerLogoUrl ? (
                   <Image
+                    key={activeBrokerLogoUrl}
                     accessibilityLabel="Broker logo"
-                    resizeMode="cover"
+                    resizeMode="contain"
                     source={{ uri: activeBrokerLogoUrl }}
-                    style={ds.avatarImage}
-                    onError={() => setBrokerLogoFailed(true)}
+                    style={ds.brokerAvatarImage}
+                    onError={() => setFailedBrokerLogoUrls((failed) => (
+                      failed.includes(activeBrokerLogoUrl) ? failed : [...failed, activeBrokerLogoUrl]
+                    ))}
                   />
                 ) : (
                   <AppLogo style={ds.avatarImage} />
@@ -723,7 +762,7 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
                   <Pressable
                     style={ds.manageBtn}
                     onPress={() => navigateSidebarRoute('/settings/accounts')}
-                    activateOnPressIn
+                    activateOnPressIn={Platform.OS !== 'ios'}
                     hitSlop={SIDEBAR_PROFILE_ACTION_HIT_SLOP}
                     latencyLabel="sidebar.manageAccounts"
                     unstable_pressDelay={0}
@@ -735,7 +774,7 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
                 <Pressable
                   style={ds.profileText}
                   onPress={() => navigateSidebarRoute('/login')}
-                  activateOnPressIn
+                  activateOnPressIn={Platform.OS !== 'ios'}
                   hitSlop={SIDEBAR_PROFILE_ACTION_HIT_SLOP}
                   latencyLabel="sidebar.getStarted"
                   unstable_pressDelay={0}
@@ -897,6 +936,10 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       width: 48,
       height: 48,
       borderRadius: 24,
+    },
+    brokerAvatarImage: {
+      width: 34,
+      height: 34,
     },
     profileText: {
       flex: 1,

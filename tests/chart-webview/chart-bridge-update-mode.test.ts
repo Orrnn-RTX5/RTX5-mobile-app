@@ -734,9 +734,14 @@ test('right price scale drag is routed separately from body vertical pan', () =>
     'right-axis drag must exclusively own move events without rebuilding custom overlays',
   );
   const onPointerDown = extractAssignedFunctionBody('onPointerDown');
+  assert.match(
+    onPointerDown,
+    /if \(stopHandleHit && stopHandleHit\.handle\) \{[\s\S]*?beginTradeLineDragFromHit\(event, stopHandleHit\);[\s\S]*?return;[\s\S]*?isRightPriceScaleGesturePoint\(point\.x, point\.y\)/,
+    'an exact labelled stop handle must own its level before bare-axis hit testing',
+  );
   assert.ok(
     onPointerDown.indexOf('isRightPriceScaleGesturePoint(point.x, point.y)') <
-      onPointerDown.indexOf('resolveTradeLineDragHitFromEvent(event)'),
+      onPointerDown.indexOf('var tradeLineHit = resolveTradeLineDragHitFromEvent(event)'),
     'right-axis ownership must be resolved before Y-only SL/TP hit testing',
   );
   assertSourceContains(

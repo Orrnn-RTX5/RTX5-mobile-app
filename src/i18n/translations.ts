@@ -1,3 +1,4 @@
+import { otaSurface } from './surfaces/otaSurface';
 /**
  * Lightweight i18n dictionary.
  *
@@ -560,7 +561,7 @@ const screenSurface: Record<LanguageCode, Dictionary> = {
     'Loading positions...': 'Caricamento posizioni...', 'No open positions': 'Nessuna posizione aperta',
     'Bulk Operations': 'Operazioni massive', 'Close All Positions': 'Chiudi tutte le posizioni',
     'Close Profitable Positions': 'Chiudi posizioni in profitto', 'Close Losing Positions': 'Chiudi posizioni in perdita',
-    'Close Buy Positions': 'Chiudi posizioni buy', 'Close USDJPY Positions': 'Chiudi posizioni BTCUSD',
+    'Close Buy Positions': 'Chiudi posizioni buy', 'Close USDJPY Positions': 'Chiudi posizioni USDJPY',
     'Close position': 'Chiudi posizione', 'Close By': 'Chiudi per', 'Modify position': 'Modifica posizione',
     'Bulk Operations...': 'Operazioni massive...', Account: 'Conto', unknown: 'sconosciuto',
     'your active trades will appear here': 'le operazioni attive appariranno qui',
@@ -582,7 +583,7 @@ const screenSurface: Record<LanguageCode, Dictionary> = {
     'Loading positions...': 'Загрузка позиций...', 'No open positions': 'Нет открытых позиций',
     'Bulk Operations': 'Массовые операции', 'Close All Positions': 'Закрыть все позиции',
     'Close Profitable Positions': 'Закрыть прибыльные позиции', 'Close Losing Positions': 'Закрыть убыточные позиции',
-    'Close Buy Positions': 'Закрыть позиции Buy', 'Close USDJPY Positions': 'Закрыть позиции BTCUSD',
+    'Close Buy Positions': 'Закрыть позиции Buy', 'Close USDJPY Positions': 'Закрыть позиции USDJPY',
     'Close position': 'Закрыть позицию', 'Close By': 'Закрыть встречной', 'Modify position': 'Изменить позицию',
     'Bulk Operations...': 'Массовые операции...', Account: 'Счет', unknown: 'неизвестно',
     'your active trades will appear here': 'ваши активные сделки появятся здесь',
@@ -2918,5 +2919,5 @@ export const isRTL = (lang: LanguageCode) => lang === 'ar';
 
 export function translate(key: TranslationKey | string, language: unknown): string {
   const normalizedLanguage = normalizeLanguageCode(language);
-  return DICTIONARIES[normalizedLanguage]?.[key] ?? bugReportSurface[normalizedLanguage]?.[key] ?? key;
+  return otaSurface[normalizedLanguage]?.[key] ?? DICTIONARIES[normalizedLanguage]?.[key] ?? bugReportSurface[normalizedLanguage]?.[key] ?? key;
 }

@@ -1,4 +1,4 @@
-import type { PositionItem } from '../../dev/mock/tradingData';
+import type { PositionItem } from '../../domain/tradingModels';
 
 type PositionRecord = Record<string, unknown>;
 

@@ -1,7 +1,7 @@
 import { normalizeQuoteTickTimestampToMs } from '../../api/ws/quoteTimestamp';
 import type { QuoteTickEvent } from '../../api/ws/quoteTickNormalizer';
 import { normalizeSymbol } from '../../domain/symbols';
-import type { QuoteItem } from '../../dev/mock/tradingData';
+import type { QuoteItem } from '../../domain/tradingModels';
 import { hasQuotePriceChange } from '../../utils/quotePriceChange';
 import { calculateQuoteSpreadPoints, resolveQuoteDisplayDigits } from '../../utils/quoteSpread';
 import { resolveBackendQuoteVolume } from '../../utils/quoteVolume';
@@ -31,29 +31,6 @@ const toFiniteNumber = (value: unknown): number | undefined => {
   }
 
   return undefined;
-};
-
-const resolveChangePct = (
-  tick: QuoteTickEvent,
-  bid: number,
-  previous?: LiveQuoteSnapshot,
-): number | undefined => {
-  const explicit = toFiniteNumber(tick.changePct);
-  if (explicit !== undefined) {
-    return explicit;
-  }
-
-  const reference =
-    toFiniteNumber(tick.previousClose) ??
-    toFiniteNumber(tick.dailyOpen) ??
-    toFiniteNumber(tick.open) ??
-    toFiniteNumber(previous?.open);
-
-  if (reference === undefined || reference <= 0) {
-    return previous?.changePct;
-  }
-
-  return ((bid - reference) / reference) * 100;
 };
 
 export const getQuoteFreshnessAnchor = (
@@ -178,7 +155,8 @@ export const applyLiveQuoteTickToSnapshot = (
     close: toFiniteNumber(tick.last) ?? base?.close,
     volume,
     volumeSource: volume === undefined ? undefined : 'backend',
-    changePct: resolveChangePct(tick, bid, base),
+    // Daily change is backend-owned; missing data must not become a derived percentage.
+    changePct: toFiniteNumber(tick.changePct),
     feedTickAt: feedTickAt ?? base?.feedTickAt,
     lastTickAt,
     lastReceivedAt: receivedAt,

@@ -12,14 +12,19 @@ import React, { useCallback, useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 import { useTranslation } from '../../../i18n/useTranslation';
-import { PositionItem } from '../../../dev/mock/tradingData';
+import { PositionItem } from '../../../domain/tradingModels';
 import { useLiveAccountState } from '../../../state/liveAccountState';
 import { useTradingState } from '../../../state/tradingState';
 import { useUserPreferences } from '../../../state/userPreferences';
 import { fmt } from '../../../utils/format';
 import { FastPressable } from '../../../ui/components/FastPressable';
 import { useLiveSymbolQuotes } from '../../../query/websocket';
-import { buildTradeAccountSummary, resolveRenderableTradeAccountSummary, resolveTradeFloatingPnl } from '../accountSummary';
+import {
+  buildTradeAccountSummary,
+  resolveRenderableTradeAccountSummary,
+  resolveTradeFloatingPnl,
+  resolveTradeUsedMargin,
+} from '../accountSummary';
 import type { TradeAccountSummary } from '../accountSummary';
 import type { ThemeColors } from '../../../ui/theme/glass';
 import type { TradeScreenStyles } from './styles';
@@ -57,7 +62,6 @@ function SummaryMetricRow({ label, currency, value, s, T }: { label: string; cur
         {label}
         {currency ? <Text style={[s.summaryMetricCurrency, { color: T.textFaint }]}> ({currency})</Text> : null}
       </Text>
-      <View style={s.summaryMetricLeader} />
       <Text style={[s.summaryMetricValue, { color: T.text }]}>{value}</Text>
     </View>
   );
@@ -93,15 +97,16 @@ const LiveUnrealizedPnLHeader = React.memo(({ account, s, T, isDark, detailsVisi
           },
         ]}
       >
-        {/* The Hero: Floating P/L is the only pinned part of the Trade summary —
-            every account detail row scrolls away with the positions list. */}
+        {/* Keep the headline independent of detailsVisible: tapping this row
+            collapses only the account breakdown, while live P/L stays visible. */}
         <View style={s.summaryHeadlineRow}>
           <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.76} style={[s.summaryHeadlineLabel, { color: T.textSub }]}>
             {t('Floating Profit/Loss')}
           </Text>
           <View style={s.summaryHeadlineRight}>
             {/* With nothing open there is no floating P/L yet — leave the readout
-                blank rather than advertising a settled 0.00. */}
+                blank rather than advertising a settled 0.00. The headline stays
+                visible when only the account details are collapsed. */}
             {hasOpenPositions ? (
               <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={[s.summaryHeadlineValue, { color: safeFloating >= 0 ? T.up : T.down }]}>
                 {fmt.pnlPrecise(safeFloating)} {accountCurrency}
@@ -134,6 +139,7 @@ export const TradeSummaryDetailsHeader = React.memo(({ positions, s, T, isDark, 
   const totalSwap = useMemo(() => {
     return positions.reduce((sum: number, pos: any) => sum + (Number.isFinite(pos.swap) ? pos.swap : 0), 0);
   }, [positions]);
+  const bulkDisabled = positions.length === 0;
 
   return (
     <>
@@ -174,7 +180,10 @@ export const TradeSummaryDetailsHeader = React.memo(({ positions, s, T, isDark, 
             </Text>
           </View>
         </View>
-        <FastPressable latencyLabel="trade.bulk.open" onPress={onBulkPress} activateOnPressIn activateOnTouchStart unstable_pressDelay={0} style={({ pressed }) => [s.bulkButton, { borderColor: T.border, backgroundColor: T.glass1 }, pressed && { backgroundColor: T.glass3 }]}>
+        <FastPressable latencyLabel="trade.bulk.open" accessibilityRole="button" accessibilityLabel={t('Position bulk options')}
+          disabled={bulkDisabled} accessibilityState={{ disabled: bulkDisabled }}
+          onPress={onBulkPress} activateOnPressIn activateOnTouchStart unstable_pressDelay={0}
+          style={({ pressed }) => [s.bulkButton, { borderColor: T.border, backgroundColor: T.glass1, opacity: bulkDisabled ? 0.45 : 1 }, pressed && !bulkDisabled && { backgroundColor: T.glass3 }]}>
           <Text style={[s.bulkButtonText, { color: T.textMuted }]}>{t('Bulk')}</Text>
         </FastPressable>
       </View>
@@ -220,6 +229,7 @@ export const useTradeLiveAccountSummary = ({
             margin: restAccountSummary.margin,
             freeMargin: restAccountSummary.freeMargin,
             marginLevel: restAccountSummary.marginLevel,
+            staleMetrics: restAccountSummary.staleMetrics,
             currency: restAccountSummary.currency,
           }
         : null,
@@ -243,6 +253,7 @@ export const useTradeLiveAccountSummary = ({
             margin_free: state.margin_free,
             margin_level: state.margin_level,
             metricFlags: state.metricFlags,
+            staleMetricFlags: state.staleMetricFlags,
           }
         : null,
     ),
@@ -252,13 +263,29 @@ export const useTradeLiveAccountSummary = ({
     retainedLiveAccRef.current = selectedLiveAcc;
   }
   const liveAcc = selectedLiveAcc ?? retainedLiveAccRef.current ?? EMPTY_TRADE_LIVE_ACCOUNT;
+  const accountLeverage =
+    (restAccountSummary?.leverage && restAccountSummary.leverage > 0
+      ? restAccountSummary.leverage
+      : undefined) ??
+    (selectedTradingAccount?.leverage && selectedTradingAccount.leverage > 0
+      ? selectedTradingAccount.leverage
+      : undefined);
   const liveQuoteSymbols = useMemo(() => Array.from(new Set(positions.map((position) => position.symbol))), [positions]);
   const liveQuotes = useLiveSymbolQuotes(liveQuoteSymbols, active, quoteCommitIntervalMs);
   const account = useMemo(() => {
     const summary = buildTradeAccountSummary(liveAcc, tradingAccount);
     const floating = resolveTradeFloatingPnl(summary.floating, positions, hydratedLogin, resolvedLogin, liveQuotes);
-    return resolveRenderableTradeAccountSummary(summary, floating);
-  }, [hydratedLogin, liveAcc, liveQuotes, positions, resolvedLogin, tradingAccount]);
+    const margin = resolveTradeUsedMargin(
+      summary.margin,
+      tradingAccount?.margin,
+      positions,
+      hydratedLogin,
+      resolvedLogin,
+      liveQuotes,
+      accountLeverage,
+    );
+    return resolveRenderableTradeAccountSummary(summary, floating, margin);
+  }, [accountLeverage, hydratedLogin, liveAcc, liveQuotes, positions, resolvedLogin, tradingAccount]);
 
   return account;
 };

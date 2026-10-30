@@ -6,19 +6,93 @@
  */
 
 import React from 'react';
-import Svg, { Path, Circle, Rect, Line, Polyline, G } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line, Polyline, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 export const CHART_HEADER_ICON_SIZE = 22;
 // Pencil and menu-dot font glyphs need a smaller size to visually balance
 // with the crosshair and clock SVGs in the header.
 export const CHART_HEADER_GLYPH_SIZE = 18;
 
-export const TvTradeClock = ({ color, size = CHART_HEADER_ICON_SIZE }: { color: string; size?: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 66 66" fill="none">
-    {/* MT5 has a wide outer capsule around a circular opening, rather than a stroked circle. */}
-    <Path d="M31.5 10H27a24 24 0 0 0 0 48h4.5v-6.063a18 18 0 0 1 0-35.874Z" fill="#DA5244" />
-    <Path d="M34.5 10H39a24 24 0 0 1 0 48h-4.5v-6.063a18 18 0 0 0 0-35.874Z" fill="#3687ED" />
-    <Path d="M30 22h6v13l8 8-4 4-10-10Z" fill={color} />
+export const TvTradeClock = ({
+  color: _color,
+  size = CHART_HEADER_ICON_SIZE,
+  active = false,
+}: {
+  color?: string;
+  size?: number;
+  active?: boolean;
+}) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Defs>
+      <LinearGradient id="sltpRedFill" x1="50%" y1="0%" x2="50%" y2="100%">
+        <Stop offset="0%" stopColor="#FF6B75" />
+        <Stop offset="100%" stopColor="#F23645" />
+      </LinearGradient>
+      <LinearGradient id="sltpGreenFill" x1="50%" y1="0%" x2="50%" y2="100%">
+        <Stop offset="0%" stopColor="#34D399" />
+        <Stop offset="100%" stopColor="#089981" />
+      </LinearGradient>
+    </Defs>
+    {active ? (
+      <Rect
+        x="1.5"
+        y="2.5"
+        width="21"
+        height="19"
+        rx="5.5"
+        fill="rgba(41, 98, 255, 0.10)"
+        stroke="rgba(41, 98, 255, 0.48)"
+        strokeWidth="1.2"
+      />
+    ) : null}
+    {/* Left: Stop Loss (Red downward arrow) */}
+    <Path
+      d="M6.35 5H8.65V11.8H10.85L7.5 18.5L4.15 11.8H6.35Z"
+      fill="url(#sltpRedFill)"
+      stroke="url(#sltpRedFill)"
+      strokeWidth="1.15"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    {/* Right: Take Profit (Green upward arrow) */}
+    <Path
+      d="M16.5 5.5L19.85 12.2H17.65V19H15.35V12.2H13.15Z"
+      fill="url(#sltpGreenFill)"
+      stroke="url(#sltpGreenFill)"
+      strokeWidth="1.15"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+export const TvSlTpIcon = TvTradeClock;
+
+export const TvOneClick = ({
+  color,
+  size = CHART_HEADER_ICON_SIZE,
+  active = false,
+}: {
+  color: string;
+  size?: number;
+  active?: boolean;
+}) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M5.2 8.2A8.5 8.5 0 0 1 9.5 4.3M18.8 15.8A8.5 8.5 0 0 1 14.5 19.7"
+      stroke={color}
+      strokeWidth={active ? '1.85' : '1.6'}
+      strokeLinecap="round"
+      opacity={active ? 0.95 : 0.72}
+    />
+    <Path
+      d="M13.1 3.8L6.9 12.5H11.4L10.3 20.2L17.1 11.3H12.6L13.1 3.8Z"
+      fill={active ? color : 'none'}
+      stroke={color}
+      strokeWidth={active ? '1.45' : '1.75'}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </Svg>
 );
 

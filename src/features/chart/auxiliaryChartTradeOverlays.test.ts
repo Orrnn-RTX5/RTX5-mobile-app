@@ -70,7 +70,8 @@ test('every same-symbol pane receives the persisted trade regardless of timefram
     const openLine = paneLines.find((line) => line.id === 'open-btc-buy');
     assert.ok(openLine);
     assert.equal(openLine.labelSideText, 'BUY 0.03');
-    assert.match(openLine.labelValueText ?? '', /USD$/);
+    // Auxiliary panes without account-currency metadata must never invent USD.
+    assert.equal(openLine.labelValueText, '-0.31000 currency unavailable');
     assert.equal(openLine.labelPlacement, 'line');
     assert.equal(openLine.dragKey, undefined);
   }

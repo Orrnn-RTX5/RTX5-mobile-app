@@ -1,6 +1,6 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getOrrnnDemoPublicMarketCatalog, getOrrnnDemoPublicCandles, getOrrnnDemoPublicQuotePayloads, isOrrnnDemoPublicMarketSelection, resolveOrrnnDemoPublicCandleTimeframe } from './orrnnDemoPublicMarket';
+import { getOrrnnDemoPublicMarketCatalog, getOrrnnDemoPublicCandles, getOrrnnDemoPublicQuotePayloads, isOrrnnDemoPublicMarketSelection, resolveOrrnnDemoPublicCandleTimeframe, resolvePublicWireSymbol, type OrrnnDemoPublicCatalog } from './orrnnDemoPublicMarket';
 import { setPublicBrokerContext } from '../state/publicBrokerContext';
 import { publicBrokerFixture } from '../testFixtures/publicBroker';
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
@@ -61,4 +61,62 @@ test('a broker switch rejects stale in-flight catalog responses', async t => {
   const pending = getOrrnnDemoPublicMarketCatalog(); setPublicBrokerContext(publicBrokerFixture('Other')); release();
   await assert.rejects(pending, /changed/);
 });
+
+test('wire symbol index preserves exact spelling, ambiguity rejection and broker suffix identity', () => {
+  const catalog: OrrnnDemoPublicCatalog = {
+    symbols: ['EURUSD.pro', 'EURUSD.PRO', 'EURUSD', 'XAUUSDm'],
+    timeframes: [], instruments: [], quotes: [],
+  };
+  assert.equal(resolvePublicWireSymbol('EURUSD.pro', catalog), 'EURUSD.pro');
+  assert.equal(resolvePublicWireSymbol('EURUSD.PRO', catalog), 'EURUSD.PRO');
+  assert.equal(resolvePublicWireSymbol('eurusd.pro', catalog), null);
+  assert.equal(resolvePublicWireSymbol('eurusd', catalog), 'EURUSD');
+  assert.equal(resolvePublicWireSymbol('xauusdm', catalog), 'XAUUSDm');
+  assert.equal(resolvePublicWireSymbol('XAUUSD', catalog), null);
+  assert.equal(resolvePublicWireSymbol('MISSING', catalog), null);
+  const refreshed = { ...catalog, symbols: ['EURUSD.PRO'] };
+  assert.equal(resolvePublicWireSymbol('eurusd.pro', refreshed), 'EURUSD.PRO');
+  assert.equal(resolvePublicWireSymbol('eurusd.pro', catalog), null);
+});
+
+test('large catalogs are indexed once across continuous wire symbol lookups', () => {
+  let elementReads = 0;
+  const symbols = new Proxy(Array.from({ length: 5_000 }, (_, index) => `SYMBOL-${index}.pro`), {
+    get(target, key, receiver) {
+      if (typeof key === 'string' && /^\d+$/.test(key)) elementReads += 1;
+      return Reflect.get(target, key, receiver);
+    },
+  });
+  const catalog: OrrnnDemoPublicCatalog = { symbols, timeframes: [], instruments: [], quotes: [] };
+  assert.equal(resolvePublicWireSymbol('symbol-4999.pro', catalog), 'SYMBOL-4999.pro');
+  const initialReads = elementReads;
+  assert.ok(initialReads <= symbols.length * 2, 'index construction is linear');
+  for (let index = 0; index < 1_000; index += 1) {
+    assert.equal(resolvePublicWireSymbol(`symbol-${index}.pro`, catalog), `SYMBOL-${index}.pro`);
+  }
+  assert.equal(elementReads, initialReads, 'warm lookups do not walk the instrument list');
+});
+
+test('public candle history falls back to /api/v1/candles when /api/v2/candles returns empty rows on weekend crypto feeds', async t => {
+  const original = fetch; t.after(() => { globalThis.fetch = original; setPublicBrokerContext(null); });
+  setPublicBrokerContext(publicBrokerFixture());
+  const requests: string[] = [];
+  globalThis.fetch = (async url => {
+    const path = String(url); requests.push(path);
+    if (path.endsWith('/instruments')) return json([{ symbol: 'BTCUSD' }]);
+    if (path.endsWith('/quotes')) return json({ data: [] });
+    if (path.includes('/api/v2/candles/BTCUSD')) return json({ symbol: 'BTCUSD', timeframe: 'M1', candles: [] });
+    if (path.includes('/api/v1/candles?symbol=BTCUSD&tf=1m&limit=5')) {
+      return json({ symbol: 'BTCUSD', tf: '1m', count: 2, candles: [{ time: 1700000060, open: 67000, high: 67100, low: 66950, close: 67050, volume: 3 }, { time: 1700000000, open: 66900, high: 67000, low: 66850, close: 67000, volume: 2 }] });
+    }
+    return json({ candles: [] });
+  }) as typeof fetch;
+  const bars = await getOrrnnDemoPublicCandles('BTCUSD', 'M1', 5);
+  assert.equal(bars.symbol, 'BTCUSD');
+  assert.equal(bars.count, 2);
+  assert.equal((bars.candles[0] as any).time, 1700000000);
+  assert.equal((bars.candles[1] as any).time, 1700000060);
+  assert.ok(requests.some(url => url.includes('/api/v1/candles?symbol=BTCUSD&tf=1m&limit=5')));
+});
+
 

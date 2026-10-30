@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { authenticateGuest, authenticationError, demoRegistrationBody, loginRequestBody, normalizeGuestSession, validateDemoForm, isDemoRegistrationEnabled } from './guestAuthentication';
+import { authenticateGuest, authenticationError, demoRegistrationBody, GuestAuthError, loginRequestBody, normalizeGuestSession, validateDemoForm, isDemoRegistrationEnabled } from './guestAuthentication';
 import { setPublicBrokerContext } from '../state/publicBrokerContext';
 import { publicBrokerFixture } from '../testFixtures/publicBroker';
 import { resolveDemoAccountPolicy } from '../features/auth/demoAccountPolicy';
-const form = { name: '  Demo User  ', email: ' trader@example.com ', password: ' Abcdefg1 ', confirmation: ' Abcdefg1 ' };
+const form = { name: '  Demo User  ', email: ' trader@example.com ', investorPassword: ' Investor123! ', password: ' Abcdefg1 ', confirmation: ' Abcdefg1 ' };
 
 test('public capability flags disable only demo registration', () => {
   assert.equal(isDemoRegistrationEnabled(null), true);
@@ -20,11 +20,14 @@ test('existing login uses the same verified extended origin and retains non-JSON
   }) as typeof fetch;
   await assert.rejects(authenticateGuest(context, 'login', loginRequestBody('10001', 'password', 'Nexa'), new AbortController().signal), error => error instanceof Error && 'status' in error && error.status === 429 && 'retryAt' in error && Number(error.retryAt) > Date.now());
 });
-test('demo payload contains only server-approved identity fields and preserves the password', () => {
+test('demo payload allowlists identity and password fields and preserves both passwords exactly', () => {
   assert.deepEqual(demoRegistrationBody({ ...form, group: 'tampered', initial_balance: 999, phone: '+919876543210', country_code: 'IN' } as any, 'Nexa'), {
-    name: 'Demo User', email: 'trader@example.com', username: 'trader@example.com', password: ' Abcdefg1 ', broker_id: 'Nexa',
+    name: 'Demo User', email: 'trader@example.com', username: 'trader@example.com', investor_pass: ' Investor123! ', password: ' Abcdefg1 ', broker_id: 'Nexa',
   });
-  for (const invalid of [{ name: ' ' }, { email: 'bad' }, { password: '12345678' }, { password: 'abcdefgh' }, { password: 'Abcd1' }, { confirmation: 'Abcdefg1' }]) assert.ok(validateDemoForm({ ...form, ...invalid }));
+  for (const invalid of [{ name: ' ' }, { email: 'bad' }, { password: '12345678' }, { password: 'abcdefgh' }, { password: 'Abcd1' }, { confirmation: 'Abcdefg1' }, { investorPassword: '' }, { investorPassword: '12345678' }, { investorPassword: 'abcdefgh' }, { investorPassword: 'Abcd1' }]) {
+    assert.ok(validateDemoForm({ ...form, ...invalid }));
+    assert.throws(() => demoRegistrationBody({ ...form, ...invalid }, 'Nexa'));
+  }
   assert.equal(validateDemoForm(form), null);
 });
 test('numeric and username login identities are exclusive and retain numeric precision', () => {
@@ -57,6 +60,7 @@ test('HTTP 201 is accepted directly and authentication produces zero order/depos
     brokerName: 'Directory Nexa', group: 'demo/admin-selected-B', leverage: 75,
   });
   assert.equal('api_key' in session.metadata, false);
+  assert.equal('investor_pass' in session.metadata, false);
 });
 test('late broker-switched and dismissed responses cannot return accepted sessions', async t => {
   const original = fetch; t.after(() => { globalThis.fetch = original; setPublicBrokerContext(null); });
@@ -75,4 +79,70 @@ test('documented status/code classes, rate limits and ambiguous errors remain di
   assert.equal(authenticationError(500, { error: 'INTERNAL_ERROR' }, null, true).ambiguous, true);
   assert.equal(authenticationError(0, {}, null, true).ambiguous, true);
   assert.notEqual(authenticationError(409, { error: 'CONFLICT' }, null, true).message, authenticationError(409, { error: 'CALCULATION_POLICY_UNSUPPORTED' }, null, true).message);
+});
+
+test('a native fetch connection failure is distinguished from a rejected password', async t => {
+  const original = fetch; t.after(() => { globalThis.fetch = original; setPublicBrokerContext(null); });
+  const context = setPublicBrokerContext(publicBrokerFixture())!;
+  globalThis.fetch = (async () => { throw new TypeError('Network request failed'); }) as typeof fetch;
+  await assert.rejects(authenticateGuest(context, 'login', loginRequestBody('10001', 'secret', context.brokerId), new AbortController().signal), error => {
+    assert.ok(error instanceof GuestAuthError); assert.equal(error.code, 'NETWORK_ERROR');
+    assert.match(error.message, /connect to the broker/i); assert.doesNotMatch(error.message, /not accepted|password/i); return true;
+  });
+  assert.match(authenticationError(401, {}, null, false).message, /login or password was not accepted/i);
+});
+
+test('login displays the backend rejection message and code without exposing credential strings', async t => {
+  const original = fetch; t.after(() => { globalThis.fetch = original; setPublicBrokerContext(null); });
+  const context = setPublicBrokerContext(publicBrokerFixture())!;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'ACCOUNT_DISABLED', message: 'Account disabled. Contact your broker. password=hidden-secret' }), { status: 403 })) as typeof fetch;
+  await assert.rejects(authenticateGuest(context, 'login', loginRequestBody('10001', 'secret', context.brokerId), new AbortController().signal), error => {
+    assert.ok(error instanceof GuestAuthError); assert.equal(error.status, 403); assert.equal(error.code, 'ACCOUNT_DISABLED');
+    assert.match(error.message, /Account disabled/); assert.doesNotMatch(error.message, /hidden-secret/); return true;
+  });
+  assert.match(authenticationError(503, {}, null, false).message, /broker login service/i);
+  assert.doesNotMatch(authenticationError(503, {}, null, false).message, /demo signup/i);
+});
+
+test('a successful non-JSON response is a backend response error, not bad credentials or a connection failure', async t => {
+  const original = fetch; t.after(() => { globalThis.fetch = original; setPublicBrokerContext(null); });
+  const context = setPublicBrokerContext(publicBrokerFixture())!;
+  globalThis.fetch = (async () => new Response('<html>Upstream error</html>', { status: 200 })) as typeof fetch;
+  for (const operation of ['login', 'register'] as const) {
+    await assert.rejects(authenticateGuest(context, operation, '{}', new AbortController().signal), error => {
+      assert.ok(error instanceof GuestAuthError); assert.equal(error.code, 'INVALID_RESPONSE'); assert.equal(error.status, 200);
+      assert.equal(error.ambiguous, operation === 'register'); return true;
+    });
+  }
+});
+
+test('a timed-out native request reports a timeout and registration keeps its uncertain result', async t => {
+  const original = fetch; t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.after(() => { t.mock.timers.reset(); globalThis.fetch = original; setPublicBrokerContext(null); });
+  const context = setPublicBrokerContext(publicBrokerFixture())!;
+  globalThis.fetch = ((_url, init) => new Promise<Response>((_resolve, reject) => {
+    init!.signal!.addEventListener('abort', () => reject(Object.assign(new Error('Aborted'), { name: 'AbortError' })), { once: true });
+  })) as typeof fetch;
+  for (const operation of ['login', 'register'] as const) {
+    const request = authenticateGuest(context, operation, '{}', new AbortController().signal);
+    const rejected = assert.rejects(request, error => {
+      assert.ok(error instanceof GuestAuthError); assert.equal(error.code, 'AUTH_TIMEOUT'); assert.equal(error.ambiguous, operation === 'register');
+      assert.match(error.message, operation === 'login' ? /timed out/i : /may have been created/i); return true;
+    });
+    t.mock.timers.tick(15000); await rejected;
+  }
+});
+
+test('caller cancellation is separate from a timeout and already-cancelled login never contacts the broker', async t => {
+  const original = fetch; t.after(() => { globalThis.fetch = original; setPublicBrokerContext(null); });
+  const context = setPublicBrokerContext(publicBrokerFixture())!;
+  let requests = 0;
+  globalThis.fetch = ((_url, init) => { requests++; return new Promise<Response>((_resolve, reject) => {
+    init!.signal!.addEventListener('abort', () => reject(Object.assign(new Error('Aborted'), { name: 'AbortError' })), { once: true });
+  }); }) as typeof fetch;
+  const controller = new AbortController(); const request = authenticateGuest(context, 'login', '{}', controller.signal);
+  controller.abort();
+  await assert.rejects(request, error => error instanceof GuestAuthError && error.code === 'AUTH_CANCELLED');
+  await assert.rejects(authenticateGuest(context, 'login', '{}', controller.signal), error => error instanceof GuestAuthError && error.code === 'AUTH_CANCELLED');
+  assert.equal(requests, 1);
 });

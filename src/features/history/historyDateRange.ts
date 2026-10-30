@@ -12,6 +12,8 @@ type ClosedHistoryTimeRecord = {
   timeDone?: number | string;
   closed_at?: number | string;
   time?: number | string;
+  time_setup?: number | string;
+  timeSetup?: number | string;
   time_update?: number | string;
   timeUpdate?: number | string;
   updated_at?: number | string;
@@ -36,6 +38,14 @@ function endOfDay(date: Date) {
   return next;
 }
 
+function subtractMonths(date: Date, months: number) {
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() - months);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
+}
+
 function resolvePresetHistoryDateRange(historyRange: string, now = new Date()): ResolvedHistoryDateRange | null {
   const end = endOfDay(now);
   const start = startOfDay(now);
@@ -49,16 +59,16 @@ function resolvePresetHistoryDateRange(historyRange: string, now = new Date()): 
       start.setDate(start.getDate() - 7);
       break;
     case 'Last month':
-      start.setMonth(start.getMonth() - 1);
+      subtractMonths(start, 1);
       break;
     case 'Last 3 months':
-      start.setMonth(start.getMonth() - 3);
+      subtractMonths(start, 3);
       break;
     case 'Last 6 months':
-      start.setMonth(start.getMonth() - 6);
+      subtractMonths(start, 6);
       break;
     case 'Last year':
-      start.setFullYear(start.getFullYear() - 1);
+      subtractMonths(start, 12);
       break;
     default:
       return null;
@@ -73,6 +83,11 @@ export function resolveEffectiveHistoryDateRange(
   historyToMs: number | null,
   now = new Date(),
 ): ResolvedHistoryDateRange {
+  // Presets are relative to today. Older app versions persisted their computed
+  // dates, which left "Today" stuck on the day it was originally selected.
+  const presetRange = resolvePresetHistoryDateRange(historyRange, now);
+  if (presetRange) return presetRange;
+
   if (historyFromMs != null || historyToMs != null) {
     return {
       fromMs: historyFromMs,
@@ -80,10 +95,10 @@ export function resolveEffectiveHistoryDateRange(
     };
   }
 
-  return resolvePresetHistoryDateRange(historyRange, now) ?? { fromMs: null, toMs: null };
+  return { fromMs: null, toMs: null };
 }
 
-function coerceTimestampToMs(raw: unknown): number | null {
+export function coerceTimestampToMs(raw: unknown): number | null {
   // Accept seconds, milliseconds, microseconds, or ISO strings — the backend
   // for closed positions / deals / orders has historically returned each of
   // these. Without the auto-detect we silently drop every record whose
@@ -134,6 +149,8 @@ function resolveClosedRecordTimeMs(record: ClosedHistoryTimeRecord): number | nu
     coerceTimestampToMs(record.time_update) ??
     coerceTimestampToMs(record.timeUpdate) ??
     coerceTimestampToMs(record.updated_at) ??
+    coerceTimestampToMs(record.time_setup) ??
+    coerceTimestampToMs(record.timeSetup) ??
     coerceTimestampToMs(record.time_create) ??
     coerceTimestampToMs(record.timeCreate) ??
     coerceTimestampToMs(record.open_time) ??
@@ -142,6 +159,21 @@ function resolveClosedRecordTimeMs(record: ClosedHistoryTimeRecord): number | nu
     coerceTimestampToMs(record.timeOpen) ??
     coerceTimestampToMs(record.created_at)
   );
+}
+
+/** Match the order timestamp displayed in History, including incomplete DTOs. */
+export function filterOrderRecordsByDateRange<T extends ClosedHistoryTimeRecord & { status?: string }>(
+  records: T[],
+  fromMs: number | null,
+  toMs: number | null,
+): T[] {
+  if (fromMs == null && toMs == null) return records;
+  return records.filter((record) => {
+    const completed = record.status === 'closed' || record.status === 'canceled';
+    const timeMs = (completed ? coerceTimestampToMs(record.time_done) : coerceTimestampToMs(record.time_setup))
+      ?? resolveClosedRecordTimeMs(record);
+    return timeMs != null && (fromMs == null || timeMs >= fromMs) && (toMs == null || timeMs <= toMs);
+  });
 }
 
 export function filterClosedRecordsByDateRange<T extends ClosedHistoryTimeRecord>(

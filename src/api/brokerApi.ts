@@ -288,7 +288,7 @@ const accountLoginsMatch = (a: string | number, b: string | number): boolean => 
 };
 
 /**
- * Refresh identity checks: broker_id is compared ignoring case and
+ * Refresh identity checks: broker_id is compared with exact case and
  * account_login numerically or as a string. A field the response omits is not
  * a mismatch.
  */
@@ -526,7 +526,8 @@ export class BrokerAPI {
     }
     if (shouldAuthenticate && !options.skipRefresh) {
       try {
-        activeLease = await this.getValidAccessTokenForCapture(capture, identity, false);
+        const lease = this.getValidAccessTokenForCapture(capture, identity, false);
+        activeLease = 'then' in lease ? await lease : lease;
         activeToken = activeLease.accessToken;
       } catch (error) {
         if (isAuthSessionError(error)) {
@@ -547,7 +548,7 @@ export class BrokerAPI {
       if (method === 'POST' && /^\/(?:api\/v2\/)?orders\/?$/.test(mutationPath)) {
         const body = typeof options.body === 'string' ? JSON.parse(options.body) : null;
         if (String(body?.account_login) !== capture.session.accountLogin) throw new Error('Order account does not match the current trading session.');
-        await assertOrderReadiness(capture.session.cacheNamespace, body, (path, init) => this.request(path, init));
+        assertOrderReadiness(capture.session.cacheNamespace, body);
       }
     }
     if (!headers.has('accept')) headers.set('accept', 'application/json');
@@ -556,8 +557,23 @@ export class BrokerAPI {
     )) {
       headers.set('Content-Type', 'application/json');
     }
-    if (tradeIdempotencyAction && !headers.has('Idempotency-Key')) {
-      headers.set('Idempotency-Key', createTradeIdempotencyKey(tradeIdempotencyAction));
+    if (tradeIdempotencyAction) {
+      let bodyClientOrderId = '';
+      if (typeof options.body === 'string' && options.body.includes('client_order_id')) {
+        try {
+          const parsedBody = JSON.parse(options.body) as { client_order_id?: unknown };
+          if (typeof parsedBody?.client_order_id === 'string' && parsedBody.client_order_id.trim()) {
+            bodyClientOrderId = parsedBody.client_order_id.trim();
+          }
+        } catch {
+          // Non-JSON bodies fall back to the header logic below.
+        }
+      }
+      if (bodyClientOrderId) {
+        headers.set('Idempotency-Key', bodyClientOrderId);
+      } else if (!headers.has('Idempotency-Key')) {
+        headers.set('Idempotency-Key', createTradeIdempotencyKey(tradeIdempotencyAction));
+      }
     }
 
     const url = options.apiVersion
@@ -631,11 +647,11 @@ export class BrokerAPI {
     return response;
   }
 
-  private async getValidAccessTokenForCapture(
+  private getValidAccessTokenForCapture(
     capture: ActiveBrokerSessionCapture,
     identity: ActiveBrokerSessionIdentity,
     forceRefresh: boolean,
-  ): Promise<CredentialLease> {
+  ): CredentialLease | Promise<CredentialLease> {
     const current = this.requireCurrentCapture(identity);
     const owner = this.requireCurrentOwnerStamp(identity);
     if (!current.credentials.accessToken) {
@@ -643,8 +659,7 @@ export class BrokerAPI {
     }
     const expiresAtMs = parseExpiresAtMs(current.credentials.expiresAt);
     if (expiresAtMs > 0 && expiresAtMs <= Date.now() && !current.credentials.refreshToken) {
-      await this.invalidateAuthSession(identity);
-      return Object.freeze({ accessToken: '', owner });
+      return this.invalidateAuthSession(identity).then(() => Object.freeze({ accessToken: '', owner }));
     }
     const shouldRefresh = forceRefresh || (
       Boolean(current.credentials.refreshToken) &&

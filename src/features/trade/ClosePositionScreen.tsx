@@ -18,11 +18,12 @@ import { usePositionsState } from '../../state/positionsState';
 import { resolveTradingLoginString } from '../../state/tradingLogin';
 import { positionsApi } from '../../api/positions';
 import { appQueryClient } from '../../state/providers/AppProviders';
-import type { PositionItem } from '../../dev/mock/tradingData';
+import type { PositionItem } from '../../domain/tradingModels';
 import { spacing } from '../../ui/theme/index';
 import { useTheme } from '../../ui/theme/useTheme';
 import { ThemeColors } from '../../ui/theme/glass';
 import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
 import { safeRouterBack } from '../../utils/navigation';
 import { useTranslation } from '../../i18n/useTranslation';
 import { CRITICAL_TRADE_ACTION_MAX_LATENCY_MS } from '../../utils/actionLatency';
@@ -310,20 +311,42 @@ export function ClosePositionScreen({
     setIsClosing(true);
     setCloseError(null);
     const closeSnapshot = { ...position };
-    usePositionsState.getState().beginOptimisticClose(ticketId);
+    const fallbackClosePrice = Number.isFinite(livePrice) && livePrice > 0 ? livePrice : undefined;
+    const fallbackProfit = Number.isFinite(livePnl) ? livePnl : undefined;
+    const initialState = usePositionsState.getState();
+    initialState.recordClosedPosition(closeSnapshot, {
+      closePrice: fallbackClosePrice,
+      profit: fallbackProfit,
+      accountLogin: resolvedLogin,
+    });
+    initialState.beginOptimisticClose(ticketId);
     setSubmitted(true);
     leaveScreen();
 
     void positionsApi.closePosition(ticketId)
-      .then(() => {
+      .then((response) => {
         if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) return;
         const state = usePositionsState.getState();
+        state.recordClosedPosition(closeSnapshot, {
+          closePrice: response?.price_close ?? response?.price ?? fallbackClosePrice,
+          profit: response?.profit ?? fallbackProfit,
+          closeTimeSeconds: response?.time,
+          accountLogin: resolvedLogin,
+        });
         state.finishOptimisticClose(ticketId);
         void invalidateSessionQueryRoots(
           appQueryClient,
           actionProvenance.cacheNamespace,
           ['positionHistory', 'accountDeals', 'deals', 'positions', 'ordersByLogin', 'accountSummary', 'transactions'],
         );
+        setTimeout(() => {
+          if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) return;
+          void invalidateSessionQueryRoots(
+            appQueryClient,
+            actionProvenance.cacheNamespace,
+            ['positionHistory', 'accountDeals', 'deals', 'positions', 'ordersByLogin', 'accountSummary', 'transactions'],
+          );
+        }, 1200);
         if (resolvedLogin) {
           void state.refreshPositions(resolvedLogin);
         }
@@ -342,7 +365,7 @@ export function ClosePositionScreen({
   }, [getCurrentAvailability, isClosing, leaveScreen, position, positionCacheNamespace, releaseActionLock, resolvedLogin, t]);
 
   // Inactive retained layers skip paint work while another screen is visible.
-  if (!isScreenFocused) {
+  if (hosted && !isScreenFocused) {
     return <View style={[styles.root, { backgroundColor: screenBg }]} />;
   }
 
@@ -414,8 +437,8 @@ export function ClosePositionScreen({
 
           <View style={styles.divider} />
 
-          <MetricRow label={t('Open Price')} value={fmt.price(position.openPrice)} styles={styles} muted />
-          <MetricRow label={t('Current Price')} value={fmt.price(livePrice)} styles={styles} />
+          <MetricRow label={t('Open Price')} value={formatBackendPrice(position.openPrice)} styles={styles} muted />
+          <MetricRow label={t('Current Price')} value={formatBackendPrice(livePrice)} styles={styles} />
           <View style={styles.pnlBlock}>
             <Text style={styles.pnlLabel}>{t('Floating P/L')}</Text>
             <Text style={[styles.pnlValue, livePnl < 0 ? styles.negative : livePnl > 0 ? styles.positive : null]}>

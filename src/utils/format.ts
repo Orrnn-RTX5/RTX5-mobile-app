@@ -10,18 +10,26 @@ export const formatPrice = (value: number, decimals?: number) => {
 
 export const fmt = {
   price: formatPrice,
-  pnl: (value: number) => `${(value || 0) >= 0 ? '+' : ''}${(value || 0).toFixed(2)}`,
+  pnl: (value: number) => {
+    const safe = Number.isFinite(value) ? value : 0;
+    return `${safe >= 0 ? '+' : ''}${safe.toFixed(2)}`;
+  },
   pnlPrecise: (value: number) => {
     const safe = Number.isFinite(value) ? value : 0;
     return `${safe >= 0 ? '+' : ''}${safe.toFixed(2)}`;
   },
-  pct: (value: number) => `${(value || 0) >= 0 ? '+' : ''}${(value || 0).toFixed(2)}%`,
+  pct: (value: number) => {
+    const safe = Number.isFinite(value) ? value : 0;
+    return `${safe >= 0 ? '+' : ''}${safe.toFixed(2)}%`;
+  },
   int: (value: number) => {
-    const fixed = (value || 0).toFixed(0);
+    const safe = Number.isFinite(value) ? value : 0;
+    const fixed = safe.toFixed(0);
     return fixed.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   },
   decimal: (value: number) => {
-    const fixed = (value || 0).toFixed(2);
+    const safe = Number.isFinite(value) ? value : 0;
+    const fixed = safe.toFixed(2);
     const parts = fixed.split('.');
     parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     return parts.join('.');

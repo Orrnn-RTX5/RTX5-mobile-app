@@ -99,3 +99,55 @@ test('an inactive Quotes preload replaces a retained Chart preload scope', () =>
   assert.equal(snapshot.actionSheetScope, 'quotes');
   assert.equal(snapshot.preloadedScopedActionSheets.quotes?.visualKey, 'quotes.EURUSD');
 });
+
+test('identical chart menu reopens publish a fresh request without changing retained content', () => {
+  const drawingTools: ActionSheetConfig = {
+    title: 'Drawing Tools',
+    instantOpen: true,
+    entryMotion: 'instant',
+    actions: [{ label: 'Trend Line' }],
+  };
+  const more: ActionSheetConfig = {
+    instantOpen: true,
+    entryMotion: 'mt5Slide',
+    actions: [{ label: 'Fullscreen' }],
+  };
+  for (const config of [drawingTools, more]) {
+    useUIState.getState().showChartActionSheet(config);
+    const beforeClose = useUIState.getState();
+    useUIState.getState().hideChartActionSheet();
+    useUIState.getState().showChartActionSheet(config);
+    const afterReopen = useUIState.getState();
+    assert.strictEqual(afterReopen.scopedActionSheets.chart, beforeClose.scopedActionSheets.chart);
+    assert.ok(afterReopen.actionSheetOpenRevision > beforeClose.actionSheetOpenRevision,
+      'React must receive an opening signal even when closed=false never renders');
+
+    const revision = afterReopen.actionSheetOpenRevision;
+    useUIState.getState().preloadScopedActionSheet('chart', drawingTools);
+    useUIState.getState().preloadQuotesActionSheet({ actions: [{ label: 'Quote' }] });
+    assert.equal(useUIState.getState().actionSheetOpenRevision, revision,
+      'background preloads must not restart or reveal a menu');
+  }
+});
+
+test('every shared menu opener advances its request while dismissals preserve it', () => {
+  const config: ActionSheetConfig = { instantOpen: true, actions: [{ label: 'Action' }] };
+  const state = useUIState.getState();
+  const openers = [
+    () => state.showActionSheet(config),
+    () => state.showScopedActionSheet('chart', config),
+    () => state.showQuotesActionSheet(config),
+    () => state.showChartActionSheet(config),
+    () => state.showTradeActionSheet(config),
+    () => state.showHistoryActionSheet(config),
+    () => state.showAccountsActionSheet(config),
+    () => state.showBrokerDetailActionSheet(config),
+  ];
+  for (const open of openers) {
+    const before = useUIState.getState().actionSheetOpenRevision;
+    open();
+    assert.equal(useUIState.getState().actionSheetOpenRevision, before + 1);
+    state.hideActionSheet();
+    assert.equal(useUIState.getState().actionSheetOpenRevision, before + 1);
+  }
+});

@@ -48,7 +48,7 @@ export function IndicatorLineStyleScreen() {
       <Screen style={styles.screen}>
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
           <Pressable
-            onPress={() => safeRouterBack(router, '/chart/indicators')}
+            onPress={() => safeRouterBack(router, '/chart/indicator-config')}
             activateOnPressIn
             hitSlop={16}
             style={styles.headerBackBtn}
@@ -68,7 +68,7 @@ export function IndicatorLineStyleScreen() {
     <Screen style={styles.screen}>
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
         <Pressable
-          onPress={() => safeRouterBack(router, '/chart/indicators')}
+          onPress={() => safeRouterBack(router, '/chart/indicator-config')}
           activateOnPressIn
           hitSlop={16}
           style={styles.headerBackBtn}

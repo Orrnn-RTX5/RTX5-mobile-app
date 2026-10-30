@@ -13,7 +13,7 @@ const screenSource = readFileSync(
 );
 
 test('shared chart toolbar enumerates every pane-routed command', () => {
-  for (const command of ['crosshair', 'timeframe', 'sltp', 'drawings', 'settings', 'more']) {
+  for (const command of ['crosshair', 'timeframe', 'sltp', 'oneClick', 'drawings', 'settings', 'more']) {
     assert.match(source, new RegExp(`'${command}'`));
   }
 });
@@ -34,7 +34,7 @@ test('every shared top-toolbar control routes through confirmed window ownership
     screenSource.indexOf('const renderCompactHeaderToolbar'),
     screenSource.indexOf('const renderChartTradeSheetTopHeader'),
   );
-  for (const command of ['crosshair', 'timeframe', 'sltp', 'drawings', 'more']) {
+  for (const command of ['crosshair', 'timeframe', 'sltp', 'oneClick', 'drawings', 'more']) {
     assert.match(
       toolbarSource,
       new RegExp(`routeChartWindowToolbarAction\\('${command}'\\)`),

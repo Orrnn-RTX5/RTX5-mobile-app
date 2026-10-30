@@ -532,7 +532,8 @@ test('native chart toolbar keeps fast action openers on reliable press surfaces'
     assert.ok(scrollableToolbar.includes(`onPress={() => routeChartWindowToolbarAction('${action}')}`));
   }
   assert.doesNotMatch(scrollableToolbar, /routeChartWindowToolbarAction\('settings'\)|options-outline/);
-  assert.doesNotMatch(scrollableToolbar, /activateOnPressIn|activateOnTouchStart|onPressIn=/);
+  assert.match(scrollableToolbar, /routeChartWindowToolbarAction\('sltp'\)\}[\s\S]*?activateOnPressIn/);
+  assert.doesNotMatch(scrollableToolbar.replace(/onPress=\{\(\) => routeChartWindowToolbarAction\('sltp'\)\}\s*activateOnPressIn/, ''), /activateOnPressIn|activateOnTouchStart|onPressIn=/);
   assert.match(
     source,
     /useChartWindowToolbarRouter\([\s\S]*timeframe: handleOpenTimeframePicker[\s\S]*sltp: handleActivateDirectChartProtection[\s\S]*drawings: handleOpenDrawingTools[\s\S]*settings: handleOpenSettingsScreen[\s\S]*more: handleOpenMoreMenu/,
@@ -544,8 +545,14 @@ test('native chart toolbar keeps fast action openers on reliable press surfaces'
     /<Pressable\b[^>]*\bonPress=\{handlers\.onOpenExpirationMenu\}[^>]*>/g,
   ) ?? [];
   assert.equal(scrollableExpirationOpeners.length, 2);
+  // These rows inherit FastPressable's zero-delay default; an explicit prop
+  // is optional, but any override must keep the same immediate response.
+  assert.match(tradeFeatureSource, /import \{ FastPressable as Pressable \}/);
+  assert.match(readSource('src/ui/components/FastPressable.tsx'), /unstable_pressDelay=\{unstable_pressDelay \?\? 0\}/);
   scrollableExpirationOpeners.forEach((opener) => {
-    assert.match(opener, /unstable_pressDelay=\{0\}/);
+    if (opener.includes('unstable_pressDelay')) {
+      assert.match(opener, /unstable_pressDelay=\{0\}/);
+    }
     assert.doesNotMatch(opener, /activateOnPressIn|activateOnTouchStart/);
   });
   assert.match(menuSource, /onPressIn=\{onPress\}/);

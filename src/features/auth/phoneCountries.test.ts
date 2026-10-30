@@ -5,8 +5,10 @@ import { filterActionSheetActions } from '../../ui/components/ActionSheet/search
 
 const actions = PHONE_COUNTRIES.map(country => ({
   country,
+  key: country.code,
   label: `${country.flag} ${country.name}`,
   subtitle: phoneCountrySearchDetails(country),
+  countrySearch: { names: [country.name], isoCode: country.code, callingCodes: country.dialCodes },
 }));
 const search = (query: string) => filterActionSheetActions(actions, query, value => value).map(action => action.country.code);
 
@@ -43,4 +45,22 @@ test('the picker filters country names, ISO codes and dialing codes with or with
 test('countries with no assigned dialing code never receive a fabricated prefix', () => {
   assert.deepEqual(PHONE_COUNTRIES.find(country => country.code === 'AQ')?.dialCodes, []);
   assert.equal(phoneCountrySearchDetails(PHONE_COUNTRIES.find(country => country.code === 'AQ')!), 'AQ · —');
+});
+
+test('ind excludes Argentina and numeric searches include every matching prefix', () => {
+  assert.deepEqual(search('ind'), ['IO', 'IN', 'ID']);
+  assert.equal(search('IND').includes('AR'), false);
+  for (const query of ['91', '+91', '29', '+29', '291', '  +2 9 1  ']) {
+    const digits = query.replace(/\D/g, '');
+    assert.deepEqual(search(query), PHONE_COUNTRIES.filter(country => country.dialCodes.some(code => query.trim().startsWith('+') ? code.slice(1).startsWith(digits) : code.includes(digits))).map(country => country.code));
+  }
+  assert.ok(search('29').includes('ER'));
+  assert.ok(search(' IN ').includes('IN'));
+});
+
+test('country search retains English names alongside localized names and ignores accents', () => {
+  const india = { ...actions.find(action => action.key === 'IN')!, label: '🇮🇳 भारत', countrySearch: { names: ['India', 'भारत'], isoCode: 'IN', callingCodes: ['+91'] } };
+  for (const query of ['ind', 'भारत', '+9 1']) assert.deepEqual(filterActionSheetActions([india], query, value => value), [india]);
+  assert.ok(search('aland').includes('AX'));
+  assert.equal(search('+++').length, 0);
 });

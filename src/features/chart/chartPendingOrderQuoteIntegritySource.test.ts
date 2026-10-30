@@ -8,7 +8,7 @@ const source = readFileSync(
   'utf8',
 );
 
-test('native chart pending-order defaults never use candle or display quote fallbacks', () => {
+test('native chart draft defaults require healthy Bid/Ask and broker minimum distance', () => {
   const start = source.indexOf('const resolveDefaultPendingPrice');
   const end = source.indexOf('const injectChartScript', start);
   const resolver = source.slice(start, end);
@@ -19,6 +19,14 @@ test('native chart pending-order defaults never use candle or display quote fall
   );
   assert.match(resolver, /if \(!currentQuoteAvailability\.allowed\) \{\s*return 0;/);
   assert.match(resolver, /const \{ bid, ask \} = currentQuoteAvailability/);
+  assert.match(resolver, /defaultPendingPrice\(/);
+  assert.match(resolver, /stopsLevel: chartInstrumentMeta\?\.stopsLevel/);
+  assert.doesNotMatch(resolver, /resolveVisiblePendingEntryPrice\(/);
+  assert.ok(
+    resolver.indexOf('if (!currentQuoteAvailability.allowed)')
+      < resolver.indexOf('const { bid, ask }'),
+    'quote-based defaults still require a healthy session quote',
+  );
   assert.doesNotMatch(resolver, /latestChartClose|chartBid|chartAsk|fallback/);
   assert.doesNotMatch(source, /chartTradePrice \|\| chartBid/);
 });
@@ -58,8 +66,8 @@ test('native chart pending-order completions are bound to the captured broker ep
     handler,
     /String\(tradingLogin\) !== pendingOrderSessionCapture\.session\.accountLogin/,
   );
-  assert.match(handler, /const data = await ordersApi\.placePendingOrder\(payload\);\s*if \(!isPendingOrderSessionCurrent\(\)\) return;/);
-  assert.match(handler, /await Promise\.allSettled\([\s\S]*?if \(!isPendingOrderSessionCurrent\(\)\) return;/);
+  assert.match(handler, /const data = await request;\s*if \(!isPendingOrderSessionCurrent\(\)\) return;/);
+  assert.ok(handler.indexOf('reportPendingResult({', handler.indexOf('const pendingOrderEvidence')) < handler.indexOf('void Promise.allSettled('));
   assert.match(handler, /catch \(error: any\) \{\s*if \(!isPendingOrderSessionCurrent\(\)\) return;/);
-  assert.match(handler, /finally \{\s*if \(isPendingOrderSessionCurrent\(\)\) \{\s*setChartPendingOrderSubmitting\(false\);/);
+  assert.match(handler, /finally \{\s*chartPendingSubmitLockRef\.current = false;\s*if \(!isPendingOrderSessionCurrent\(\)\) chartTradeReceiptStackController\.dismiss\(receipt\.queueId\);\s*setChartPendingOrderSubmitting\(false\);/);
 });

@@ -1,0 +1,688 @@
+import { StyleSheet } from 'react-native';
+import type { ThemeColors } from '../../ui/theme/glass';
+export function makeStyles(T: ThemeColors, isDark: boolean) {
+  const APP_BG = isDark ? '#121212' : T.bg;
+  const CHART_CANVAS_BG = isDark ? '#121212' : '#FFFFFF';
+  const BOTTOM_AREA_BG = isDark ? '#121212' : '#F8FAFC';
+  const BLUE = T.trading.buy.primary;
+  const RED = T.trading.sell.primary;
+  const TEXT_MUTED = T.textMuted;
+
+  return StyleSheet.create({
+    screen: { backgroundColor: APP_BG, paddingHorizontal: 0 },
+
+    /* â”€â”€ Header Wrapper (2-row) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    headerWrapper: {
+      backgroundColor: isDark ? '#121212' : '#FFFFFF',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
+      zIndex: 10,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+      height: 40,
+      marginTop: 16,
+    },
+    hamburgerBtn: {
+      padding: 4,
+      marginLeft: -4,
+    },
+
+    /* â”€â”€ Compact Header (Row 2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    compactHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 0,
+      paddingBottom: 6,
+      marginTop: -4,
+    },
+    symbolSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+      marginTop: -8,
+    },
+    flagStack: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    flagCircle: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      borderWidth: 2,
+      borderColor: isDark ? '#0B101E' : '#FFFFFF',
+    },
+    flagOverlap: {
+      marginLeft: -10,
+    },
+    symbolNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    symbolText: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontSize: 13,
+      fontWeight: '500',
+      letterSpacing: 0,
+    },
+    fxBadge: {
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      borderRadius: 3,
+    },
+    fxBadgeText: {
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+    },
+    symbolSubText: {
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontSize: 13,
+      fontWeight: '500',
+      marginTop: 1,
+    },
+
+    /* â”€â”€ Center: Live Price â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    priceSection: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      flex: 1,
+    },
+    livePriceText: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontSize: 17,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+      letterSpacing: 0,
+    },
+    priceChangeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+      marginTop: 1,
+    },
+
+    /* â”€â”€ Right: Price Change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    rightSection: {
+      alignItems: 'flex-end',
+      flex: 1,
+    },
+    balanceContainer: {
+      alignItems: 'flex-end',
+    },
+    balanceText: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontSize: 16,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+      letterSpacing: 0,
+    },
+    balanceLabel: {
+      color: isDark ? '#FFFFFF' : '#64748B',
+      fontSize: 12,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginBottom: 1,
+    },
+    currencyText: {
+      fontSize: 10,
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontWeight: '600',
+    },
+    priceChangePct: {
+      fontSize: 11,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+      marginTop: 1,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 3,
+    },
+    headerTitleContainer: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitleText: {
+      color: isDark ? '#FFFFFF' : '#0F172A',
+      fontSize: 18,
+      fontWeight: '500',
+      letterSpacing: 0.3,
+    },
+    accountDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    dotDemo: {
+      backgroundColor: T.trading.profit,
+    },
+    dotLive: {
+      backgroundColor: isDark ? '#FACC15' : '#D97706',
+    },
+    accountTypeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0.5,
+    },
+    textDemo: {
+      color: T.trading.profit,
+    },
+    textLive: {
+      color: isDark ? '#FACC15' : '#D97706',
+    },
+
+    /* â”€â”€ Card (main body) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    card: {
+      flex: 1,
+      backgroundColor: 'transparent',
+    },
+    chartContainer: {
+      flex: 1,
+      backgroundColor: CHART_CANVAS_BG,
+      position: 'relative',
+    },
+    leftToolbar: {
+      width: 50,
+      minWidth: 50,
+      maxWidth: 50,
+      flexShrink: 0,
+      flexGrow: 0,
+      backgroundColor: isDark ? '#121212' : '#F8FAFC',
+      borderRightWidth: 1,
+      borderRightColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+    },
+    leftToolbarOverlay: {
+      position: 'absolute' as any,
+      left: 0,
+      top: 0,
+      bottom: 0,
+      zIndex: 50,
+      height: '100%',
+      backgroundColor: isDark ? 'rgba(0,0,0,0.92)' : 'rgba(255,255,255,0.95)',
+      borderRightWidth: 1,
+      borderRightColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+    },
+    floatingDrawBtn: {
+      position: 'absolute' as any,
+      left: 12,
+      bottom: 30,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 8,
+      zIndex: 40,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+    },
+
+    leftToolbarContent: {
+      alignItems: 'center',
+      paddingVertical: 8,
+      gap: 2,
+    },
+    toolIcon: {
+      width: 38,
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 5,
+    },
+    toolIconActive: {
+      backgroundColor: isDark ? 'rgba(41, 98, 255, 0.18)' : 'rgba(41, 98, 255, 0.10)',
+      borderRadius: 5,
+    },
+    toolSeparator: {
+      width: 24,
+      height: 1,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+      marginVertical: 2,
+    },
+    chartTopToolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 10,
+      height: 32,
+      backgroundColor: isDark ? '#121212' : '#F8FAFC',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+      zIndex: 10,
+    },
+    chartMetaOverlay: {
+      position: 'absolute',
+      top: 10,
+      left: 12,
+      zIndex: 20,
+    },
+    chartMetaOhlc: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'nowrap',
+      gap: 12,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: isDark ? 'rgba(0,0,0,0.78)' : 'rgba(248,250,252,0.82)',
+      borderRadius: 6,
+    },
+    chartMetaPair: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    chartMetaLabel: {
+      color: isDark ? '#94A3B8' : '#64748B',
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.3,
+    },
+    chartMetaValue: {
+      fontSize: 11,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+    },
+    inlineActionGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    toolbarScrollContent: {
+      flexGrow: 1,
+    },
+    toolbarButtonRow: {
+      flexGrow: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      height: '100%',
+      paddingRight: 12,
+    },
+    toolbarLeadingGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    toolbarSymbolButton: {
+      minHeight: 28,
+      justifyContent: 'center',
+    },
+    toolbarTimeframeButton: {
+      width: 38,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    toolbarIconButton: {
+      width: 32,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    toolbarSeparator: {
+      width: 1,
+      height: 16,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+      marginHorizontal: 6,
+    },
+    toolbarFlexSpacer: {
+      flex: 1,
+    },
+    redBoxIcon: {
+      backgroundColor: RED,
+      width: 24,
+      height: 24,
+      borderRadius: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    gestureWrap: {
+      flex: 1,
+    },
+    canvas: {
+      flex: 1,
+    },
+    xAxis: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 24,
+      flexDirection: 'row',
+    },
+    xTick: {
+      position: 'absolute',
+      color: TEXT_MUTED,
+      fontSize: 13,
+      top: 4,
+    },
+    axisLabelY: {
+      position: 'absolute',
+      right: 8,
+      color: TEXT_MUTED,
+      fontSize: 13,
+    },
+    priceTagWrap: {
+      position: 'absolute',
+      right: 0,
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+      borderTopLeftRadius: 4,
+      borderBottomLeftRadius: 4,
+    },
+    priceTagText: {
+      color: isDark ? '#fff' : '#0F172A',
+      fontSize: 13,
+      fontWeight: '700',
+      fontVariant: ['tabular-nums'],
+    },
+    crosshairText: {
+      color: isDark ? '#E2E8F0' : '#475569',
+      fontSize: 12,
+    },
+    bottomArea: {
+      backgroundColor: isDark ? '#121212' : '#FFFFFF',
+      paddingHorizontal: 14,
+      paddingTop: 12,
+      paddingBottom: 10,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+    },
+    sentimentLabelsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 0,
+    },
+    sentimentLabelSell: {
+      color: RED,
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.3,
+    },
+    sentimentLabelBuy: {
+      color: BLUE,
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.3,
+    },
+    sentimentBarRow: {
+      flexDirection: 'row',
+      height: 2,
+      marginBottom: 4,
+      borderRadius: 3,
+      overflow: 'hidden',
+      gap: 2,
+    },
+    sentimentHalf: {
+      height: '100%',
+      borderRadius: 3,
+    },
+    sentimentSell: {
+      backgroundColor: RED,
+    },
+    sentimentBuy: {
+      backgroundColor: BLUE,
+    },
+    tradeControlsRow: {
+      flexDirection: 'row',
+      marginHorizontal: 40,
+      marginBottom: 10,
+      gap: 12,
+    },
+    actionBtn: {
+      flex: 1,
+      borderRadius: 10,
+      padding: 4,
+      paddingVertical: 4,
+      borderWidth: 1,
+    },
+    actionBtnSell: {
+      backgroundColor: RED,
+      borderWidth: 0,
+    },
+    actionBtnBuy: {
+      backgroundColor: BLUE,
+      borderWidth: 0,
+    },
+    actionSpacer: {
+      width: 0,
+    },
+    actionBtnHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 0,
+    },
+    actionBtnLabelTitle: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+      letterSpacing: 1,
+    },
+    actionBtnLabelSell: {
+      color: '#FFFFFF',
+    },
+    actionBtnLabelBuy: {
+      color: '#FFFFFF',
+    },
+    actionBtnPriceText: {
+      color: 'rgba(255,255,255,0.85)',
+      fontSize: 13,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+    },
+    lotSelectorBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+      borderRadius: 10,
+      padding: 2,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+    },
+    lotStepperBtn: {
+      width: 40,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 6,
+    },
+    lotLabelText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: isDark ? '#64748B' : TEXT_MUTED,
+    },
+    lotInput: {
+      flex: 1,
+      color: isDark ? '#E2E8F0' : '#0F172A',
+      fontSize: 14,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+      textAlign: 'center',
+      paddingVertical: 0,
+    },
+    gridLine: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      height: 1,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : T.borderSubtle,
+    },
+    chartOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(5, 8, 16, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+      paddingHorizontal: 24,
+      paddingVertical: 16,
+    },
+    overlayText: {
+      color: T.text,
+      fontSize: 16,
+      fontWeight: '600',
+      marginTop: 12,
+      textAlign: 'center',
+    },
+    overlaySubText: {
+      color: T.textMuted,
+      fontSize: 13,
+      lineHeight: 20,
+      marginTop: 8,
+      textAlign: 'center',
+      maxWidth: 320,
+    },
+    overlayActions: {
+      marginTop: 20,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 10,
+      maxWidth: '100%',
+    },
+    overlayAction: {
+      minHeight: 44,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 10,
+      backgroundColor: T.glass2,
+      borderWidth: 1,
+      borderColor: T.borderSubtle,
+      justifyContent: 'center',
+      maxWidth: '100%',
+    },
+    overlayActionText: {
+      color: BLUE,
+      fontSize: 14,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    tvLegendContainer: {
+      position: 'absolute',
+      top: 10,
+      left: 14,
+      zIndex: 10,
+      flexDirection: 'column',
+    },
+    tvLegendRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    tvLegendSymbolTitle: {
+      color: isDark ? '#D1D4DC' : '#131722',
+      fontSize: 14,
+      fontWeight: '700',
+      letterSpacing: 0,
+    },
+    tvLegendStatusPill: {
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      backgroundColor: isDark ? '#1E1E1E' : '#E0E3EB',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tvLegendStatusDot: {
+      width: 6,
+      height: 2,
+      backgroundColor: isDark ? '#D1D4DC' : '#131722',
+    },
+    tvLegendPriceValue: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    tvLegendPriceChange: {
+      fontSize: 13,
+      fontWeight: '500',
+    },
+    tvLegendDropdownBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: isDark ? '#2A2E39' : '#E2E8F0',
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      height: 22,
+      gap: 4,
+    },
+    tvLegendDropdownText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: isDark ? '#D1D4DC' : '#131722',
+    },
+    tvBottomToolbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      backgroundColor: isDark ? '#121212' : '#F8FAFC',
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#2A2E39' : '#E5E7EB',
+    },
+    tvRangesLeft: {
+      flexDirection: 'row',
+      gap: 4,
+    },
+    tvRangePill: {
+      paddingHorizontal: 6,
+      paddingVertical: 4,
+      borderRadius: 4,
+    },
+    tvRangePillActive: {
+      backgroundColor: isDark ? '#1E1E1E' : '#E2E8F0',
+    },
+    tvRangeText: {
+      color: isDark ? '#758696' : '#787B86',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    tvRangeTextActive: {
+      color: isDark ? '#F8FAFC' : '#0F172A',
+    },
+    tvRangesRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    tvRangeDropdownText: {
+      color: isDark ? '#787B86' : '#787B86',
+      fontSize: 12,
+      fontWeight: '500',
+      marginRight: 2,
+    },
+    tvRangeTimeText: {
+      color: isDark ? '#787B86' : '#787B86',
+      fontSize: 12,
+      fontWeight: '500',
+      marginLeft: 4,
+    },
+    tvRangeAutoText: {
+      color: '#2962FF',
+      fontSize: 12,
+      fontWeight: '500',
+      marginLeft: 8,
+    },
+  });
+}

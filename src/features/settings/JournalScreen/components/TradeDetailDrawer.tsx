@@ -4,6 +4,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { TradeJournalEntry } from '../types';
+import { formatBackendPrice } from '../../../../utils/backendPrice';
 
 export function TradeDetailDrawer({ trade, onClose, isDark }: { trade: TradeJournalEntry, onClose: () => void, isDark: boolean }) {
   const positiveColor = (isDark ? GDark : GLight).trading.profit;
@@ -50,10 +51,10 @@ export function TradeDetailDrawer({ trade, onClose, isDark }: { trade: TradeJour
           <View style={[styles.card, { backgroundColor: cardBg, borderColor }]}>
             <Text style={[styles.sectionTitle, { color: textColor }]}>Execution</Text>
             <View style={styles.grid}>
-              <DetailItem label="Entry" value={trade.entryPrice} subText={subText} textColor={textColor} />
-              <DetailItem label="Stop Loss" value={trade.stopLoss} subText={subText} textColor={textColor} />
-              <DetailItem label="Take Profit" value={trade.takeProfit} subText={subText} textColor={textColor} />
-              <DetailItem label="Exit" value={trade.exitPrice} subText={subText} textColor={textColor} />
+              <DetailItem label="Entry" value={formatBackendPrice(trade.entryPrice)} subText={subText} textColor={textColor} />
+              <DetailItem label="Stop Loss" value={formatBackendPrice(trade.stopLoss)} subText={subText} textColor={textColor} />
+              <DetailItem label="Take Profit" value={formatBackendPrice(trade.takeProfit)} subText={subText} textColor={textColor} />
+              <DetailItem label="Exit" value={formatBackendPrice(trade.exitPrice)} subText={subText} textColor={textColor} />
               <DetailItem label="Strategy" value={trade.strategy} subText={subText} textColor={textColor} />
               <DetailItem label="Timeframe" value={trade.timeframe} subText={subText} textColor={textColor} />
             </View>

@@ -41,12 +41,20 @@ for (const folder of ['app', 'src', 'tests', 'scripts', 'assets']) {
     const imports = [];
     if ((folder === 'src' || folder === 'app') && /\.tsx?$/.test(file)) {
       const code = original.toString('utf8');
-      const transformed = code.replace(/(import|require)\('(expo-[a-z-]+)'\)/g, (match, loader, packageName) => {
+      let transformed = code.replace(/(import|require)\('(expo-[a-z-]+)'\)/g, (match, loader, packageName) => {
         if (!optionalPackages.has(packageName)) return match;
         imports.push(packageName);
         let shimImport = path.relative(path.dirname(output), shim).replace(/\\/g, '/').replace(/\.ts$/, '');
         if (!shimImport.startsWith('.')) shimImport = './' + shimImport;
         return `${loader}('${shimImport}')`;
+      });
+      // Type-only imports also need a package-independent contract in legacy
+      // releases, whose dependency set deliberately excludes the new picker.
+      transformed = transformed.replace(/^(import type [^\r\n]+ from )(['"])expo-document-picker\2/gm, (match, prefix) => {
+        imports.push('expo-document-picker (types)');
+        let shimImport = path.relative(path.dirname(output), shim).replace(/\\/g, '/').replace(/\.ts$/, '');
+        if (!shimImport.startsWith('.')) shimImport = './' + shimImport;
+        return `${prefix}'${shimImport}'`;
       });
       if (imports.length) {
         contents = Buffer.from(transformed);

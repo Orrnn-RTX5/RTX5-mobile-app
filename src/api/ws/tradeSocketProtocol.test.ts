@@ -13,10 +13,11 @@ import {
 } from './tradeSocketProtocol.ts';
 import { extractLiveAccountMetrics } from './accountSocket.helpers.ts';
 
-test('trade socket subscribes to positions and metrics only, one channel per message', () => {
+test('trade socket subscribes to positions, metrics and pending orders, one channel per message', () => {
   assert.deepEqual(buildTradeSocketSubscriptionMessages(200074), [
     { action: 'subscribe', channel: 'positions.200074' },
     { action: 'subscribe', channel: 'metrics.200074' },
+    { action: 'subscribe', channel: 'orders.200074' },
   ]);
   assert.equal(
     buildTradeSocketSubscriptionMessages('200074').some((message) => message.channel.startsWith('deals.')),

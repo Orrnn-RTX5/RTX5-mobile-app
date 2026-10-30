@@ -117,9 +117,16 @@ type PersistedUserPreferencesState = Omit<
 >;
 
 const pendingPreferenceWrites = new Map<string, StorageValue<PersistedUserPreferencesState>>();
+const queuedPreferenceWrites = new Map<string, {
+  value: StorageValue<PersistedUserPreferencesState>;
+  operation: Promise<void>;
+}>();
 let preferenceWriteFlushScheduled = false;
 let preferenceWriteFlushFallbackTimer: ReturnType<typeof setTimeout> | null = null;
 let preferenceWriteQueue: Promise<void> = Promise.resolve();
+// Queue chaining recovers after failures; explicit durability checks must see
+// the unswallowed result even when the scheduled write has already started.
+let preferenceWriteOperation: Promise<void> = Promise.resolve();
 const PREFERENCES_STORAGE_VERSION = 23;
 const CHART_DRAWING_RECORDS_STORAGE_KEY = 'rtx5-chart-drawing-records-v1';
 const LEGACY_BLUE_DEFAULT_CHART_COLORS: ChartColorsConfig = {
@@ -284,7 +291,7 @@ const normalizeChartDisplay = (value: unknown): ChartDisplaySettings => {
     next.showOHLC = true;
   }
   next.showBidPriceLine = next.showLivePriceLine;
-  next.showAskPriceLine = false;
+  next.showAskPriceLine = asBoolean(record.showAskPriceLine, false);
   return next;
 };
 
@@ -519,40 +526,54 @@ function flushPendingPreferenceWrites() {
   const writes = Array.from(pendingPreferenceWrites.entries());
   pendingPreferenceWrites.clear();
   if (writes.length === 0) {
-    return preferenceWriteQueue;
+    return preferenceWriteOperation;
   }
 
-  const persistWrites = async (): Promise<void> => {
-    for (const [name, value] of writes) {
-      // Deep auth redaction and serialization stay off the interaction frame.
-      // `partializeUserPreferences` already omits runtime credentials, and this
-      // final sanitizer still guarantees that only a clean envelope reaches disk.
-      const sanitized = sanitizePreferenceAuthStorageValue(value).sanitizedStorageValue;
-      await AsyncStorage.setItem(name, JSON.stringify(sanitized));
+  let lastOperation = preferenceWriteOperation;
+  for (const [name, value] of writes) {
+    const queued = queuedPreferenceWrites.get(name);
+    if (queued) {
+      // Slow native storage must not retain and serialize a separate full
+      // preference snapshot for every frame while the prior write is pending.
+      queued.value = value;
+      lastOperation = queued.operation;
+      continue;
     }
-  };
+    const write = { value, operation: Promise.resolve() };
+    queuedPreferenceWrites.set(name, write);
+    const operation = preferenceWriteQueue.then(async () => {
+      if (queuedPreferenceWrites.get(name) === write) queuedPreferenceWrites.delete(name);
+      const value = write.value;
+      const persistWrite = async () => {
+        // Deep auth redaction and serialization stay off the interaction frame.
+        // `partializeUserPreferences` already omits runtime credentials, and this
+        // final sanitizer still guarantees that only a clean envelope reaches disk.
+        const sanitized = sanitizePreferenceAuthStorageValue(value).sanitizedStorageValue;
+        await AsyncStorage.setItem(name, JSON.stringify(sanitized));
+      };
+      try {
+        await persistWrite();
+      } catch (error) {
+        if (!isAsyncStorageCapacityError(error)) {
+          throw error;
+        }
 
-  const operation = preferenceWriteQueue.then(async () => {
-    try {
-      await persistWrites();
-    } catch (error) {
-      if (!isAsyncStorageCapacityError(error)) {
-        throw error;
+        // Reclaim obsolete caches and retry the same clean snapshot once.
+        await pruneObsoleteSessionCaches();
+        await persistWrite();
       }
-
-      // Session namespaces are deliberately single-use. Reclaim only those
-      // obsolete cache records, then retry the important preference write once.
-      await pruneObsoleteSessionCaches();
-      await persistWrites();
-    }
-  });
-  preferenceWriteQueue = operation.catch(() => undefined);
-  // Scheduled UI-preference writes remain non-blocking, but an explicit session
-  // commit can await the same operation through flushUserPreferencesPersistence.
-  void operation.catch((error) => {
-    console.error('[UserPreferences] Failed to persist preferences', error);
-  });
-  return operation;
+    });
+    write.operation = operation;
+    preferenceWriteOperation = operation;
+    preferenceWriteQueue = operation.catch(() => undefined);
+    // Explicit session commits await the original operation and still receive
+    // its error; a rejected write must not poison later preference updates.
+    void operation.catch((error) => {
+      console.error('[UserPreferences] Failed to persist preferences', error);
+    });
+    lastOperation = operation;
+  }
+  return lastOperation;
 }
 
 /** Waits until the current preference snapshot has reached AsyncStorage. */
@@ -653,7 +674,13 @@ const userPreferencesStorage: PersistStorage<PersistedUserPreferencesState, void
   },
   removeItem: (name) => {
     pendingPreferenceWrites.delete(name);
-    void AsyncStorage.removeItem(name);
+    // Removal orders after started/queued writes. A later set gets a fresh
+    // queue entry so it cannot be merged into a write before this barrier.
+    queuedPreferenceWrites.delete(name);
+    const operation = preferenceWriteQueue.then(() => AsyncStorage.removeItem(name));
+    preferenceWriteOperation = operation;
+    preferenceWriteQueue = operation.catch(() => undefined);
+    return operation;
   },
 };
 
@@ -923,8 +950,12 @@ export const useUserPreferences = create<UserPreferencesState>()(
       setPriceSource: (source) => set({ priceSource: source }),
       setOpenOrderMode: (mode) => set({ openOrderMode: mode }),
       setOneClickAccepted: (accepted) => set({ oneClickAccepted: accepted }),
-      setHistoryRange: (range) => set({ historyRange: range }),
-      setHistoryDateRange: (fromMs, toMs) => set({ historyFromMs: fromMs, historyToMs: toMs }),
+      setHistoryRange: (range) => set({ historyRange: range, historyFromMs: null, historyToMs: null }),
+      setHistoryDateRange: (fromMs, toMs, range) => set({
+        historyFromMs: fromMs,
+        historyToMs: toMs,
+        ...(range !== undefined ? { historyRange: range } : {}),
+      }),
       mergeAccountEnvironmentForAccount: (accountKey, resolved, source) =>
         set((state) => {
           const currentAccountKey = state.isLoggedIn && state.accountDetails?.id && state.brokerId

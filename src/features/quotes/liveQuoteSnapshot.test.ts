@@ -39,7 +39,7 @@ test('a websocket tick replaces REST non-tradable provenance instead of carrying
   assert.equal(next?.degraded, undefined);
 });
 
-test('live quote snapshots preserve explicit change percent and derive it from previous close', () => {
+test('live quote snapshots use only backend change percent, including explicit zero', () => {
   const explicit = applyLiveQuoteTickToSnapshot('EURUSD', undefined, {
     symbol: 'EURUSD',
     bid: 1.09,
@@ -58,7 +58,7 @@ test('live quote snapshots preserve explicit change percent and derive it from p
     timestamp: 1_777_410_002,
     receivedAt: 1_777_410_002_000,
   }, 2);
-  const derived = applyLiveQuoteTickToSnapshot('XAUUSD', undefined, {
+  const missing = applyLiveQuoteTickToSnapshot('XAUUSD', undefined, {
     symbol: 'XAUUSD',
     bid: 105,
     ask: 105.1,
@@ -69,7 +69,24 @@ test('live quote snapshots preserve explicit change percent and derive it from p
 
   assert.equal(explicit?.changePct, -1.25);
   assert.equal(zero?.changePct, 0);
-  assert.equal(derived?.changePct, 5);
+  assert.equal(missing?.changePct, undefined);
+});
+
+test('missing or invalid backend daily change never falls back to previous close, open or old snapshots', () => {
+  const previous = buildInitialLiveQuoteSnapshot('XAUUSD', {
+    bid: 100, ask: 100.1, open: 90, changePct: 42,
+  });
+  for (const changePct of [undefined, NaN, Infinity, -Infinity]) {
+    const next = applyLiveQuoteTickToSnapshot('XAUUSD', previous, {
+      symbol: 'XAUUSD', bid: 105, ask: 105.1,
+      previousClose: 100, dailyOpen: 95, open: 90, changePct,
+      receivedAt: 1_777_410_001_000, timestamp: 1_777_410_001_000,
+    }, 1);
+    assert.ok(next);
+    assert.equal(next.changePct, undefined);
+    assert.equal(next.bid, 105);
+    assert.equal(next.ask, 105.1);
+  }
 });
 
 test('applyLiveQuoteTickToSnapshot refreshes duplicate backend snapshots', () => {

@@ -105,7 +105,7 @@ type SearchableSettingsItem = {
   sub: string;
   icon: string;
   routePath?: SettingsReadyRoute;
-  action?: 'support-email';
+  action?: 'support-email' | 'report-bug';
 };
 /**
  * Main screen for the Settings tab, providing access to user profile, account management, app preferences, and support links.
@@ -512,6 +512,7 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
     { title: 'Language Preference', sub: currentLanguageNative, icon: 'language-outline', routePath: '/settings/interface' },
     { title: 'Journal', sub: 'Activity log', icon: 'reader-outline', routePath: '/settings/journal' },
     { title: 'Support', sub: supportEmail, icon: 'headset-outline', action: 'support-email' },
+    { title: 'Report a Bug', sub: 'Tell us what went wrong', icon: 'bug-outline', action: 'report-bug' },
     { title: 'Help', sub: 'FAQ', icon: 'information-circle-outline', routePath: '/settings/help' },
   ] satisfies SearchableSettingsItem[]).filter((item) => showNewAccountEntry || item.routePath !== '/register-entry'),
   [currentLanguageNative, showNewAccountEntry, supportEmail, themeMode]);
@@ -542,6 +543,12 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
 
     if (item.action === 'support-email') {
       void handleEmailSupport();
+      return;
+    }
+
+    if (item.action === 'report-bug') {
+      primeBugReportContext('/settings');
+      router.push('/settings/contact-developer');
       return;
     }
 
@@ -881,7 +888,7 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
                 icon="reader-outline"
                 color={settingsAccent}
                 title={t('Journal')}
-                sub="Activity log"
+                sub={t('Activity log')}
                 onPress={() => openReadySettingsRoute('/settings/journal')}
                 onPressIn={() => prepareReadySettingsRoute('/settings/journal')}
               />

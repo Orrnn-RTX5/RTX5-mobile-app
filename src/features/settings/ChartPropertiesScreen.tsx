@@ -18,6 +18,7 @@ import { CANDLE_HISTORY_TIMEFRAMES } from '../../domain/candles/core/timeframeUt
 import { useLiveCandles } from '../../domain/candles/hooks/useLiveCandles';
 import { useLiveSymbolQuote } from '../../query/websocket';
 import { calculateQuoteSpreadPoints } from '../../utils/quoteSpread';
+import { formatBackendPrice } from '../../utils/backendPrice';
 import {
   CHART_COLOR_SCHEME_PRESETS,
   ChartColorScheme,
@@ -109,8 +110,7 @@ const normalizeChartColorInput = (value: string) => {
 
 const isTransparent = (color?: string) => typeof color === 'string' && color.toLowerCase() === 'transparent';
 
-const formatQuote = (value?: number, digits = 2) =>
-  Number.isFinite(value) ? Number(value).toFixed(Math.min(Math.max(digits, 2), 5)) : '--';
+const formatQuote = (value?: number) => formatBackendPrice(value);
 
 type ChartPropertiesTimeframePickerHostHandle = Readonly<{
   open: () => void;
@@ -349,7 +349,7 @@ export function ChartPropertiesScreen({
   const snapshot = [
     {
       label: priceSource === 'bid' ? t('Bid') : t('Ask'),
-      value: formatQuote(priceSource === 'bid' ? liveQuote?.bid : liveQuote?.ask, liveQuote?.digits),
+      value: formatQuote(priceSource === 'bid' ? liveQuote?.bid : liveQuote?.ask),
     },
     {
       label: t('Spread'),
@@ -395,10 +395,10 @@ export function ChartPropertiesScreen({
   const previewIsUp = previewLiveCandle ? previewLiveCandle.close >= previewLiveCandle.open : true;
   const previewOhlcItems = previewLiveCandle
     ? [
-        { label: 'O', value: formatQuote(previewLiveCandle.open, liveQuote?.digits) },
-        { label: 'H', value: formatQuote(previewLiveCandle.high, liveQuote?.digits) },
-        { label: 'L', value: formatQuote(previewLiveCandle.low, liveQuote?.digits) },
-        { label: 'C', value: formatQuote(previewLiveCandle.close, liveQuote?.digits) },
+        { label: 'O', value: formatQuote(previewLiveCandle.open) },
+        { label: 'H', value: formatQuote(previewLiveCandle.high) },
+        { label: 'L', value: formatQuote(previewLiveCandle.low) },
+        { label: 'C', value: formatQuote(previewLiveCandle.close) },
       ]
     : [];
   const previewFooterItems = [
@@ -457,9 +457,10 @@ export function ChartPropertiesScreen({
   const applyDraftColor = (value: string) => {
     if (!activeColorKey) return;
     const normalized = normalizeChartColorInput(value);
-    if (!normalized) return;
-    setDraftColor(normalized);
-    commitChartColor(activeColorKey, normalized);
+    if (normalized) {
+      setDraftColor(normalized);
+      commitChartColor(activeColorKey, normalized);
+    }
     setActiveColorKey(null);
   };
 

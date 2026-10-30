@@ -14,7 +14,7 @@ import { FastPressable as Pressable } from './FastPressable';
  */
 
 import React, { ReactNode, useCallback } from 'react';
-import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Platform, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { AppMenuIcon } from './AppMenuIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/useTheme';
@@ -101,11 +101,11 @@ export function AppHeader({
         style,
       ]}
     >
-      {/* Hamburger menu button — in the same flex row as title */}
+      {/* UIKit must finish the opening tap before the drawer takes touch ownership. */}
       <Pressable
         style={[styles.leftGutter, sideSlotStyle, rightActions ? { width: actionSlotWidth } : null]}
         onPress={handleOpenSidebar}
-        activateOnTouchStart
+        activateOnTouchStart={Platform.OS !== 'ios'}
         hitSlop={MENU_BUTTON_HIT_SLOP}
         latencyLabel="appHeader.menu"
         unstable_pressDelay={0}

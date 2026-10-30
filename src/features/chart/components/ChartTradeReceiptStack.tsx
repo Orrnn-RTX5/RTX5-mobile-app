@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -7,6 +7,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type LayoutChangeEvent,
   type ListRenderItem,
 } from 'react-native';
 import { FastPressable as Pressable } from '../../../ui/components/FastPressable';
@@ -23,6 +24,9 @@ const CARD_HEIGHT = 32;
 const CARD_GAP = 2;
 const ITEM_HEIGHT = CARD_HEIGHT + CARD_GAP;
 
+// Keep spacing inside FlatList's measured cells, including virtualized ranges.
+const ReceiptSeparator = () => <View style={styles.separator} />;
+
 export type ChartTradeReceiptStackProps = {
   controller: ChartTradeReceiptStackController;
   isDark: boolean;
@@ -32,6 +36,8 @@ export type ChartTradeReceiptStackProps = {
   paneWidth?: number;
   topOffset?: number;
   bottomOffset?: number;
+  /** Optional text replaces the pending spinner for immediate quiet feedback. */
+  pendingLabel?: string;
 };
 
 const formatVolume = (volume: number): string => {
@@ -44,6 +50,8 @@ const terminalLabel = (event: ChartTradeQueueEvent): string => {
   switch (event.status) {
     case 'confirmed':
       return 'done';
+    case 'placed':
+      return 'placed';
     case 'unconfirmed':
       return 'check';
     case 'failed':
@@ -61,12 +69,14 @@ const ReceiptRow = React.memo(({
   buyColor,
   sellColor,
   onDismiss,
+  pendingLabel,
 }: {
   event: ChartTradeQueueEvent;
   isDark: boolean;
   buyColor: string;
   sellColor: string;
   onDismiss: (queueId: number) => void;
+  pendingLabel?: string;
 }) => {
   const sideColor = event.side === 'buy' ? buyColor : sellColor;
   const isPending = event.status === 'pending';
@@ -75,7 +85,7 @@ const ReceiptRow = React.memo(({
     : event.status === 'unconfirmed'
       ? '#F59E0B'
       : sideColor;
-  const label = terminalLabel(event);
+  const label = isPending && pendingLabel ? pendingLabel : terminalLabel(event);
 
   return (
     <Pressable
@@ -83,7 +93,7 @@ const ReceiptRow = React.memo(({
       accessibilityRole={isPending ? 'alert' : 'button'}
       accessibilityLabel={
         `${event.symbol}, ${event.side}, ${formatVolume(event.volume)} lots, `
-        + (isPending ? 'pending' : label)
+        + (isPending ? pendingLabel || 'pending' : label)
       }
       accessibilityHint={isPending ? undefined : 'Dismiss trade receipt'}
       disabled={isPending}
@@ -117,7 +127,7 @@ const ReceiptRow = React.memo(({
       </Text>
 
       <View style={styles.statusSlot}>
-        {isPending ? (
+        {isPending && !pendingLabel ? (
           <ActivityIndicator size="small" color={sideColor} />
         ) : (
           <Text numberOfLines={1} style={[styles.status, { color: statusColor }]}>
@@ -140,6 +150,7 @@ export const ChartTradeReceiptStack = React.memo(({
   paneWidth,
   topOffset = 8,
   bottomOffset = 16,
+  pendingLabel,
 }: ChartTradeReceiptStackProps) => {
   const snapshot = useSyncExternalStore(
     controller.subscribe,
@@ -154,11 +165,18 @@ export const ChartTradeReceiptStack = React.memo(({
   );
   const listRef = useRef<FlatList<ChartTradeQueueEvent>>(null);
   const previousQueueIdsRef = useRef<ReadonlySet<number>>(new Set());
+  const scrollAfterLayoutRef = useRef<number | null>(null);
+  const previousContentHeightRef = useRef(0);
+  const [availableHeight, setAvailableHeight] = useState<number | null>(null);
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const maxListHeight = Math.max(160, Math.min(680, windowHeight * 0.68));
+  const maxListHeight = Math.min(
+    availableHeight ?? windowHeight,
+    Math.max(160, Math.min(680, windowHeight * 0.68)),
+  );
+  const contentHeight = Math.max(0, receipts.length * ITEM_HEIGHT - CARD_GAP);
   const listHeight = Math.min(
     maxListHeight,
-    Math.max(CARD_HEIGHT, receipts.length * ITEM_HEIGHT - CARD_GAP),
+    contentHeight,
   );
   // Stay compact while giving the receipt a few more pixels of breathing room.
   const preferredListWidth = Math.min(238, Math.max(208, windowWidth * 0.54));
@@ -166,15 +184,65 @@ export const ChartTradeReceiptStack = React.memo(({
     ? Math.min(preferredListWidth, Math.max(1, Number(paneWidth) - 12))
     : preferredListWidth;
 
-  useEffect(() => {
-    const newestQueueId = receipts[0]?.queueId ?? null;
+  useLayoutEffect(() => {
+    const newestQueueId = receipts[receipts.length - 1]?.queueId ?? null;
     const isNewReceipt = newestQueueId !== null
       && !previousQueueIdsRef.current.has(newestQueueId);
     previousQueueIdsRef.current = new Set(receipts.map((receipt) => receipt.queueId));
     if (isNewReceipt) {
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
+      scrollAfterLayoutRef.current = contentHeight !== previousContentHeightRef.current
+        ? contentHeight : null;
+      if (contentHeight <= listHeight && typeof listRef.current?.scrollToOffset === 'function') {
+        listRef.current.scrollToOffset({ offset: 0, animated: false });
+      } else {
+        listRef.current?.scrollToEnd({ animated: false });
+        listRef.current?.scrollToOffset?.({ offset: Math.max(0, contentHeight - listHeight), animated: false });
+      }
+    } else if (contentHeight !== previousContentHeightRef.current) {
+      if (scrollAfterLayoutRef.current !== null) {
+        scrollAfterLayoutRef.current = contentHeight;
+      }
+      if (contentHeight <= listHeight) {
+        listRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+      }
     }
-  }, [receipts]);
+    previousContentHeightRef.current = contentHeight;
+  }, [receipts, contentHeight, listHeight]);
+
+  const handleContentSizeChange = useCallback((_width: number, height: number) => {
+    // Native content size may still reflect the previous rows during commit.
+    // Follow a new receipt once it has laid out, without delaying its display.
+    if (
+      scrollAfterLayoutRef.current === null ||
+      Math.abs(height - scrollAfterLayoutRef.current) > CARD_HEIGHT / 2
+    ) {
+      if (height <= listHeight) {
+        listRef.current?.scrollToOffset?.({ offset: 0, animated: false });
+      }
+      return;
+    }
+    scrollAfterLayoutRef.current = null;
+    if (height <= listHeight && typeof listRef.current?.scrollToOffset === 'function') {
+      listRef.current.scrollToOffset({ offset: 0, animated: false });
+    } else {
+      listRef.current?.scrollToEnd({ animated: false });
+      listRef.current?.scrollToOffset?.({ offset: Math.max(0, height - listHeight), animated: false });
+    }
+  }, [listHeight]);
+
+  const handleListLayout = useCallback(() => {
+    if (contentHeight <= listHeight && typeof listRef.current?.scrollToOffset === 'function') {
+      listRef.current.scrollToOffset({ offset: 0, animated: false });
+    } else {
+      listRef.current?.scrollToEnd({ animated: false });
+      listRef.current?.scrollToOffset?.({ offset: Math.max(0, contentHeight - listHeight), animated: false });
+    }
+  }, [contentHeight, listHeight]);
+
+  const handleHostLayout = useCallback((event: LayoutChangeEvent) => {
+    const height = Math.max(0, event.nativeEvent.layout.height);
+    setAvailableHeight(current => current === height ? current : height);
+  }, []);
 
   const renderItem = useCallback<ListRenderItem<ChartTradeQueueEvent>>(({ item }) => (
     <ReceiptRow
@@ -183,10 +251,9 @@ export const ChartTradeReceiptStack = React.memo(({
       buyColor={buyColor}
       sellColor={sellColor}
       onDismiss={controller.dismiss}
+      pendingLabel={pendingLabel}
     />
-  ), [buyColor, controller.dismiss, isDark, sellColor]);
-
-  const contentContainerStyle = useMemo(() => styles.listContent, []);
+  ), [buyColor, controller.dismiss, isDark, sellColor, pendingLabel]);
 
   if (receipts.length === 0) return null;
 
@@ -194,26 +261,31 @@ export const ChartTradeReceiptStack = React.memo(({
     <View
       pointerEvents="box-none"
       style={[styles.host, { top: topOffset, bottom: bottomOffset }]}
+      onLayout={handleHostLayout}
     >
       <FlatList
         ref={listRef}
         data={receipts}
+        extraData={receipts}
         renderItem={renderItem}
+        ItemSeparatorComponent={ReceiptSeparator}
         keyExtractor={(item) => String(item.queueId)}
         getItemLayout={(_data, index) => ({
-          length: ITEM_HEIGHT,
+          length: index < receipts.length - 1 ? ITEM_HEIGHT : CARD_HEIGHT,
           offset: ITEM_HEIGHT * index,
           index,
         })}
-        contentContainerStyle={contentContainerStyle}
+        contentContainerStyle={styles.listContent}
+        onContentSizeChange={handleContentSizeChange}
+        onLayout={handleListLayout}
         style={{ width: listWidth, height: listHeight, maxHeight: '100%', flexGrow: 0 }}
-        initialNumToRender={12}
-        maxToRenderPerBatch={16}
-        updateCellsBatchingPeriod={32}
-        windowSize={7}
-        removeClippedSubviews={Platform.OS === 'android'}
-        scrollEnabled={receipts.length * ITEM_HEIGHT - CARD_GAP > listHeight}
-        showsVerticalScrollIndicator={receipts.length * ITEM_HEIGHT - CARD_GAP > listHeight}
+        initialNumToRender={Math.max(32, receipts.length)}
+        maxToRenderPerBatch={Math.max(32, receipts.length)}
+        updateCellsBatchingPeriod={0}
+        windowSize={21}
+        removeClippedSubviews={false}
+        scrollEnabled={contentHeight > listHeight}
+        showsVerticalScrollIndicator={contentHeight > listHeight}
         keyboardShouldPersistTaps="always"
       />
     </View>
@@ -231,10 +303,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   listContent: {
-    gap: CARD_GAP,
+    flexDirection: 'column',
+  },
+  separator: {
+    height: CARD_GAP,
+    flexShrink: 0,
   },
   card: {
     height: CARD_HEIGHT,
+    flexShrink: 0,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 5,
     paddingHorizontal: 10,

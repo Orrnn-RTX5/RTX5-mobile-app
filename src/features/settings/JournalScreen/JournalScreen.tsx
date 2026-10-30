@@ -1,7 +1,7 @@
 import { AppMenuIcon } from '../../../ui/components/AppMenuIcon';
 import { useIsFocused } from '@react-navigation/native';
 import React, { useCallback, useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FastPressable as Pressable } from '../../../ui/components/FastPressable';
 import { Screen } from '../../../ui/components/Screen';
@@ -53,7 +53,7 @@ export const JournalScreenInner = React.memo(function JournalScreenInner({ isScr
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Pressable
           onPress={handleOpenMenu}
-          activateOnTouchStart
+          activateOnTouchStart={Platform.OS !== 'ios'}
           hitSlop={15}
           style={styles.backButton}
           latencyLabel="journal.menu"

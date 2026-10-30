@@ -95,6 +95,20 @@ export class CandlesWebSocketService {
     return CandlesWebSocketService.instance;
   }
 
+  private constructor() {
+    try {
+      AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'active') {
+          this.resume();
+        } else if (nextState === 'background' || nextState === 'inactive') {
+          this.suspend();
+        }
+      });
+    } catch (_error) {
+      // Ignore in test environments where AppState may be mocked
+    }
+  }
+
   /**
    * Establishes the WebSocket connection and resubscribes all active candle channels.
    */
@@ -387,7 +401,7 @@ export class CandlesWebSocketService {
     this.subscriptions.delete(key);
     this.sendUnsubscription(normalizedSymbol, normalizedTimeframe);
     if (this.subscriptions.size === 0 && this.ws) {
-      this.ws.close();
+      this.tearDownSocketSafe();
     }
   }
 

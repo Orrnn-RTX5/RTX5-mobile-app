@@ -361,50 +361,6 @@ export const processTick = (bridge: TickProcessorBridge, raw: any): boolean => {
       rawKeys: normalizedUpdate.rawKeys,
     }, 20);
   }
-  let data: any = {
-    ...(raw && typeof raw === 'object' ? raw : {}),
-    symbol: normalizedUpdate.symbol,
-    rawSymbol: normalizedUpdate.rawSymbol,
-    bid: normalizedUpdate.bid,
-    ask: normalizedUpdate.ask,
-    ...(normalizedUpdate.last === undefined ? {} : { last: normalizedUpdate.last }),
-    ...(normalizedUpdate.high === undefined ? {} : { high: normalizedUpdate.high }),
-    ...(normalizedUpdate.low === undefined ? {} : { low: normalizedUpdate.low }),
-    ...(normalizedUpdate.open === undefined ? {} : { open: normalizedUpdate.open }),
-    ...(normalizedUpdate.dailyOpen === undefined ? {} : { dailyOpen: normalizedUpdate.dailyOpen }),
-    ...(normalizedUpdate.previousClose === undefined ? {} : { previousClose: normalizedUpdate.previousClose }),
-    ...(normalizedUpdate.changePct === undefined ? {} : { changePct: normalizedUpdate.changePct }),
-    ...(normalizedUpdate.spread === undefined ? {} : { spread: normalizedUpdate.spread }),
-    volume: normalizedUpdate.volume,
-    ...(normalizedUpdate.volume === undefined ? {} : { volumeSource: 'backend' }),
-    ...(normalizedUpdate.digits === undefined ? {} : { digits: normalizedUpdate.digits }),
-    ...(normalizedUpdate.point === undefined ? {} : { point: normalizedUpdate.point }),
-    ...(normalizedUpdate.tickSize === undefined ? {} : { tickSize: normalizedUpdate.tickSize }),
-    ...(normalizedUpdate.sequence === undefined ? {} : { sequence: normalizedUpdate.sequence }),
-    ...(normalizedUpdate.tickId === undefined ? {} : { tickId: normalizedUpdate.tickId }),
-    ...(normalizedUpdate.source === undefined ? {} : { source: normalizedUpdate.source }),
-    ...(normalizedUpdate.authority === undefined ? {} : { authority: normalizedUpdate.authority }),
-    ...(normalizedUpdate.marketState === undefined ? {} : { marketState: normalizedUpdate.marketState }),
-    transport: 'websocket',
-    ...(normalizedUpdate.stale === undefined ? {} : { stale: normalizedUpdate.stale }),
-    ...(normalizedUpdate.tradable === undefined ? {} : { tradable: normalizedUpdate.tradable }),
-    ...(normalizedUpdate.ageMs === undefined ? {} : { ageMs: normalizedUpdate.ageMs }),
-    ...(normalizedUpdate.ageSec === undefined ? {} : { ageSec: normalizedUpdate.ageSec }),
-    ...(normalizedUpdate.degraded === undefined ? {} : { degraded: normalizedUpdate.degraded }),
-    ...(normalizedUpdate.degradationReason === undefined
-      ? {}
-      : { degradationReason: normalizedUpdate.degradationReason }),
-    feedTickAt: sourceTimestampMs,
-    lastReceivedAt: receivedAt,
-    ...(normalizedTimestamp === null
-      ? {}
-      : {
-          time: normalizedTimestamp,
-          timestamp: normalizedTimestamp,
-          t: normalizedTimestamp,
-        }),
-  };
-
   const tickEvent: QuoteTickEvent = {
     symbol: normalizedUpdate.symbol,
     rawSymbol: normalizedUpdate.rawSymbol,
@@ -486,6 +442,51 @@ export const processTick = (bridge: TickProcessorBridge, raw: any): boolean => {
   if (!bridge.shouldStageQuoteUpdate()) {
     return false;
   }
+
+  // Row-only subscribers receive their tick before any unused store payload is built.
+  let data: any = {
+    ...(raw && typeof raw === 'object' ? raw : {}),
+    symbol: normalizedUpdate.symbol,
+    rawSymbol: normalizedUpdate.rawSymbol,
+    bid: normalizedUpdate.bid,
+    ask: normalizedUpdate.ask,
+    ...(normalizedUpdate.last === undefined ? {} : { last: normalizedUpdate.last }),
+    ...(normalizedUpdate.high === undefined ? {} : { high: normalizedUpdate.high }),
+    ...(normalizedUpdate.low === undefined ? {} : { low: normalizedUpdate.low }),
+    ...(normalizedUpdate.open === undefined ? {} : { open: normalizedUpdate.open }),
+    ...(normalizedUpdate.dailyOpen === undefined ? {} : { dailyOpen: normalizedUpdate.dailyOpen }),
+    ...(normalizedUpdate.previousClose === undefined ? {} : { previousClose: normalizedUpdate.previousClose }),
+    changePct: normalizedUpdate.changePct,
+    ...(normalizedUpdate.spread === undefined ? {} : { spread: normalizedUpdate.spread }),
+    volume: normalizedUpdate.volume,
+    ...(normalizedUpdate.volume === undefined ? {} : { volumeSource: 'backend' }),
+    ...(normalizedUpdate.digits === undefined ? {} : { digits: normalizedUpdate.digits }),
+    ...(normalizedUpdate.point === undefined ? {} : { point: normalizedUpdate.point }),
+    ...(normalizedUpdate.tickSize === undefined ? {} : { tickSize: normalizedUpdate.tickSize }),
+    ...(normalizedUpdate.sequence === undefined ? {} : { sequence: normalizedUpdate.sequence }),
+    ...(normalizedUpdate.tickId === undefined ? {} : { tickId: normalizedUpdate.tickId }),
+    ...(normalizedUpdate.source === undefined ? {} : { source: normalizedUpdate.source }),
+    ...(normalizedUpdate.authority === undefined ? {} : { authority: normalizedUpdate.authority }),
+    ...(normalizedUpdate.marketState === undefined ? {} : { marketState: normalizedUpdate.marketState }),
+    transport: 'websocket',
+    ...(normalizedUpdate.stale === undefined ? {} : { stale: normalizedUpdate.stale }),
+    ...(normalizedUpdate.tradable === undefined ? {} : { tradable: normalizedUpdate.tradable }),
+    ...(normalizedUpdate.ageMs === undefined ? {} : { ageMs: normalizedUpdate.ageMs }),
+    ...(normalizedUpdate.ageSec === undefined ? {} : { ageSec: normalizedUpdate.ageSec }),
+    ...(normalizedUpdate.degraded === undefined ? {} : { degraded: normalizedUpdate.degraded }),
+    ...(normalizedUpdate.degradationReason === undefined
+      ? {}
+      : { degradationReason: normalizedUpdate.degradationReason }),
+    feedTickAt: sourceTimestampMs,
+    lastReceivedAt: receivedAt,
+    ...(normalizedTimestamp === null
+      ? {}
+      : {
+          time: normalizedTimestamp,
+          timestamp: normalizedTimestamp,
+          t: normalizedTimestamp,
+        }),
+  };
 
   // Preserve intra-flush quote extremes. When several ticks arrive within
   // the same event-loop turn, naively overwriting the pending entry would

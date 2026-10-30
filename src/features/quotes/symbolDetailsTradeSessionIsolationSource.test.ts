@@ -7,6 +7,14 @@ const source = readFileSync(
   resolve(process.cwd(), 'src/features/quotes/SymbolDetailsScreen/SymbolDetailsScreen.tsx'),
   'utf8',
 );
+const receiptsHookSource = readFileSync(
+  resolve(process.cwd(), 'src/features/trade/useMarketTradeReceipts.ts'),
+  'utf8',
+);
+const receiptCallbacksSource = readFileSync(
+  resolve(process.cwd(), 'src/features/trade/marketTradeReceiptCallbacks.ts'),
+  'utf8',
+);
 
 test('symbol-details order callbacks are bound to their originating broker epoch', () => {
   const start = source.indexOf('const handleTrade');
@@ -17,10 +25,14 @@ test('symbol-details order callbacks are bound to their originating broker epoch
   assert.match(handler, /String\(tradingLogin\) !== actionProvenance\.identity\.accountLogin/);
   assert.match(
     handler,
-    /onSuccess: \(data\) => \{\s*if \(!isActiveBrokerSessionProvenanceCurrent\(actionProvenance\)\)/,
+    /createTradeReceipt\(\{ symbol, side, volume: resolvedVolume \}, actionProvenance\.cacheNamespace\)/,
   );
   assert.match(
-    handler,
-    /onError: \(err: any\) => \{\s*if \(!isActiveBrokerSessionProvenanceCurrent\(actionProvenance\)\)/,
+    receiptsHookSource,
+    /\(\) => isMarketOrderFeedbackCurrent\(namespace\)/,
+  );
+  assert.match(
+    receiptCallbacksSource,
+    /status: isCurrent\(\) \? status : 'cancelled'/,
   );
 });

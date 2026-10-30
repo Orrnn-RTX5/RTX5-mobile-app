@@ -16,11 +16,15 @@ import { Screen } from '../../ui/components/Screen';
 import { useInstrumentMeta } from '../../query/instruments';
 import { useMarketData } from '../../query/websocket';
 import { useMarginCalculation, useProfitCalculation } from '../../query/calculators';
+import { useAccountDetails } from '../../query/accounts';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { resolveTradingLogin } from '../../state/tradingLogin';
 import { useTheme, ThemeColors } from '../../ui/theme/useTheme';
 import { useTranslation } from '../../i18n/useTranslation';
 import { safeRouterBack } from '../../utils/navigation';
+import { formatBackendPrice } from '../../utils/backendPrice';
+import { parsePositiveDecimalInput } from '../../utils/decimalInput';
+import { resolveCalculatorPriceStep, stepCalculatorInput } from './calculatorInput';
 import { scheduleChartActionLaunchCovered } from './chartActionLaunchController';
 
 // Format helpers — return "—" when an input is missing so the UI never shows
@@ -93,16 +97,27 @@ export function ChartTradingCalculatorScreen() {
    */
   const adjustLotSize = (amount: number) => {
     setLotSize((prev) => {
-      const parsed = parseFloat(prev) || 0;
-      return Math.max(0.01, parsed + amount).toFixed(2);
+      const step = meta?.stepVolume || 0.01;
+      return stepCalculatorInput(prev, amount < 0 ? -1 : 1, step,
+        meta?.minVolume || step, meta?.minVolume || step, meta?.maxVolume || Infinity) ?? prev;
     });
   };
 
   // ── Resolve inputs ──────────────────────────────────────────────────────
   const accountLogin = resolveTradingLogin();
-  const lots = parseFloat(lotSize) || 0;
-  const effectiveOpen = parseFloat(openPrice) || (side === 'buy' ? liveAsk : liveBid) || liveMid;
-  const effectiveClose = parseFloat(closePrice) || (side === 'buy' ? liveBid : liveAsk) || liveMid;
+  const { data: account } = useAccountDetails(accountLogin, isScreenFocused);
+  const leverage = account?.leverage;
+  const lots = parsePositiveDecimalInput(lotSize) ?? 0;
+  const marketOpen = (side === 'buy' ? liveAsk : liveBid) ?? liveMid;
+  const marketClose = (side === 'buy' ? liveBid : liveAsk) ?? liveMid;
+  const effectiveOpen = openPrice.trim() ? parsePositiveDecimalInput(openPrice) : marketOpen;
+  const effectiveClose = closePrice.trim() ? parsePositiveDecimalInput(closePrice) : marketClose;
+  const priceStep = resolveCalculatorPriceStep(meta);
+  const adjustPrice = (field: 'open' | 'close', direction: -1 | 1) => {
+    const setter = field === 'open' ? setOpenPrice : setClosePrice;
+    const fallback = field === 'open' ? marketOpen : marketClose;
+    setter((previous) => stepCalculatorInput(previous, direction, priceStep, fallback) ?? previous);
+  };
   const pipMultiplier = currentSymbol.includes('JPY') ? 100 : 10000;
   const profitCurrency = meta?.profitCurrency || 'USD';
 
@@ -133,8 +148,9 @@ export function ChartTradingCalculatorScreen() {
   // ── Derived display values ───────────────────────────────────────────────
   // Use server results where available; fall back to local meta for spread/swap
   // which aren't part of the calculator endpoints.
-  const spread = liveBid !== undefined && liveAsk !== undefined
-    ? (liveAsk - liveBid) * pipMultiplier
+  const effectivePriceStep = priceStep && priceStep > 0 ? priceStep : 1 / pipMultiplier;
+  const spread = liveBid !== undefined && liveAsk !== undefined && effectivePriceStep > 0
+    ? Math.abs(liveAsk - liveBid) / effectivePriceStep
     : undefined;
   const swapPerDay = lots > 0
     ? lots * ((side === 'buy' ? meta?.swapLong : meta?.swapShort) ?? NaN)
@@ -144,7 +160,6 @@ export function ChartTradingCalculatorScreen() {
   const margin = marginResult?.required_margin;
   const pipValue = marginResult?.pip_value ?? profitResult?.pip_value;
   const profitLoss = profitResult?.profit;
-  const commission = 0; // Not returned by calculators API; broker may charge separately
 
   return (
     <Screen
@@ -209,10 +224,11 @@ export function ChartTradingCalculatorScreen() {
           </View>
 
           <Text style={[styles.inputLabel, { marginTop: 16 }]}>{t('Leverage')}</Text>
-          <Pressable style={styles.dropdownBox}>
-            <Text style={styles.dropdownText}>1:2000 ({t('Account leverage')})</Text>
-            <Ionicons name="chevron-down" size={18} color={T.textMuted} />
-          </Pressable>
+          <View style={styles.dropdownBox}>
+            <Text style={styles.dropdownText}>
+              {leverage !== undefined && Number.isFinite(leverage) && leverage > 0 ? `1:${leverage}` : '—'} ({t('Account leverage')})
+            </Text>
+          </View>
 
           <View style={styles.labelRow}>
             <Text style={styles.inputLabel}>{t('Open at')}</Text>
@@ -221,7 +237,8 @@ export function ChartTradingCalculatorScreen() {
             </Pressable>
           </View>
           <View style={styles.inputBox}>
-            <Pressable style={styles.stepperBtn}>
+            <Pressable style={styles.stepperBtn} onPress={() => adjustPrice('open', -1)} disabled={priceStep === undefined}
+              accessibilityLabel={t('Decrease open price')}>
               <Ionicons name="remove" size={20} color={T.textMuted} />
             </Pressable>
             <TextInput
@@ -229,10 +246,11 @@ export function ChartTradingCalculatorScreen() {
               value={openPrice}
               onChangeText={setOpenPrice}
               keyboardType="numeric"
-              placeholder={liveMid ? `${t('Market price')} (${liveMid.toFixed(meta?.tickSize && meta.tickSize < 0.01 ? 5 : 3)})` : t('Market price')}
+              placeholder={liveMid ? `${t('Market price')} (${formatBackendPrice(liveMid)})` : t('Market price')}
               placeholderTextColor={T.textMuted}
             />
-            <Pressable style={styles.stepperBtn}>
+            <Pressable style={styles.stepperBtn} onPress={() => adjustPrice('open', 1)} disabled={priceStep === undefined}
+              accessibilityLabel={t('Increase open price')}>
               <Ionicons name="add" size={20} color={T.textMuted} />
             </Pressable>
           </View>
@@ -244,7 +262,8 @@ export function ChartTradingCalculatorScreen() {
             </Pressable>
           </View>
           <View style={styles.inputBox}>
-            <Pressable style={styles.stepperBtn}>
+            <Pressable style={styles.stepperBtn} onPress={() => adjustPrice('close', -1)} disabled={priceStep === undefined}
+              accessibilityLabel={t('Decrease close price')}>
               <Ionicons name="remove" size={20} color={T.textMuted} />
             </Pressable>
             <TextInput
@@ -255,7 +274,8 @@ export function ChartTradingCalculatorScreen() {
               placeholder="0.000"
               placeholderTextColor={T.textMuted}
             />
-            <Pressable style={styles.stepperBtn}>
+            <Pressable style={styles.stepperBtn} onPress={() => adjustPrice('close', 1)} disabled={priceStep === undefined}
+              accessibilityLabel={t('Increase close price')}>
               <Ionicons name="add" size={20} color={T.textMuted} />
             </Pressable>
           </View>
@@ -267,7 +287,7 @@ export function ChartTradingCalculatorScreen() {
             { key: 'Required Margin', label: t('Required Margin'), value: fmtMoney(margin, profitCurrency) },
             { key: 'Free Margin', label: t('Free Margin'), value: fmtMoney(marginResult?.free_margin, profitCurrency) },
             { key: 'Max Lots', label: t('Max Lots'), value: marginResult?.max_lots != null ? marginResult.max_lots.toFixed(2) : '—' },
-            { key: 'Commission', label: t('Commission'), value: fmtMoney(commission, profitCurrency) },
+            { key: 'Commission', label: t('Commission'), value: '—' },
             // Contract v3 instruments carry no swap_* fields; hide instead of '—'.
             ...(swapPerDay !== undefined && Number.isFinite(swapPerDay)
               ? [{ key: 'Swap / day', label: t('Swap / day'), value: fmtMoney(swapPerDay, profitCurrency) }]
@@ -286,7 +306,7 @@ export function ChartTradingCalculatorScreen() {
                       ? { color: profitLoss >= 0 ? T.trading.buy.primary : T.trading.sell.primary, fontWeight: '700' }
                       : {},
                   ]}>
-                    {(marginFetching || profitFetching) && item.value === '—' ? '…' : item.value}
+                    {item.key !== 'Commission' && (marginFetching || profitFetching) && item.value === '—' ? '…' : item.value}
                   </Text>
                   <Ionicons name="information-circle-outline" size={20} color={T.textMuted} />
                 </View>
@@ -364,7 +384,7 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       borderRadius: 6,
     },
     segmentBtnActive: {
-      backgroundColor: isDark ? '#1E1E1E' : '#F1F5F9', // subtle background for active
+      backgroundColor: isDark ? '#2C2C2E' : '#F1F5F9', // subtle background for active
     },
     segmentText: {
       fontSize: 15,

@@ -1,3 +1,5 @@
+import { VALUE_BASED_PRICE_WEBVIEW_JS } from '../../../utils/backendPrice';
+
 /**
  * Autoscale-safe trade overlays for divided panes.
  *
@@ -6,6 +8,7 @@
  * the retained chart's split side/P&L label and outlined right-axis price box.
  */
 export const LIVE_CHART_PREVIEW_TRADE_OVERLAY_SCRIPT = String.raw`
+      ${VALUE_BASED_PRICE_WEBVIEW_JS}
       var previewTradeOverlayLines = [];
       var previewTradeOverlayLayer = null;
       var previewTradeOverlayNodesByKey = Object.create(null);
@@ -296,7 +299,7 @@ export const LIVE_CHART_PREVIEW_TRADE_OVERLAY_SCRIPT = String.raw`
             var boxKey = 'box:' + id;
             liveKeys.push(boxKey);
             var box = upsertPreviewTradeOverlayNode(layer, boxKey, 'rtx5-preview-position-price-box');
-            box.textContent = Number(item.price).toFixed(decimals);
+            box.textContent = formatValueBasedPrice(item.price);
             box.style.position = 'absolute';
             box.style.left = Math.round(metrics.axisLeft) + 'px';
             box.style.top = Math.round(rowCenter - PREVIEW_TRADE_PRICE_BOX_HEIGHT / 2) + 'px';

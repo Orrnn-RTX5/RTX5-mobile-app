@@ -43,10 +43,13 @@ export function makeDemoAccountStyles(T: ThemeColors, isDark: boolean, insets: E
       elevation: 0,
     },
     headerBackButton: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
+      alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
+      padding: 0,
+      flexShrink: 0,
     },
     headerTitle: {
       color: T.text,
@@ -59,8 +62,9 @@ export function makeDemoAccountStyles(T: ThemeColors, isDark: boolean, insets: E
       paddingHorizontal: 12,
     },
     headerRightSpacer: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
+      flexShrink: 0,
     },
     scrollContent: {
       paddingBottom: (keyboardVisible ? REGISTER_KEYBOARD_BOTTOM_PADDING : 12) + insets.bottom,

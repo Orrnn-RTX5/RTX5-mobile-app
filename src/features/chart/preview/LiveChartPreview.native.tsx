@@ -1,3 +1,5 @@
+import { allowLocalChartNavigation, parseChartBridgeMessage } from '../chartWebViewBoundary';
+import { VALUE_BASED_PRICE_WEBVIEW_JS } from '../../../utils/backendPrice';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
@@ -25,7 +27,7 @@ import {
   resolveAreaChartDirection,
 } from '../areaChartDirection';
 import { LIGHTWEIGHT_CHARTS_JS } from '../rendering/lightweightChartsBundle';
-import type { QuoteItem } from '../../../dev/mock/tradingData';
+import type { QuoteItem } from '../../../domain/tradingModels';
 import {
   useActiveBrokerCredentialScopeKey,
   useActiveBrokerQuerySession,
@@ -70,6 +72,7 @@ const CH_HTML = `
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <script>${VALUE_BASED_PRICE_WEBVIEW_JS}</script>
     <script>${LIGHTWEIGHT_CHARTS_JS}</script>
     <script>${RTX5_CUSTOM_CANDLESTICK_SERIES_WEBVIEW_JS}</script>
     <script>${ENHANCED_DRAWING_TOOLS_JS}</script>
@@ -414,7 +417,8 @@ ${LIVE_CHART_PREVIEW_TRADE_OVERLAY_SCRIPT}
           }
 
           var priceFormatInfo = {
-            type: 'price',
+            type: 'custom',
+            formatter: formatValueBasedPrice,
             precision: displayDecimals,
             minMove: 1 / Math.pow(10, displayDecimals)
           };
@@ -1444,11 +1448,14 @@ export default function LiveChartPreviewNative({
       <WebView
         key={PREVIEW_DEV_SOURCE_KEY}
         ref={webViewRef}
-        source={{ html: CH_HTML }}
+        source={{ html: CH_HTML, baseUrl: 'about:blank' }}
+        originWhitelist={['*']}
         style={{ flex: 1, backgroundColor: 'transparent' }}
+        onShouldStartLoadWithRequest={allowLocalChartNavigation}
         onMessage={(event) => {
           try {
-            const data = JSON.parse(event.nativeEvent.data);
+            const data = parseChartBridgeMessage(event.nativeEvent.data);
+            if (!data) return;
             if (data.type === 'READY') {
               setWebViewReady(true);
             } else if (

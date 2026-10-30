@@ -1,3 +1,4 @@
+import { makeStyles } from './ChartScreen.web.styles';
 import { FastPressable as Pressable } from '../../ui/components/FastPressable';
 import { markTradeIntent } from '../../utils/tradeIntent';
 /**
@@ -16,17 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { ActivityIndicator, Alert, LayoutChangeEvent, ScrollView, StyleSheet, Text, TextInput, View, Image, Platform } from 'react-native';
+import { ActivityIndicator, Alert, LayoutChangeEvent, ScrollView, Text, TextInput, View, Image, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActionSheet } from '../../ui/components/ActionSheet';
 import { runCriticalTradeAction, runImmediateAction } from '../../utils/actionLatency';
 import { hideChartConfigDestination } from './chartConfigDestinationController';
 import { showChartSettingsHost } from './chartSettingsHostController';
-import {
-  hideOrderTicketLaunch,
-  scheduleOrderTicketLaunchNavigation,
-  showOrderTicketLaunch,
-} from '../trade/orderTicketLaunchController';
 import { scheduleIdleWork } from '../../utils/startupScheduler';
 import {
   TvCrosshair, TvTrendLine, TvFib, TvText, TvMeasure, TvZoom, TvPencil, TvLock, TvHide, TvTrash, TvLayers,
@@ -44,13 +40,20 @@ import { useIsDarkTheme } from '../../state/themeMode';
 import { resolveTradingLogin, useResolvedTradingLogin } from '../../state/tradingLogin';
 import { useUIState } from '../../state/uiState';
 import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
+import { formatBackendDailyChange } from '../../utils/backendDailyChange';
 import { spacing } from '../../ui/theme/index';
 import { useTheme } from '../../ui/theme/useTheme';
-import { GDark, GLight, ThemeColors } from '../../ui/theme/glass';
+import { GDark, GLight } from '../../ui/theme/glass';
 import { useLiveCandles, useLiveTick } from '../../domain/candles/hooks/useLiveCandles';
 import { liveCandleStream as liveCandlesEngine } from '../../domain/candles/stream/liveCandleStream';
 import { useLiveAccountState } from '../../state/liveAccountState';
-import { useOrdersByLoginQuery, usePlaceOrderMutation } from '../../query/orders';
+import { useOrdersByLoginQuery, usePlaceOrderExecutor } from '../../query/orders';
+import { usePendingOrdersQuery } from '../../query/pendingOrders';
+import { pendingOrdersToChartOrders } from '../trade/pendingOrderPresentation';
+import { createMarketOrderIntentId } from '../../api/orders/marketOrderInFlight';
+import { ChartTradeReceiptStack } from './components/ChartTradeReceiptStack';
+import { useMarketTradeReceipts } from '../trade/useMarketTradeReceipts';
 import { useLatestDailyCandle } from '../../domain/candles/query/candles';
 import { useMarketSymbols } from '../../query/market';
 import { buildAvailableChartSymbols, resolveBrokerChartSymbol } from './chartBrokerSymbols';
@@ -75,7 +78,6 @@ import {
 import { usePositionsState } from '../../state/positionsState';
 import {
   captureActiveBrokerSessionProvenance,
-  isActiveBrokerSessionProvenanceCurrent,
 } from '../../state/activeBrokerSession';
 import { TradingSignalDetailsModal } from './TradingSignalDetailsModal';
 import { hasLiveQuoteFeedData, useMarketData } from '../../query/websocket';
@@ -297,15 +299,14 @@ const LivePriceHeader = React.memo(({ symbol, styles, displayDecimals, priceSour
   return (
     <View style={styles.priceSection}>
       <Text style={[styles.symbolText, { textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 2, opacity: 0.9 }]}>{priceLabel}</Text>
-      <Text style={styles.livePriceText}>{currentPrice.toFixed(displayDecimals)}</Text>
+      <Text style={styles.livePriceText}>{formatBackendPrice(currentPrice)}</Text>
       {(() => {
-        const changePct = q.changePct ?? 0;
-        const openPrice = q.open ?? q.close ?? currentPrice;
-        const change = q.change !== undefined ? q.change : (currentPrice - openPrice);
-        const isUp = change >= 0;
+        const changePct = q.changePct;
+        const hasDailyChange = typeof changePct === 'number' && Number.isFinite(changePct);
+        const isUp = typeof changePct === 'number' && changePct >= 0;
         return (
-          <Text style={[styles.priceChangePct, { color: isUp ? T.trading.profit : '#F23645' }]}>
-            {change > 0 ? '+' : ''}{(change || 0).toFixed(displayDecimals)} ({changePct > 0 ? '+' : ''}{(changePct || 0).toFixed(2)}%)
+          <Text style={[styles.priceChangePct, { color: hasDailyChange ? (isUp ? T.trading.profit : '#F23645') : T.textMuted }]}>
+            {formatBackendDailyChange(changePct)}
           </Text>
         );
       })()}
@@ -316,7 +317,7 @@ const LivePriceHeader = React.memo(({ symbol, styles, displayDecimals, priceSour
 
 
 // Micro-component: isolated 4fps render cycle, 0 DOM depth
-const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize, active = true }: any) => {
+const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize, createTradeReceipt, active = true }: any) => {
   const {
     quote: liveQuote,
     getCurrentExecutableQuoteState,
@@ -324,7 +325,6 @@ const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize,
   const latestBid = typeof liveQuote?.bid === 'number' && liveQuote.bid > 0 ? liveQuote.bid : 0;
   const latestAsk = typeof liveQuote?.ask === 'number' && liveQuote.ask > 0 ? liveQuote.ask : 0;
 
-  const oneClickAccepted = useUserPreferences((s) => s.oneClickAccepted);
   const isPublicDemoTradePrompt = useUserPreferences(
     (state) => !state.isLoggedIn,
   );
@@ -332,23 +332,26 @@ const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize,
     quote: liveQuote,
     isPublicDemoTradePrompt,
   });
-  const openOrderMode = useUserPreferences((s) => s.openOrderMode);
-  const { mutate: placeOrder, isPending } = usePlaceOrderMutation();
-  const tradeTapLockRef = React.useRef(false);
+  const placeOrder = usePlaceOrderExecutor();
   const sellAction = getChartTradeAction('sell');
   const buyAction = getChartTradeAction('buy');
-  const shouldLogTradeDiagnostics =
-    typeof process !== 'undefined' && process.env.EXPO_PUBLIC_DEBUG_CHART_TRADE === 'true';
 
   const handleTrade = (side: TradeSide) => {
     // Tap time for the Journal's order latency telemetry.
     markTradeIntent();
     if (requestOrrnnDemoTradeAuth({
-      kind: oneClickAccepted ? 'market-order' : 'order-ticket',
+      kind: useUserPreferences.getState().oneClickAccepted ? 'market-order' : 'order-ticket',
       symbol,
       side,
       origin: 'chart',
     })) {
+      return;
+    }
+    if (!useUserPreferences.getState().oneClickAccepted) {
+      router.navigate({
+        pathname: '/trade/order-ticket',
+        params: { symbol, side, origin: 'chart' },
+      });
       return;
     }
     const action = getChartTradeAction(side);
@@ -362,104 +365,46 @@ const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize,
       Alert.alert('Market Data Unavailable', quoteActionBlockMessage(currentQuoteAvailability));
       return;
     }
-    if (tradeTapLockRef.current || isPending) {
-      if (shouldLogTradeDiagnostics) {
-        console.log('[TRADE-BUTTON-PRESS]', {
-          symbol,
-          buttonPressed: action.buttonPressed,
-          sidePassedToHandler: action.side,
-          ignored: true,
-          reason: tradeTapLockRef.current ? 'tap-lock' : 'mutation-pending',
-          timestamp: new Date().toISOString(),
-        });
-      }
+    const actionProvenance = captureActiveBrokerSessionProvenance();
+    if (!actionProvenance) {
+      const feedback = createFrontendTradingError(
+        'Sign In Required',
+        'Please sign in to the active broker account before placing an order.',
+      );
+      Alert.alert(feedback.title, feedback.message);
       return;
     }
-    tradeTapLockRef.current = true;
-    const releaseTradeTapLock = () => {
-      tradeTapLockRef.current = false;
-    };
-
-    if (oneClickAccepted) {
-      const actionProvenance = captureActiveBrokerSessionProvenance();
-      if (!actionProvenance) {
-        const feedback = createFrontendTradingError(
-          'Sign In Required',
-          'Please sign in to the active broker account before placing an order.',
-        );
-        Alert.alert(feedback.title, feedback.message);
-        releaseTradeTapLock();
-        return;
-      }
-      const tradingLogin = resolveTradingLogin();
-      if (!tradingLogin || String(tradingLogin) !== actionProvenance.identity.accountLogin) {
-        const feedback = createFrontendTradingError(
-          'Account Error',
-          'The app could not resolve the active trading account from local state. Select an account and try again.',
-        );
-        Alert.alert(feedback.title, feedback.message);
-        releaseTradeTapLock();
-        return;
-      }
-
-      const payload = buildChartMarketOrderPayload({
-        accountLogin: tradingLogin,
-        symbol,
-        side: action.side,
-        volume: Number(lotSize),
-      });
-      placeOrder(
-        payload,
-        {
-          onSuccess: (data: any) => {
-            if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) {
-              releaseTradeTapLock();
-              return;
-            }
-            const ticketValue = Number(data?.position_ticket ?? data?.order_ticket ?? data?.ticket);
-            const executionPriceValue = Number(data?.price_open ?? data?.price);
-            const confirmationLines = [
-              `Broker accepted ${action.side.toUpperCase()} on ${symbol}.`,
-              ...(Number.isFinite(ticketValue) && ticketValue > 0 ? [`Ticket #${ticketValue}`] : []),
-              ...(Number.isFinite(executionPriceValue) && executionPriceValue > 0
-                ? [`Executed at ${executionPriceValue.toFixed(displayDecimals)}`]
-                : []),
-            ];
-            Alert.alert('Trade Submitted', confirmationLines.join('\n'));
-            releaseTradeTapLock();
-          },
-          onError: (err: any) => {
-            if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) {
-              releaseTradeTapLock();
-              return;
-            }
-            const feedback = classifyTradingError(err, { action: 'place-order' });
-            Alert.alert(feedback.title, feedback.message);
-            releaseTradeTapLock();
-          }
-        }
+    const tradingLogin = resolveTradingLogin();
+    if (!tradingLogin || String(tradingLogin) !== actionProvenance.identity.accountLogin) {
+      const feedback = createFrontendTradingError(
+        'Account Error',
+        'The app could not resolve the active trading account from local state. Select an account and try again.',
       );
-    } else {
-      // Same retained-shell handoff as native: shell paints first, then route.
-      const launchRevision = showOrderTicketLaunch(symbol, 'chart');
-      scheduleOrderTicketLaunchNavigation(launchRevision, () => {
-        try {
-          router.push({ pathname: '/trade/order-ticket', params: { symbol, side: action.side, origin: 'chart' } });
-        } catch {
-          hideOrderTicketLaunch(launchRevision);
-        } finally {
-          releaseTradeTapLock();
-        }
-      });
+      Alert.alert(feedback.title, feedback.message);
+      return;
     }
+
+    const payload = { ...buildChartMarketOrderPayload({
+      accountLogin: tradingLogin,
+      symbol,
+      side: action.side,
+      volume: Number(lotSize),
+    }), frontendIntentId: createMarketOrderIntentId() };
+    placeOrder(
+      payload,
+      createTradeReceipt({ symbol, side: action.side, volume: Number(lotSize) }, actionProvenance.cacheNamespace),
+    );
+
   };
 
   return (
     <View style={styles.tradeControlsRow}>
       <Pressable
-        style={[styles.actionBtn, styles.actionBtnSell, (isPending || !quoteActionAvailability.allowed) && { opacity: 0.5 }]}
-        disabled={isPending || !quoteActionAvailability.allowed}
-        onPressIn={() => runCriticalTradeAction('chart.web.trade.sell', () => handleTrade('sell'))}
+        style={[styles.actionBtn, styles.actionBtnSell, !quoteActionAvailability.allowed && { opacity: 0.5 }]}
+        disabled={!quoteActionAvailability.allowed}
+        onPress={() => runCriticalTradeAction('chart.web.trade.sell', () => handleTrade('sell'))}
+        activateOnPressIn
+        activateOnTouchStart
         unstable_pressDelay={0}
         accessibilityRole="button"
         accessibilityLabel={sellAction.accessibilityLabel}
@@ -469,15 +414,17 @@ const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize,
           <Text style={[styles.actionBtnLabelTitle, styles.actionBtnLabelSell]}>{sellAction.displayLabel}</Text>
           <Ionicons name="chevron-down" size={16} color="#FFF" />
         </View>
-        <Text style={styles.actionBtnPriceText}>@ {(latestBid || 0).toFixed(displayDecimals)}</Text>
+        <Text style={styles.actionBtnPriceText}>@ {latestBid > 0 ? formatBackendPrice(latestBid) : '--'}</Text>
       </Pressable>
 
       <View style={styles.actionSpacer} />
 
       <Pressable
-        style={[styles.actionBtn, styles.actionBtnBuy, (isPending || !quoteActionAvailability.allowed) && { opacity: 0.5 }]}
-        disabled={isPending || !quoteActionAvailability.allowed}
-        onPressIn={() => runCriticalTradeAction('chart.web.trade.buy', () => handleTrade('buy'))}
+        style={[styles.actionBtn, styles.actionBtnBuy, !quoteActionAvailability.allowed && { opacity: 0.5 }]}
+        disabled={!quoteActionAvailability.allowed}
+        onPress={() => runCriticalTradeAction('chart.web.trade.buy', () => handleTrade('buy'))}
+        activateOnPressIn
+        activateOnTouchStart
         unstable_pressDelay={0}
         accessibilityRole="button"
         accessibilityLabel={buyAction.accessibilityLabel}
@@ -487,7 +434,7 @@ const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize,
           <Ionicons name="chevron-up" size={16} color="#FFF" />
           <Text style={[styles.actionBtnLabelTitle, styles.actionBtnLabelBuy]}>{buyAction.displayLabel}</Text>
         </View>
-        <Text style={styles.actionBtnPriceText}>@ {(latestAsk || 0).toFixed(displayDecimals)}</Text>
+        <Text style={styles.actionBtnPriceText}>@ {latestAsk > 0 ? formatBackendPrice(latestAsk) : '--'}</Text>
       </Pressable>
     </View>
   );
@@ -497,22 +444,20 @@ const LiveTradeButtons = React.memo(({ symbol, styles, displayDecimals, lotSize,
 const LiveTvLegend = React.memo(({ symbol, styles, displayDecimals, candles, active = true }: any) => {
   const T = useTheme({ active });
   const latestTick = useLiveTick(symbol, undefined, active);
+  const liveQuotes = useMarketData([symbol], active);
   if (!latestTick || candles.length < 2) return null;
 
   const latestBid = latestTick.close;
-  const previousClose = candles[candles.length - 2]?.close;
-  const change = typeof previousClose === 'number' && Number.isFinite(previousClose)
-    ? latestBid - previousClose
-    : 0;
-  const changePct = previousClose ? (change / previousClose) * 100 : 0;
-  const isUp = change >= 0;
+  const changePct = liveQuotes[symbol]?.changePct;
+  const hasDailyChange = typeof changePct === 'number' && Number.isFinite(changePct);
+  const isUp = typeof changePct === 'number' && changePct >= 0;
 
   return (
     <View style={styles.tvLegendContainer} pointerEvents="box-none">
       <View>
         <View style={styles.tvLegendRow}>
-          <Text style={[styles.tvLegendPriceChange, { fontWeight: '500', color: isUp ? T.trading.profit : '#F23645' }]}>
-            {(latestBid || 0).toFixed(displayDecimals)} {change > 0 ? '+' : ''}{change.toFixed(displayDecimals)} ({changePct > 0 ? '+' : ''}{changePct.toFixed(2)}%)
+          <Text style={[styles.tvLegendPriceChange, { fontWeight: '500', color: hasDailyChange ? (isUp ? T.trading.profit : '#F23645') : T.textMuted }]}>
+            {formatBackendPrice(latestBid || 0)} {formatBackendDailyChange(changePct)}
           </Text>
         </View>
       </View>
@@ -722,6 +667,7 @@ const getContainerChartDimensions = (container: { clientWidth: number; clientHei
 
 
 export function ChartScreen() {
+  const { controller: tradeReceiptController, createTradeReceipt } = useMarketTradeReceipts();
   const isScreenFocused = useIsFocused();
   const T = useTheme();
   const isDark = useIsDarkTheme();
@@ -990,7 +936,7 @@ export function ChartScreen() {
     timeRangeCandlesRef.current = sanitizedCandles;
   }, [sanitizedCandles]);
   const formatChartValue = useCallback(
-    (value: number | null | undefined) => (Number.isFinite(value) ? Number(value).toFixed(displayDecimals) : '--'),
+    (value: number | null | undefined) => formatBackendPrice(value),
     [displayDecimals],
   );
   const chartMetaLastCandle = chartCandles.length > 0 ? chartCandles[chartCandles.length - 1] : null;
@@ -1036,9 +982,8 @@ export function ChartScreen() {
   const { data: chartDeals = [], refetch: refetchChartDeals } = useChartDealsQuery(accountLogin, {
     enabled: isScreenFocused,
   });
-  const { data: orders = [], refetch: refetchOrders } = useOrdersByLoginQuery(accountLogin, {
-    enabled: isScreenFocused,
-  });
+  const { data: activePendingOrders, refetch: refetchOrders } = usePendingOrdersQuery(isScreenFocused);
+  const orders = useMemo(() => pendingOrdersToChartOrders(activePendingOrders), [activePendingOrders]);
   const { data: alerts = [], refetch: refetchAlerts } = useAlertsQuery({
     enabled: isScreenFocused,
   });
@@ -1651,11 +1596,16 @@ export function ChartScreen() {
         liveAsk: hasLiveChartQuote ? overlayLiveAsk : null,
         liveQuote: hasLiveChartQuote ? chartLiveQuote : undefined,
         liveAccount: overlayAccountMetrics,
+        accountCurrency: accountSummary?.currency,
         showOnChart: chartShowOnChart,
         showTradeHistory: chartDisplay.showTradeHistory,
         chartTimeframe,
         activeTool,
       });
+      if (chartDisplay.showAskPriceLine && hasLiveChartQuote && overlayLiveAsk !== null && overlayLiveAsk > 0) {
+        nextPayload.priceLines = [...nextPayload.priceLines, { id: 'live-ask', price: overlayLiveAsk, color: RED,
+          lineWidth: 1, lineStyle: 2, axisLabelVisible: false, labelPlacement: 'line', title: `ASK @ ${overlayLiveAsk}` }];
+      }
       // Canonical candle-time markers cannot be attached safely to synthetic
       // Renko brick times, so keep price lines but omit those markers.
       return chartType === 'renko'
@@ -1678,8 +1628,10 @@ export function ChartScreen() {
       overlayLiveBid,
       overlayLiveAsk,
       overlayAccountMetrics,
+      accountSummary?.currency,
       chartShowOnChart,
       chartDisplay.showTradeHistory,
+      chartDisplay.showAskPriceLine,
       chartTimeframe,
       chartType,
       activeTool,
@@ -2092,7 +2044,7 @@ export function ChartScreen() {
               <View style={[styles.sentimentHalf, styles.sentimentBuy, { flex: sentiment.buyPct }]} />
             </View>
 
-            <LiveTradeButtons symbol={chartSymbol} styles={styles} displayDecimals={displayDecimals} lotSize={tradeVolume} seriesRef={seriesRef} active={isScreenFocused} />
+            <LiveTradeButtons symbol={chartSymbol} styles={styles} displayDecimals={displayDecimals} lotSize={tradeVolume} seriesRef={seriesRef} createTradeReceipt={createTradeReceipt} active={isScreenFocused} />
 
             <View style={styles.lotSelectorBar}>
               <Pressable style={styles.lotStepperBtn} onPress={() => updateTradeVolume(incrementTradeVolume(tradeVolume, -1, tradeVolumeBounds))}>
@@ -2193,7 +2145,10 @@ export function ChartScreen() {
           {
             label: 'Remove from favorites',
             icon: <Ionicons name="star" size={20} color={TEXT_MUTED} />,
-            onPress: () => { setShowMoreMenu(false); }
+            onPress: () => {
+              setShowMoreMenu(false);
+              useUserPreferences.getState().removeQuoteSymbol(chartSymbol);
+            }
           },
           {
             label: 'Trading calculator',
@@ -2218,693 +2173,15 @@ export function ChartScreen() {
         onClose={() => setShowSignalDetails(false)}
         symbol={chartSymbol}
       />
+      <ChartTradeReceiptStack
+        controller={tradeReceiptController}
+        isDark={isDark}
+        buyColor={BLUE}
+        sellColor={RED}
+        topOffset={64}
+        bottomOffset={160}
+        pendingLabel="sent"
+      />
     </Screen>
   );
-}
-
-function makeStyles(T: ThemeColors, isDark: boolean) {
-  const APP_BG = isDark ? '#121212' : T.bg;
-  const CHART_CANVAS_BG = isDark ? '#121212' : '#FFFFFF';
-  const BOTTOM_AREA_BG = isDark ? '#121212' : '#F8FAFC';
-  const BLUE = T.trading.buy.primary;
-  const RED = T.trading.sell.primary;
-  const TEXT_MUTED = T.textMuted;
-
-  return StyleSheet.create({
-    screen: { backgroundColor: APP_BG, paddingHorizontal: 0 },
-
-    /* â”€â”€ Header Wrapper (2-row) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-    headerWrapper: {
-      backgroundColor: isDark ? '#121212' : '#FFFFFF',
-      borderBottomWidth: 1,
-      borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
-      zIndex: 10,
-    },
-    topBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 20,
-      height: 40,
-      marginTop: 16,
-    },
-    hamburgerBtn: {
-      padding: 4,
-      marginLeft: -4,
-    },
-
-    /* â”€â”€ Compact Header (Row 2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-    compactHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingTop: 0,
-      paddingBottom: 6,
-      marginTop: -4,
-    },
-    symbolSection: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      flex: 1,
-      marginTop: -8,
-    },
-    flagStack: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    flagCircle: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
-      borderWidth: 2,
-      borderColor: isDark ? '#0B101E' : '#FFFFFF',
-    },
-    flagOverlap: {
-      marginLeft: -10,
-    },
-    symbolNameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-    },
-    symbolText: {
-      color: isDark ? '#FFFFFF' : '#0F172A',
-      fontSize: 13,
-      fontWeight: '500',
-      letterSpacing: 0,
-    },
-    fxBadge: {
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
-      paddingHorizontal: 5,
-      paddingVertical: 1,
-      borderRadius: 3,
-    },
-    fxBadgeText: {
-      color: isDark ? '#94A3B8' : '#64748B',
-      fontSize: 10,
-      fontWeight: '600',
-      letterSpacing: 0.5,
-    },
-    symbolSubText: {
-      color: isDark ? '#94A3B8' : '#64748B',
-      fontSize: 13,
-      fontWeight: '500',
-      marginTop: 1,
-    },
-
-    /* â”€â”€ Center: Live Price â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-    priceSection: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      flex: 1,
-    },
-    livePriceText: {
-      color: isDark ? '#FFFFFF' : '#0F172A',
-      fontSize: 17,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
-      letterSpacing: 0,
-    },
-    priceChangeText: {
-      fontSize: 11,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
-      marginTop: 1,
-    },
-
-    /* â”€â”€ Right: Price Change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-    rightSection: {
-      alignItems: 'flex-end',
-      flex: 1,
-    },
-    balanceContainer: {
-      alignItems: 'flex-end',
-    },
-    balanceText: {
-      color: isDark ? '#FFFFFF' : '#0F172A',
-      fontSize: 16,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
-      letterSpacing: 0,
-    },
-    balanceLabel: {
-      color: isDark ? '#FFFFFF' : '#64748B',
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      marginBottom: 1,
-    },
-    currencyText: {
-      fontSize: 10,
-      color: isDark ? '#94A3B8' : '#64748B',
-      fontWeight: '600',
-    },
-    priceChangePct: {
-      fontSize: 11,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
-      marginTop: 1,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginTop: 3,
-    },
-    headerTitleContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    headerTitleText: {
-      color: isDark ? '#FFFFFF' : '#0F172A',
-      fontSize: 18,
-      fontWeight: '500',
-      letterSpacing: 0.3,
-    },
-    accountDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-    },
-    dotDemo: {
-      backgroundColor: T.trading.profit,
-    },
-    dotLive: {
-      backgroundColor: isDark ? '#FACC15' : '#D97706',
-    },
-    accountTypeText: {
-      fontSize: 12,
-      fontWeight: '700',
-      letterSpacing: 0.5,
-    },
-    textDemo: {
-      color: T.trading.profit,
-    },
-    textLive: {
-      color: isDark ? '#FACC15' : '#D97706',
-    },
-
-    /* â”€â”€ Card (main body) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-    card: {
-      flex: 1,
-      backgroundColor: 'transparent',
-    },
-    chartContainer: {
-      flex: 1,
-      backgroundColor: CHART_CANVAS_BG,
-      position: 'relative',
-    },
-    leftToolbar: {
-      width: 50,
-      minWidth: 50,
-      maxWidth: 50,
-      flexShrink: 0,
-      flexGrow: 0,
-      backgroundColor: isDark ? '#121212' : '#F8FAFC',
-      borderRightWidth: 1,
-      borderRightColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
-    },
-    leftToolbarOverlay: {
-      position: 'absolute' as any,
-      left: 0,
-      top: 0,
-      bottom: 0,
-      zIndex: 50,
-      height: '100%',
-      backgroundColor: isDark ? 'rgba(0,0,0,0.92)' : 'rgba(255,255,255,0.95)',
-      borderRightWidth: 1,
-      borderRightColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-    },
-    floatingDrawBtn: {
-      position: 'absolute' as any,
-      left: 12,
-      bottom: 30,
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
-      elevation: 8,
-      zIndex: 40,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-    },
-
-    leftToolbarContent: {
-      alignItems: 'center',
-      paddingVertical: 8,
-      gap: 2,
-    },
-    toolIcon: {
-      width: 38,
-      height: 38,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 5,
-    },
-    toolIconActive: {
-      backgroundColor: isDark ? 'rgba(41, 98, 255, 0.18)' : 'rgba(41, 98, 255, 0.10)',
-      borderRadius: 5,
-    },
-    toolSeparator: {
-      width: 24,
-      height: 1,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-      marginVertical: 2,
-    },
-    chartTopToolbar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 10,
-      height: 32,
-      backgroundColor: isDark ? '#121212' : '#F8FAFC',
-      borderBottomWidth: 1,
-      borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
-      zIndex: 10,
-    },
-    chartMetaOverlay: {
-      position: 'absolute',
-      top: 10,
-      left: 12,
-      zIndex: 20,
-    },
-    chartMetaOhlc: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'nowrap',
-      gap: 12,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      backgroundColor: isDark ? 'rgba(0,0,0,0.78)' : 'rgba(248,250,252,0.82)',
-      borderRadius: 6,
-    },
-    chartMetaPair: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    chartMetaLabel: {
-      color: isDark ? '#94A3B8' : '#64748B',
-      fontSize: 10,
-      fontWeight: '600',
-      letterSpacing: 0.3,
-    },
-    chartMetaValue: {
-      fontSize: 11,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
-    },
-    inlineActionGroup: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-    toolbarScrollContent: {
-      flexGrow: 1,
-    },
-    toolbarButtonRow: {
-      flexGrow: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      height: '100%',
-      paddingRight: 12,
-    },
-    toolbarLeadingGroup: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    toolbarSymbolButton: {
-      minHeight: 28,
-      justifyContent: 'center',
-    },
-    toolbarTimeframeButton: {
-      width: 38,
-      height: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    toolbarIconButton: {
-      width: 32,
-      height: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    toolbarSeparator: {
-      width: 1,
-      height: 16,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-      marginHorizontal: 6,
-    },
-    toolbarFlexSpacer: {
-      flex: 1,
-    },
-    redBoxIcon: {
-      backgroundColor: RED,
-      width: 24,
-      height: 24,
-      borderRadius: 4,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    gestureWrap: {
-      flex: 1,
-    },
-    canvas: {
-      flex: 1,
-    },
-    xAxis: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: 24,
-      flexDirection: 'row',
-    },
-    xTick: {
-      position: 'absolute',
-      color: TEXT_MUTED,
-      fontSize: 13,
-      top: 4,
-    },
-    axisLabelY: {
-      position: 'absolute',
-      right: 8,
-      color: TEXT_MUTED,
-      fontSize: 13,
-    },
-    priceTagWrap: {
-      position: 'absolute',
-      right: 0,
-      paddingHorizontal: 4,
-      paddingVertical: 2,
-      borderTopLeftRadius: 4,
-      borderBottomLeftRadius: 4,
-    },
-    priceTagText: {
-      color: isDark ? '#fff' : '#0F172A',
-      fontSize: 13,
-      fontWeight: '700',
-      fontVariant: ['tabular-nums'],
-    },
-    crosshairText: {
-      color: isDark ? '#E2E8F0' : '#475569',
-      fontSize: 12,
-    },
-    bottomArea: {
-      backgroundColor: isDark ? '#121212' : '#FFFFFF',
-      paddingHorizontal: 14,
-      paddingTop: 12,
-      paddingBottom: 10,
-      borderTopWidth: 1,
-      borderTopColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
-    },
-    sentimentLabelsRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 0,
-    },
-    sentimentLabelSell: {
-      color: RED,
-      fontSize: 10,
-      fontWeight: '600',
-      letterSpacing: 0.3,
-    },
-    sentimentLabelBuy: {
-      color: BLUE,
-      fontSize: 10,
-      fontWeight: '600',
-      letterSpacing: 0.3,
-    },
-    sentimentBarRow: {
-      flexDirection: 'row',
-      height: 2,
-      marginBottom: 4,
-      borderRadius: 3,
-      overflow: 'hidden',
-      gap: 2,
-    },
-    sentimentHalf: {
-      height: '100%',
-      borderRadius: 3,
-    },
-    sentimentSell: {
-      backgroundColor: RED,
-    },
-    sentimentBuy: {
-      backgroundColor: BLUE,
-    },
-    tradeControlsRow: {
-      flexDirection: 'row',
-      marginHorizontal: 40,
-      marginBottom: 10,
-      gap: 12,
-    },
-    actionBtn: {
-      flex: 1,
-      borderRadius: 10,
-      padding: 4,
-      paddingVertical: 4,
-      borderWidth: 1,
-    },
-    actionBtnSell: {
-      backgroundColor: RED,
-      borderWidth: 0,
-    },
-    actionBtnBuy: {
-      backgroundColor: BLUE,
-      borderWidth: 0,
-    },
-    actionSpacer: {
-      width: 0,
-    },
-    actionBtnHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 0,
-    },
-    actionBtnLabelTitle: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
-      letterSpacing: 1,
-    },
-    actionBtnLabelSell: {
-      color: '#FFFFFF',
-    },
-    actionBtnLabelBuy: {
-      color: '#FFFFFF',
-    },
-    actionBtnPriceText: {
-      color: 'rgba(255,255,255,0.85)',
-      fontSize: 13,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
-    },
-    lotSelectorBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-      borderRadius: 10,
-      padding: 2,
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
-    },
-    lotStepperBtn: {
-      width: 40,
-      height: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 6,
-    },
-    lotLabelText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: isDark ? '#64748B' : TEXT_MUTED,
-    },
-    lotInput: {
-      flex: 1,
-      color: isDark ? '#E2E8F0' : '#0F172A',
-      fontSize: 14,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
-      textAlign: 'center',
-      paddingVertical: 0,
-    },
-    gridLine: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      height: 1,
-      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : T.borderSubtle,
-    },
-    chartOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: isDark ? 'rgba(5, 8, 16, 0.85)' : 'rgba(255, 255, 255, 0.85)',
-      paddingHorizontal: 24,
-      paddingVertical: 16,
-    },
-    overlayText: {
-      color: T.text,
-      fontSize: 16,
-      fontWeight: '600',
-      marginTop: 12,
-      textAlign: 'center',
-    },
-    overlaySubText: {
-      color: T.textMuted,
-      fontSize: 13,
-      lineHeight: 20,
-      marginTop: 8,
-      textAlign: 'center',
-      maxWidth: 320,
-    },
-    overlayActions: {
-      marginTop: 20,
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      gap: 10,
-      maxWidth: '100%',
-    },
-    overlayAction: {
-      minHeight: 44,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 10,
-      backgroundColor: T.glass2,
-      borderWidth: 1,
-      borderColor: T.borderSubtle,
-      justifyContent: 'center',
-      maxWidth: '100%',
-    },
-    overlayActionText: {
-      color: BLUE,
-      fontSize: 14,
-      fontWeight: '600',
-      textAlign: 'center',
-    },
-    tvLegendContainer: {
-      position: 'absolute',
-      top: 10,
-      left: 14,
-      zIndex: 10,
-      flexDirection: 'column',
-    },
-    tvLegendRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    tvLegendSymbolTitle: {
-      color: isDark ? '#D1D4DC' : '#131722',
-      fontSize: 14,
-      fontWeight: '700',
-      letterSpacing: 0,
-    },
-    tvLegendStatusPill: {
-      width: 14,
-      height: 14,
-      borderRadius: 7,
-      backgroundColor: isDark ? '#1E1E1E' : '#E0E3EB',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    tvLegendStatusDot: {
-      width: 6,
-      height: 2,
-      backgroundColor: isDark ? '#D1D4DC' : '#131722',
-    },
-    tvLegendPriceValue: {
-      fontSize: 13,
-      fontWeight: '600',
-    },
-    tvLegendPriceChange: {
-      fontSize: 13,
-      fontWeight: '500',
-    },
-    tvLegendDropdownBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF',
-      borderWidth: 1,
-      borderColor: isDark ? '#2A2E39' : '#E2E8F0',
-      borderRadius: 4,
-      paddingHorizontal: 6,
-      height: 22,
-      gap: 4,
-    },
-    tvLegendDropdownText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: isDark ? '#D1D4DC' : '#131722',
-    },
-    tvBottomToolbar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      backgroundColor: isDark ? '#121212' : '#F8FAFC',
-      borderTopWidth: 1,
-      borderTopColor: isDark ? '#2A2E39' : '#E5E7EB',
-    },
-    tvRangesLeft: {
-      flexDirection: 'row',
-      gap: 4,
-    },
-    tvRangePill: {
-      paddingHorizontal: 6,
-      paddingVertical: 4,
-      borderRadius: 4,
-    },
-    tvRangePillActive: {
-      backgroundColor: isDark ? '#1E1E1E' : '#E2E8F0',
-    },
-    tvRangeText: {
-      color: isDark ? '#758696' : '#787B86',
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    tvRangeTextActive: {
-      color: isDark ? '#F8FAFC' : '#0F172A',
-    },
-    tvRangesRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    tvRangeDropdownText: {
-      color: isDark ? '#787B86' : '#787B86',
-      fontSize: 12,
-      fontWeight: '500',
-      marginRight: 2,
-    },
-    tvRangeTimeText: {
-      color: isDark ? '#787B86' : '#787B86',
-      fontSize: 12,
-      fontWeight: '500',
-      marginLeft: 4,
-    },
-    tvRangeAutoText: {
-      color: '#2962FF',
-      fontSize: 12,
-      fontWeight: '500',
-      marginLeft: 8,
-    },
-  });
 }

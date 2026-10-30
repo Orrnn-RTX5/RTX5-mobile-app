@@ -35,17 +35,45 @@ function androidProjectIntent(port, useExpoGo) {
     '-p', useExpoGo ? 'host.exp.exponent' : 'com.rtx5.app'];
 }
 
-async function readMetroManifest(port) {
-  const response = await fetch(`http://127.0.0.1:${port}/`, {
-    headers: { 'expo-platform': 'android', accept: 'application/expo+json' },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error(`Could not read the existing Expo manifest (${response.status}).`);
-  return response.json();
+async function readMetroManifest(port, { fetchManifest = fetch, attempts = 3, timeoutMs = 15000, onRetry } = {}) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const signal = AbortSignal.timeout(timeoutMs);
+    try {
+      const response = await fetchManifest(`http://127.0.0.1:${port}/`, {
+        headers: { 'expo-platform': 'android', accept: 'application/expo+json' },
+        signal,
+      });
+      if (!response.ok) throw new Error(`Could not read the existing Expo manifest (${response.status}).`);
+      const manifest = await response.json();
+      const client = manifest.extra?.expoClient;
+      if (client?.hostUri && ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(`http://${client.hostUri}`).hostname)) {
+        // Expo builds manifest URLs from the request's Host header. A local
+        // health check therefore reports localhost even for a LAN server.
+        // Its redirect endpoint exposes the server's configured address.
+        const connection = await fetchManifest(`http://127.0.0.1:${port}/_expo/link?platform=android&choice=expo-go`, {
+          redirect: 'manual', signal,
+        });
+        const location = connection.headers.get('location');
+        if (connection.status === 307 && location) {
+          const address = new URL(location);
+          if (address.protocol === 'exp:' && address.host) {
+            return { ...manifest, extra: { ...manifest.extra, expoClient: { ...client, hostUri: address.host } } };
+          }
+        }
+      }
+      return manifest;
+    } catch (error) {
+      if (error.name !== 'TimeoutError' && signal.reason?.name !== 'TimeoutError') throw error;
+      if (attempt === attempts) {
+        throw new Error(`Metro is running on port ${port}, but its Expo manifest did not respond after ${attempts} attempts. Stop that Metro terminal with Ctrl+C, then run npx expo start again.`, { cause: error });
+      }
+      onRetry?.(attempt);
+    }
+  }
 }
 
 async function reuseMetroSession({ port, useExpoGo, reverseSucceeded, open, probe = isMetroRunning,
-  lan = false, tunnel = false, projectRoot, sdkVersion, lanHost, onLanReuse, readManifest = readMetroManifest }) {
+  lan = false, tunnel = false, projectRoot, sdkVersion, lanHost, lanAddresses, onLanReuse, readManifest = readMetroManifest }) {
   if (!await probe(port)) return false;
   if (lan || tunnel) {
     const manifest = await readManifest(port);
@@ -64,6 +92,9 @@ async function reuseMetroSession({ port, useExpoGo, reverseSucceeded, open, prob
     }
     if (lan && (['127.0.0.1', 'localhost', '[::1]'].includes(hostname) || (lanHost && hostname !== lanHost))) {
       throw new Error(`The existing server advertises ${hostUri}, which is not the selected Wi-Fi address. Stop it with Ctrl+C and run npm run start:lan.`);
+    }
+    if (lan && isIP(hostname) && lanAddresses && !lanAddresses.includes(hostname)) {
+      throw new Error(`The existing server advertises ${hostUri}, but that network address is no longer active. Stop it with Ctrl+C and restart on the phone's network, or use --tunnel.`);
     }
     const url = useExpoGo ? `exp://${hostUri}`
       : `rtx5://expo-development-client/?url=${encodeURIComponent(`http://${hostUri}`)}`;

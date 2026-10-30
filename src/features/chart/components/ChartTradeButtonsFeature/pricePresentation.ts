@@ -4,7 +4,7 @@ export type FormattedChartTradePriceParts = Readonly<{
 }>;
 
 /**
- * Split only fractional digits from an already-authoritative fixed price.
+ * Split only fractional digits from the complete price readout.
  * MT5 emphasizes at most the final two decimals; zero- and one-decimal
  * instruments remain valid and placeholders are left untouched.
  */

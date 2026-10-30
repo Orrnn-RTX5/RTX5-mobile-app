@@ -113,7 +113,7 @@ test('atomic buy deal uses exact prices, execution-side arrows, and opening-side
     toTime: BASE + 120,
     toPrice: 1.10222,
     color: BUY_COLOR,
-    lineWidth: 1.5,
+    lineWidth: 1,
   }]);
 });
 
@@ -162,7 +162,7 @@ test('an entry arrow appears before close, then remains while close arrow and co
   assert.equal(closed.markers.length, 2);
   assert.equal(closed.markers.find((marker) => marker.id.endsWith('14'))?.price, 1.1028);
   assert.equal(closed.tradeHistorySegments.length, 1);
-  assert.equal(closed.tradeHistorySegments[0].lineWidth, 1.5);
+  assert.equal(closed.tradeHistorySegments[0].lineWidth, 1);
 });
 
 test('still-open and completed trades map correctly on every supported timeframe', () => {
@@ -783,4 +783,69 @@ test('duplicate atomic records do not duplicate markers or segments', () => {
 
   assert.equal(result.markers.length, 2);
   assert.equal(result.tradeHistorySegments.length, 1);
+});
+
+test('freshly closed trade on the live tail stays visible before next candle opens and reconciles cleanly when v3 deals arrive', () => {
+  const retainedOpening = {
+    id: '1501',
+    symbol: 'EURUSD',
+    side: 'buy' as const,
+    volume: 0.1,
+    openPrice: 1.101,
+    openTime: new Date((BASE + 65) * 1_000).toISOString(),
+  };
+  const optimisticClosed = closedPosition({
+    ticket: 1501,
+    symbol: 'EURUSD',
+    side: 'buy',
+    volume: 0.1,
+    price_open: 1.101,
+    price_close: 1.104,
+    time_create: BASE + 65,
+    // Slightly past the end of the latest loaded M1 candle (BASE + 120..180)
+    // before the next live tick opens the BASE + 180 bar.
+    time_close: BASE + 185,
+    time_update: BASE + 185,
+  });
+
+  const beforeDealsArrive = build({
+    openPositions: [retainedOpening],
+    closedPositions: [optimisticClosed],
+  });
+  assert.equal(beforeDealsArrive.markers.length, 2);
+  assert.equal(beforeDealsArrive.tradeHistorySegments.length, 1);
+  assert.equal(beforeDealsArrive.tradeHistorySegments[0]?.fromTime, BASE + 60);
+  assert.equal(beforeDealsArrive.tradeHistorySegments[0]?.toTime, BASE + 120);
+
+  // When v3 deals arrive (without position_ticket and with broker close time),
+  // the trade stays visible and does not duplicate arrows or connector segments.
+  const afterV3DealsArrive = build({
+    openPositions: [retainedOpening],
+    deals: [
+      deal({
+        ticket: 9001,
+        position_ticket: undefined,
+        symbol: 'EURUSD',
+        action: 'deal_buy',
+        entry: 'entry_in',
+        volume: 0.1,
+        price: 1.101,
+        time: BASE + 65,
+      }),
+      deal({
+        ticket: 9002,
+        position_ticket: undefined,
+        symbol: 'EURUSD',
+        action: 'deal_sell',
+        entry: 'entry_out',
+        volume: 0.1,
+        price: 1.1042,
+        time: BASE + 186,
+      }),
+    ],
+    closedPositions: [optimisticClosed],
+  });
+  assert.equal(afterV3DealsArrive.markers.length, 2);
+  assert.equal(afterV3DealsArrive.tradeHistorySegments.length, 1);
+  assert.equal(afterV3DealsArrive.tradeHistorySegments[0]?.toPrice, 1.1042);
 });

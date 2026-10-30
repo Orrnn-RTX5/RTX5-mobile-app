@@ -47,10 +47,12 @@ import { buildMarketOrderSymbolCandidates, getAcceptedSymbolCacheKey } from './p
 import type { PlaceOrderPayload, PlaceOrderResponse } from './types';
 import { redactDiagnosticValue } from '../../utils/securityRedaction';
 import { assertActiveMarketProtectionAllowed } from '../sltpCapabilityGuard';
-import { createMarketOrderClientOrderId } from '../tradeIdempotency';
+import { createMarketOrderClientOrderId, isValidClientOrderId } from '../tradeIdempotency';
 import { positionsApi } from '../positions';
 import { beginProtectedPositionsMutation } from '../../state/positionsMutationBarrier';
 import { reconcileMarketOrderPositions } from './marketPositionReconciliation';
+import { confirmedPositionFill } from './confirmedPositionFill';
+import { marketOrderRequests, marketOrderRequestKey } from './marketOrderInFlight';
 import {
   beginCoalescedMarketOrderReconciliation,
   resetMarketOrderReconciliationCoordinatorForTests,
@@ -144,12 +146,14 @@ const normalizeMarketOrderSymbol = (value: unknown): string => {
  *   answered with a symbol/market-data miss, i.e. nothing was executed.
  * - A new tap is a new user action and always gets a new id.
  */
-const createPayloadBoundClientOrderIdResolver = () => {
+const createPayloadBoundClientOrderIdResolver = (frontendIntentId?: string) => {
   const idsBySerializedBody = new Map<string, string>();
   return (serializedBody: string): string => {
     const existing = idsBySerializedBody.get(serializedBody);
     if (existing) return existing;
-    const created = createMarketOrderClientOrderId();
+    const created = idsBySerializedBody.size === 0 && frontendIntentId
+      ? frontendIntentId
+      : createMarketOrderClientOrderId();
     idsBySerializedBody.set(serializedBody, created);
     return created;
   };
@@ -168,6 +172,12 @@ const placeMarketOrderAttempt = async (
   const initialOwner = captureActiveBrokerSessionOwnerStamp();
   if (!initialOwner) throw new StaleBrokerSessionError();
   let owner: ActiveBrokerSessionOwnerStamp = initialOwner;
+  if (payload.frontendIntentId !== undefined && !isValidClientOrderId(payload.frontendIntentId)) {
+    throw createTradingApiError(400, {
+      error: 'INVALID_INPUT',
+      message: 'Order click identity is invalid.',
+    });
+  }
   assertActiveMarketProtectionAllowed(payload as unknown as Record<string, unknown>);
   const cacheNamespace = owner.cacheNamespace;
   const assertOrderSessionCurrent = () => {
@@ -298,7 +308,7 @@ const placeMarketOrderAttempt = async (
     started_at_ms: Date.now(),
   };
   recordMarketOrderJournalRequest(journalPayload);
-  const resolveClientOrderId = createPayloadBoundClientOrderIdResolver();
+  const resolveClientOrderId = createPayloadBoundClientOrderIdResolver(payload.frontendIntentId);
   let createRequestStarted = false;
   let reconciliationHandle: ReturnType<
     typeof beginCoalescedMarketOrderReconciliation
@@ -573,6 +583,36 @@ const placeMarketOrderAttempt = async (
       if (finalData.price == null && finalData.price_open != null) {
         finalData.price = finalData.price_open;
       }
+      if (typeof finalData.symbol !== 'string' || !finalData.symbol.trim()) {
+        finalData.symbol = accepted.symbol || callerSymbol;
+      }
+      if (finalData.side !== 'buy' && finalData.side !== 'sell') {
+        finalData.side = requestedSide;
+      }
+      if (
+        finalData.volume == null ||
+        !Number.isFinite(Number(finalData.volume)) ||
+        Number(finalData.volume) <= 0
+      ) {
+        finalData.volume = Number(restWithoutBroker.volume);
+      }
+      if (typeof finalData.status !== 'string' || !finalData.status.trim()) {
+        finalData.status = 'filled';
+      }
+      if (
+        (typeof finalData.action !== 'string' || !finalData.action.trim()) &&
+        finalData.position_ticket != null &&
+        finalData.closed_volume == null
+      ) {
+        const existingTicket = String(finalData.position_ticket).trim();
+        const hasExistingPosition =
+          usePositionsState
+            .getState()
+            .positions?.some((position) => String(position.id).trim() === existingTicket) ?? false;
+        if (!hasExistingPosition) {
+          finalData.action = 'opened';
+        }
+      }
     }
 
     logOrderDiagnostic('[TRADE-RESPONSE]', {
@@ -593,6 +633,9 @@ const placeMarketOrderAttempt = async (
       { ...journalPayload, symbol: accepted.symbol || callerSymbol },
       finalData,
     );
+    assertOrderSessionCurrent();
+    const confirmedPosition = confirmedPositionFill(finalData);
+    if (confirmedPosition) usePositionsState.getState().upsertPosition(confirmedPosition);
     reconciliationResponse = finalData;
     return finalData;
   } finally {
@@ -633,7 +676,7 @@ const classifyPlacementFailure = (error: unknown, reachedServer: boolean): {
  * Places a market order and records exactly one `placement_terminal` latency
  * sample (tap -> final outcome, monotonic clock) for the Journal.
  */
-export const placeMarketOrder = async (payload: PlaceOrderPayload): Promise<PlaceOrderResponse> => {
+const executeMarketOrder = async (payload: PlaceOrderPayload): Promise<PlaceOrderResponse> => {
   const intentAtMs = takeTradeIntentStartedAt();
   const owner = captureActiveBrokerSessionOwnerStamp();
   const sessionScope = owner ? buildJournalSessionScopeKey(owner) : undefined;
@@ -666,6 +709,14 @@ export const placeMarketOrder = async (payload: PlaceOrderPayload): Promise<Plac
     record(classifyPlacementFailure(error, trace.clientOrderId !== undefined));
     throw error;
   }
+};
+
+export const placeMarketOrder = (payload: PlaceOrderPayload): Promise<PlaceOrderResponse> => {
+  try {
+    const owner = captureActiveBrokerSessionOwnerStamp();
+    if (!owner) return executeMarketOrder(payload);
+    return marketOrderRequests.run(marketOrderRequestKey(owner.cacheNamespace, payload), () => executeMarketOrder(payload));
+  } catch (error) { return Promise.reject(error); }
 };
 
 export function resetAcceptedMarketOrderSymbolCache(): void {

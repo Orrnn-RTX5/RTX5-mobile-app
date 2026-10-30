@@ -58,7 +58,7 @@ export function useDeferredRouteContentReady(
   delayMs = ROUTE_HEAVY_CONTENT_DELAY_MS,
   active = true,
 ) {
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(() => active && delayMs <= 0);
 
   useEffect(() => {
     // Readiness stays latched after the first activation. Retained hosts may

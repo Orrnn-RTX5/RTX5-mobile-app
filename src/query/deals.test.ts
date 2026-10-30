@@ -86,3 +86,14 @@ test('range fallback is limited to explicit unsupported-parameter responses', ()
   assert.equal(shouldRetryDealsWithoutRange({ status: 500, message: 'unsupported from parameter' }), false);
   assert.equal(shouldRetryDealsWithoutRange(new Error('Network request timed out')), false);
 });
+
+test('deal filtering includes the final second of the selected day in every timestamp unit', () => {
+  const fromMs = Date.parse('2026-10-09T00:00:00Z');
+  const toMs = fromMs + 86_400_000 - 1;
+  const lastSecond = Math.floor(toMs / 1000);
+  const deals = [lastSecond, lastSecond * 1000, lastSecond * 1000000, lastSecond * 1000000000]
+    .map((time, ticket) => makeDeal({ time, ticket }));
+  deals.push(makeDeal({ ticket: 99, time: lastSecond + 1 }));
+  const filtered = filterDealsByTimeRange(deals, fromMs / 1000, Math.ceil((toMs + 1) / 1000));
+  assert.deepEqual(filtered.map(deal => deal.ticket), [0, 1, 2, 3]);
+});

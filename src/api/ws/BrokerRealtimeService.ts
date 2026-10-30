@@ -1,4 +1,8 @@
 import { brokerApi } from '../brokerApi';
+import { pendingOrderEventKind, pendingEventNotification } from './pendingOrderEvents';
+import { normalizePendingOrderDto } from '../orders/pendingOrders';
+import { removePendingOrder, upsertPendingOrder, usePendingOrdersState } from '../../state/pendingOrdersState';
+import { notifyPendingOrder } from '../../state/pendingOrderNotifications';
 import { AppState } from 'react-native';
 import { useLiveAccountState } from '../../state/liveAccountState';
 import { usePositionsState } from '../../state/positionsState';
@@ -73,6 +77,7 @@ const HISTORY_CACHE_KEYS = [
 ] as const;
 const LIFECYCLE_NON_HISTORY_CACHE_KEYS = [
   'accountSummary',
+  'pendingOrders',
   'ordersByLogin',
   'accountOrders',
 ] as const;
@@ -504,6 +509,49 @@ class BrokerRealtimeService {
 
     const channel = normalizeChannel(frame.channel);
     const eventName = frame.eventName;
+    const rawOrderPayload = asRecord(frame.payload);
+    const innerOrderPayload = asRecord(rawOrderPayload?.order) ?? rawOrderPayload;
+    const pendingKind = pendingOrderEventKind(
+      eventName,
+      channel.startsWith('orders.') || /^(?:pending|order)\./.test(eventName)
+        ? (innerOrderPayload?.status ?? rawOrderPayload?.status)
+        : undefined,
+    );
+    if (pendingKind || channel.startsWith('orders.')) {
+      const owner = this.activeOwnerStamp;
+      if (!owner || !isActiveBrokerSessionOwnerStampCurrent(owner)) return false;
+      const order = innerOrderPayload;
+      if (order && order.account_login != null && String(order.account_login) !== owner.accountLogin) return false;
+      const ticket = Number(order?.ticket ?? order?.order_ticket ?? order?.id);
+      if (pendingKind && order && Number.isSafeInteger(ticket) && ticket > 0) {
+        const state = usePendingOrdersState.getState();
+        const previous = state.cacheNamespace === owner.cacheNamespace ? state.orders.find(row => row.ticket === ticket) : undefined;
+        if (pendingKind === 'placed' || pendingKind === 'modified') {
+          try {
+            upsertPendingOrder(owner, normalizePendingOrderDto({
+              ...(previous ? {
+                symbol: previous.symbol, type: previous.type, volume: previous.volume,
+                price: previous.price, price_limit: previous.priceLimit, sl: previous.sl, tp: previous.tp,
+                expiry: previous.expiry, time_in_force: previous.timeInForce, time_setup: previous.timeSetup,
+              } : {}),
+              ...order, ticket, status: 'PENDING',
+            }, owner.accountLogin));
+          } catch { /* Partial events without a baseline are resolved by the scoped GET below. */ }
+        } else {
+          removePendingOrder(owner, ticket);
+          const notification = pendingEventNotification(pendingKind, ticket, {
+            ...(previous ? { symbol: previous.symbol, side: previous.type, volume: previous.volume } : {}), ...order,
+          });
+          if (notification) notifyPendingOrder(owner, `${ticket}:${pendingKind}`, notification);
+          if (pendingKind === 'filled') void usePositionsState.getState().refreshPositions(owner.accountLogin);
+        }
+      }
+      void invalidateSessionQueryRoots(appQueryClient, owner.cacheNamespace, [
+        'pendingOrders', 'ordersByLogin', 'accountOrders',
+        ...(pendingKind === 'filled' ? ['accountSummary', 'positionHistory', 'deals', 'accountDeals'] : []),
+      ]);
+      return true;
+    }
     if (frame.clientOrderId) {
       // The terminal's execution confirmation for a command this phone sent:
       // journal it as the Terminal "Order/Close executed" row. Journaling

@@ -1,0 +1,192 @@
+React Native on-chart position controls
+Verification date: 2026-10-14
+
+Implemented within the existing position store, chart overlay model, live quote
+bridge, WebView renderer, modification coordinator, and authenticated trade APIs.
+
+The entry line remains at the actual executed price. Each ticket has readable
+side, remaining lots, floating P/L and account currency, details/actions access,
+and close access. TP and SL remain visible in portrait and landscape, with teal
+and amber chips matching the supplied web-terminal reference. Wide layouts also
+expose Share, Add and Reverse; narrow layouts keep those secondary actions in
+the native Position actions sheet. Nearby labels
+stack with connectors to their actual entry prices; overflow opens a ticket
+selector. Existing live price/countdown presentation remains independent.
+
+Complete confirmed position receipts merge into the existing store immediately.
+The existing fill retention and ledger reconciliation handle subsequent reads.
+Structural socket updates fence older in-flight REST reads; confirmed terminal
+updates use the existing close tombstones to prevent a late fill resurrecting a
+closed ticket. Partial and full closes update active controls and levels.
+
+Broker profit is preferred. Fresh liquidation quotes (BUY Bid / SELL Ask) can
+produce explicitly marked, broker-snapshot-calibrated estimates. Missing broker
+profit/currency remains unavailable rather than becoming fabricated USD profit.
+Entry/TP/SL prices and main price-scale formatting use instrument digits/ticks;
+remaining volume formatting preserves broker volume-step precision.
+
+All authenticated requests remain native. Scoped, typed intents validate ticket,
+symbol, account-session namespace, chart context/generation, request ID and level
+role/price. Duplicate intents and overlapping position mutations are blocked.
+Pending modification/trade states replay for the current presentation. Chart
+context and visual-shell changes invalidate old intents, including switching
+away from a symbol and back again.
+
+Close retains the position until broker confirmation. Add submits a new order at
+the latest remaining volume. Reverse explicitly confirms closure before sending
+the opposite order and separates replacement failures from close failures.
+Sharing has an explicit native preview containing display data only.
+
+TP/SL uses the existing exact-ticket native modification host and coordinator.
+The client snaps prices and checks supplied tick, stop/freeze and liquidation
+side rules. Profitable trailing stops are allowed on the correct market side.
+Executed entry prices are not draggable. Position stops require a deliberate
+hold; release submits once, cancellation/rejection restores broker levels in
+both chart previews and the selected native panel. Pinch/pan gestures over a
+control cannot execute its action.
+
+Checks completed:
+- TypeScript tsc --noEmit: passed.
+- Combined focused/regression run: 362 tests, 362 passed, zero failed.
+  Includes position state/mapper/barrier, market fill evidence/reconciliation,
+  order contracts, instrument metadata, modification coordinator, chart overlay
+  and existing WebView suites, native action mocks, close confirmation, gesture
+  behavior, complete generated WebView JavaScript compilation and stop rollback.
+- Follow-up precision/WebView run after extending the remaining renderer clamps
+  to ten broker decimals: all 11 tests passed.
+- Final focused run, including structured replacement-order errors, native stop
+  rollback, scope/action validation and complete WebView compilation: 35 tests,
+  all passed. Broker replacement errors retain their actual classified cause.
+- git diff --check on implementation files: passed.
+- Actual chart WebView HTML rendered in local headless Chrome with mocked market
+  and position data. Dark portrait, light portrait and dark landscape screenshots
+  were visually inspected. No trading services or credentials exist in previews.
+
+Platform verification:
+- Android: adb devices -l returned no connected device. No emulator was detected.
+- iOS: no device/simulator or macOS toolchain was available on this Windows host.
+- Screenshots are mocked renderer previews, not screenshots from a physical
+  Android/iOS app. Native action checks execute mocked services, not real trades.
+- No real-money trades were placed or closed.
+- The requested web reference checkout was unavailable. The initial supplied
+  text layout was used; the subsequent web-terminal screenshot informed the
+  visible portrait TP/SL chips and their teal/amber styling.
+
+Concrete API limitations:
+- A canonical fill receipt can omit side/symbol/remaining volume. Incomplete
+  receipts and netting increases/decreases/reversals wait for the existing scoped
+  ledger reconciliation; the frontend never guesses a weighted entry/volume.
+- Existing-position SL/TP is disabled, with the broker capability explanation,
+  whenever the active broker has not enabled that existing backend capability.
+- The existing modification API/coordinator requires positive safe-integer
+  tickets/accounts. Larger string tickets remain exact in overlays and full
+  close requests, but their modification controls explain the API limitation.
+- Stop/freeze metadata is enforced when supplied. Absent/dynamic distance rules
+  remain authoritative at the broker; rejected requests retain actual levels.
+- Add/reverse is disabled if the broker's volume bounds/step are unavailable or
+  the remaining volume cannot satisfy them. Margin validation uses the existing
+  order API. Reverse is a sequential close/open flow, not an atomic transaction.
+
+Screenshots and previews:
+  mobile-dark.png
+  mobile-light.png
+  landscape-dark.png
+  chart-dark.html
+  chart-light.html
+  chart-landscape.html
+Regenerate previews: node ./scripts/run-tsx-cli.js scripts/chart-position-controls-preview.ts
+
+Files touched for this implementation:
+  src/features/chart/ChartScreen.native.tsx
+  src/features/chart/ChartScreen.web.tsx
+  src/features/chart/chartWebViewBoundary.ts
+  src/features/chart/chartPositionControls.ts (new)
+  src/features/chart/useChartPositionControls.ts (new)
+  src/features/chart/chartOverlays/types.ts
+  src/features/chart/chartOverlays/buildPayload.ts
+  src/features/chart/rendering/ChartWebViewHtml.ts
+  src/features/chart/rendering/positionControlsScript.ts (new)
+  src/api/orders/confirmedPositionFill.ts (new)
+  src/api/orders/placeMarketOrder.ts
+  src/api/orders/executionEvidence.ts
+  src/api/orders/marketPositionReconciliation.ts
+  src/api/instrumentMeta.ts
+  src/domain/tradingModels.ts
+  src/state/positionsMapper.ts
+  src/state/positionsState.ts
+  src/state/positionsState.helpers.ts
+  src/state/positionsMutationBarrier.ts
+  src/features/trade/closePositionFlow.ts
+  src/features/trade/ModifyPositionScreen.tsx
+  src/features/trade/positionLevelValidation.ts (new)
+  src/utils/brokerPrice.ts (new)
+  scripts/chart-position-controls-preview.ts (new)
+
+Focused new/updated tests:
+  src/features/chart/chartPositionControls.test.ts (new)
+  src/features/chart/useChartPositionControls.test.ts (new)
+  src/features/chart/chartPositionStopRollback.test.ts (new)
+  src/features/trade/closePositionConfirmed.test.ts (new)
+  tests/chart-webview/position-controls.test.ts (new)
+  src/features/chart/chartOverlays.test.ts
+  src/features/chart/chartOverlayBridgeStability.test.ts
+  src/api/orders/executionEvidence.test.ts
+  tests/chart-webview/trade-marker-viewport.test.ts
+  tests/chart-webview/live-price-line-liveness.test.ts
+  tests/chart-webview/trade-sheet-chart-interaction.test.ts
+
+TP/SL screenshot follow-up (2026-10-14):
+- Subsequent color adjustment: position label surface uses neutral gray
+  (#252525 dark / #f5f5f5 light) and a gray border, per user preference.
+- Final chip sizing: TP/SL use 10px medium-bold text in 22px-wide,
+  16px-high visual chips. Controls retain 48px-high transparent touch areas;
+  compact TP/SL and close widths follow the latest requested web reference.
+  Side/volume/P&L and TP/SL now share 10px text and the same medium-bold weight
+  in every layout, scaled together for accessibility. Single-line layout remains.
+- TP/SL visual boxes have a small 2px gap between their borders.
+- The circled approximation symbol is removed from visible chart P/L values,
+  including live quote patches. Estimated values are identified in the native
+  position-details title. Positive/negative signs follow the existing formatter.
+- Approximation-symbol removal verification: TypeScript passed, and all 42
+  focused overlay, native action and WebView tests passed.
+- Final reference strip: the label hugs its contents instead of spanning the
+  plot. Side/volume/P&L directly follows SL; close sits 2px after currency.
+  The gray surface is 20px high and is a child of the label, so CSS automatically
+  resizes it with live text without a new per-tick native render or chart reload.
+- Browser-measured checks are saved in dark/light/landscape-layout-checks.json:
+  2px chip gap, identical 10px TP/SL/side/value fonts, 2px before close, bounds
+  inside the plot, and surface width following a live-value text change.
+  All 13 existing focused WebView tests passed after this rendering change.
+- Screenshot follow-up: the supplied phone image has larger chips than the
+  current preview. Metro is running on 8081, but its debugger client list is
+  empty and adb detects no connected phone. The new style is source/renderer
+  verified; it has not been verified on that phone or delivered as an update.
+- Root cause: the portrait width branch rendered only details and close,
+  putting TP/SL exclusively in the overflow sheet. Both chips now stay visible.
+- Portrait labels use smaller text with side/remaining lots and live P/L on one
+  line beside TP/SL and close. Very narrow plots and larger font scales use two
+  separate touch rows to preserve accessible targets.
+  The same computed height is used by collision layout and rendering.
+- Each TP/SL action passes its level role alongside the exact ticket to the
+  existing native modify host. The matching input receives focus and its card
+  is highlighted. Existing add/edit/remove, opposite-level preservation, broker
+  validation, submission and rejection handling continue through that flow.
+- TypeScript tsc --noEmit passed. All 43 focused tests passed, including WebView
+  document compilation, portrait chip intents and disabled capabilities, font
+  scale/stacking geometry, gestures, native actions, host selection, stop rollback
+  and existing overlay tests. git diff --check passed.
+- Regenerated and inspected dark/light portrait and dark landscape previews.
+  These screenshots use the real renderer with mocked positions, not a device.
+- adb devices -l still returns no connected Android phone; iOS is unavailable.
+  No real trading request was made during this follow-up.
+- Follow-up changed files:
+    src/features/chart/rendering/positionControlsScript.ts
+    src/features/chart/rendering/ChartWebViewHtml.ts
+    src/features/chart/useChartPositionControls.ts
+    src/features/trade/tradePositionActionHostController.ts
+    src/features/trade/TradePositionActionHost.tsx
+    src/features/trade/ModifyPositionScreen.tsx
+    src/features/chart/useChartPositionControls.test.ts
+    tests/chart-webview/position-controls.test.ts
+    src/features/trade/tradePositionActionHostController.test.ts (new)
+    artifacts/chart-position-controls/verification.txt and regenerated previews

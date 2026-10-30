@@ -11,9 +11,16 @@ import {
 } from 'react-native';
 import { useActiveBrokerQuerySession } from '../../../../query/authenticatedQueryScope';
 import { useInvestorReadOnlySession } from '../../../../hooks/useInvestorReadOnlySession';
+import { resolveTradingLoginString } from '../../../../state/tradingLogin';
 import { useUserPreferences } from '../../../../state/userPreferences';
+import { preloadDeferredRouteModule } from '../../../../ui/components/DeferredRouteMount';
+import { prefetchOrderTicketData } from '../../../../utils/navigationPrefetch';
 import { formatTradeVolume, type TradeVolumeBounds } from '../../../../utils/tradeVolume';
 import type { TradeSide } from '../../../../domain/tradeSide';
+import {
+  ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+  loadOrderTicketScreenRoute,
+} from '../../../trade/orderTicketScreenPreload';
 import { useExecutableQuote } from '../../../quotes/useExecutableQuote';
 import { getChartTradeAction } from '../../chartTradeActions';
 import {
@@ -24,6 +31,7 @@ import {
   resolveChartTradeButtonDisplayQuote,
 } from './quoteFallback';
 import { splitFormattedChartTradePrice } from './pricePresentation';
+import { formatBackendPrice } from '../../../../utils/backendPrice';
 import { baseStyles, COMPACT_TRADE_FOOTER_ROW_HEIGHT, darkStyles, lightStyles, textBaseStyles } from './styles';
 import { useTradeHandler, type TradeFeedback } from './useTradeHandler';
 import { resolveChartTradeQuoteAvailability } from './tradeAvailability';
@@ -63,6 +71,8 @@ type ChartTradeButtonsProps = {
   onDecreaseLot?: () => void;
   onIncreaseLot?: () => void;
   variant?: 'compact' | 'mt5-market';
+  /** Keep quotes and lot editing visible without offering market execution. */
+  executionDisabled?: boolean;
   active?: boolean;
   fallbackBid?: number | null;
   fallbackAsk?: number | null;
@@ -109,7 +119,6 @@ const ChartTradeButtonPriceText = React.memo(function ChartTradeButtonPriceText(
       ]}
       numberOfLines={1}
       adjustsFontSizeToFit
-      minimumFontScale={0.7}
       testID={testID}
     >
       {priceParts.leading}
@@ -142,7 +151,6 @@ export const ChartTradeButtons = React.memo(function ChartTradeButtons(
 
 const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSessionScoped({
   symbol,
-  displayDecimals,
   lotSize,
   volumeBounds,
   onTradeResult,
@@ -164,6 +172,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
   onDecreaseLot,
   onIncreaseLot,
   variant = 'compact',
+  executionDisabled = false,
   active = true,
   fallbackBid = null,
   fallbackAsk = null,
@@ -195,6 +204,15 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
     getCurrentExecutableQuoteState,
   } = useExecutableQuote(symbol, active, TRADE_BUTTON_QUOTE_COMMIT_INTERVAL_MS);
   const isPublicDemoTradePrompt = useUserPreferences((state) => !state.isLoggedIn);
+  const oneClickAccepted = useUserPreferences((state) => state.oneClickAccepted);
+  React.useEffect(() => {
+    if (!active || oneClickAccepted) return;
+    preloadDeferredRouteModule(
+      ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+      loadOrderTicketScreenRoute,
+    );
+    prefetchOrderTicketData(resolveTradingLoginString(), symbol);
+  }, [active, oneClickAccepted, symbol]);
   const quoteActionAvailability = resolveChartTradeQuoteAvailability({
     quote: liveQuote,
     isPublicDemoTradePrompt,
@@ -245,13 +263,8 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
       : retainedDisplayQuote?.ask ?? 0;
   const hasDisplayBid = Number.isFinite(displayBid) && displayBid > 0;
   const hasDisplayAsk = Number.isFinite(displayAsk) && displayAsk > 0;
-  // Guard toFixed range — invalid decimals throw and crash the ErrorBoundary.
-  const safeDisplayDecimals =
-    typeof displayDecimals === 'number' && Number.isFinite(displayDecimals)
-      ? Math.max(0, Math.min(10, Math.round(displayDecimals)))
-      : 5;
-  const formattedBid = hasDisplayBid ? displayBid.toFixed(safeDisplayDecimals) : '---';
-  const formattedAsk = hasDisplayAsk ? displayAsk.toFixed(safeDisplayDecimals) : '---';
+  const formattedBid = hasDisplayBid ? formatBackendPrice(displayBid) : '---';
+  const formattedAsk = hasDisplayAsk ? formatBackendPrice(displayAsk) : '---';
   const formattedLotSize = formatTradeVolume(lotSize, volumeBounds);
   const lotDisplayText = lotInvalid && invalidLotDisplay ? invalidLotDisplay : formattedLotSize;
   const hasLotValueEditor = typeof onEditLot === 'function';
@@ -306,6 +319,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
   } = useTradeHandler({
     symbol,
     variant,
+    executionDisabled,
     comment,
     stopLossPrice,
     takeProfitPrice,
@@ -424,8 +438,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
             ]}
             numberOfLines={1}
             adjustsFontSizeToFit
-            minimumFontScale={0.7}
-          >
+                >
             {lotDisplayText}
           </Text>
         </Pressable>
@@ -458,9 +471,8 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
     </View>
   );
 
-  // Busy state must NOT swap children (spinner) or change layout height.
-  // Order Ticket launch feedback keeps labels/prices mounted with a thin pulse.
-  // Immediate one-click market orders deliberately bypass this busy state.
+  // Keep labels, prices and touch targets stable during direct market dispatch.
+  // Each accepted tap has its own receipt rather than a blocking busy state.
   const sellBusy = isChartTradeActionBusy('sell') || isChartTradeActionVisuallyLocked('sell');
   const buyBusy = isChartTradeActionBusy('buy') || isChartTradeActionVisuallyLocked('buy');
 
@@ -476,7 +488,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
           ]}
           disabled={tradeBlocked}
           accessibilityState={{ disabled: tradeBlocked, busy: isChartTradeActionBusy('sell') }}
-          onPress={() => handleTrade('sell')}
+          onPress={tradeBlocked ? undefined : () => handleTrade('sell')}
           activateOnPressIn
           activateOnTouchStart
           unstable_pressDelay={0}
@@ -499,7 +511,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
           ]}
           disabled={tradeBlocked}
           accessibilityState={{ disabled: tradeBlocked, busy: isChartTradeActionBusy('buy') }}
-          onPress={() => handleTrade('buy')}
+          onPress={tradeBlocked ? undefined : () => handleTrade('buy')}
           activateOnPressIn
           activateOnTouchStart
           unstable_pressDelay={0}
@@ -544,7 +556,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
           ]}
           disabled={tradeBlocked}
           accessibilityState={{ disabled: tradeBlocked, busy: isChartTradeActionBusy('sell') }}
-          onPress={() => handleTrade('sell')}
+          onPress={tradeBlocked ? undefined : () => handleTrade('sell')}
           activateOnPressIn
           activateOnTouchStart
           unstable_pressDelay={0}
@@ -587,8 +599,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
               style={[textBaseStyles.actionLotValue, baseStyles.actionLotCommittedValue, themeStyles.actionLotValue, lotInvalid && { color: INVALID_LOT_COLOR }]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.7}
-            >
+                    >
               {lotDisplayText}
             </Text>
             <View style={[
@@ -628,7 +639,7 @@ const ChartTradeButtonsSessionScoped = React.memo(function ChartTradeButtonsSess
           ]}
           disabled={tradeBlocked}
           accessibilityState={{ disabled: tradeBlocked, busy: isChartTradeActionBusy('buy') }}
-          onPress={() => handleTrade('buy')}
+          onPress={tradeBlocked ? undefined : () => handleTrade('buy')}
           activateOnPressIn
           activateOnTouchStart
           unstable_pressDelay={0}

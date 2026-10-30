@@ -194,6 +194,8 @@ type UIState = {
 
   /** Current active action sheet config. Null means closed. */
   actionSheet: ActionSheetConfig | null;
+  /** Identifies each open request, including a batched close/reopen of the same config. */
+  actionSheetOpenRevision: number;
   /** Action sheet config to render invisibly in the background to pre-warm the layout engine */
   preloadedActionSheet: ActionSheetConfig | null;
   /** Independent action sheet configs for feature-owned dropdowns. */
@@ -254,11 +256,15 @@ export const useUIState = create<UIState>((set) => ({
   clearPendingChartCommand: () => set({ pendingChartCommand: null }),
 
   actionSheet: null,
+  actionSheetOpenRevision: 0,
   preloadedActionSheet: null,
   scopedActionSheets: createEmptyScopedActionSheets(),
   preloadedScopedActionSheets: createEmptyScopedActionSheets(),
   actionSheetScope: null,
-  showActionSheet: (config) => set({ actionSheet: withInstantActionSheetOpen(config) }),
+  showActionSheet: (config) => set((state) => ({
+    actionSheet: withInstantActionSheetOpen(config),
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+  })),
   preloadActionSheet: (config) => set({ preloadedActionSheet: withInstantActionSheetOpen(config) }),
   hideActionSheet: () => set((state) => {
     if (
@@ -276,6 +282,7 @@ export const useUIState = create<UIState>((set) => ({
     };
   }),
   showScopedActionSheet: (scope, config) => set((state) => ({
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
     actionSheet: null,
     actionSheetScope: scope,
     scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, scope, config),
@@ -292,6 +299,7 @@ export const useUIState = create<UIState>((set) => ({
   })),
   hideScopedActionSheet: (scope) => set((state) => closeScopedActionSheet(state, scope)),
   showQuotesActionSheet: (config) => set((state) => ({
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
     actionSheet: null,
     actionSheetScope: 'quotes',
     scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'quotes', config),
@@ -308,30 +316,35 @@ export const useUIState = create<UIState>((set) => ({
   })),
   hideQuotesActionSheet: () => set((state) => closeScopedActionSheet(state, 'quotes')),
   showChartActionSheet: (config) => set((state) => ({
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
     actionSheet: null,
     actionSheetScope: 'chart',
     scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'chart', config),
   })),
   hideChartActionSheet: () => set((state) => closeScopedActionSheet(state, 'chart')),
   showTradeActionSheet: (config) => set((state) => ({
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
     actionSheet: null,
     actionSheetScope: 'trade',
     scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'trade', config),
   })),
   hideTradeActionSheet: () => set((state) => closeScopedActionSheet(state, 'trade')),
   showHistoryActionSheet: (config) => set((state) => ({
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
     actionSheet: null,
     actionSheetScope: 'history',
     scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'history', config),
   })),
   hideHistoryActionSheet: () => set((state) => closeScopedActionSheet(state, 'history')),
   showAccountsActionSheet: (config) => set((state) => ({
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
     actionSheet: null,
     actionSheetScope: 'settingsAccounts',
     scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'settingsAccounts', config),
   })),
   hideAccountsActionSheet: () => set((state) => closeScopedActionSheet(state, 'settingsAccounts')),
   showBrokerDetailActionSheet: (config) => set((state) => ({
+    actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
     actionSheet: null,
     actionSheetScope: 'settingsBrokerDetail',
     scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'settingsBrokerDetail', config),

@@ -9,6 +9,7 @@ import {
 } from '../state/activeBrokerSession';
 import { commitApiJson } from './apiClient';
 import { StaleBrokerSessionError } from './brokerApi';
+import { resolveBrokerSymbol, resetBrokerSymbolResolverCache } from './orders/symbolResolver';
 import {
   __resetInstrumentCatalogRequestsForTests,
   fetchInstrumentCatalogResponse,
@@ -44,6 +45,7 @@ test.beforeEach(() => {
   originalFetch = globalThis.fetch;
   __resetActiveBrokerSessionForTests();
   __resetInstrumentCatalogRequestsForTests();
+  resetBrokerSymbolResolverCache();
 });
 test.afterEach(() => { globalThis.fetch = originalFetch; });
 
@@ -61,9 +63,10 @@ test('bootstrap, dashboard catalog and metadata callers share one HTTP request',
   const dashboard = fetchInstrumentCatalogResponse(namespace);
   const firstMeta = fetchInstrumentMeta('EURUSD.pro', namespace);
   const secondMeta = fetchInstrumentMeta('XAUUSD', namespace);
+  const orderSymbol = resolveBrokerSymbol('eurusd.pro', namespace);
   response.resolve(json([{ symbol: 'EURUSD.pro', digits: 5 }, { symbol: 'XAUUSD', digits: 2 }]));
-  const [bootstrapResult, dashboardResult, euro, gold] = await Promise.all([
-    bootstrap, dashboard, firstMeta, secondMeta,
+  const [bootstrapResult, dashboardResult, euro, gold, resolvedOrderSymbol] = await Promise.all([
+    bootstrap, dashboard, firstMeta, secondMeta, orderSymbol,
   ]);
 
   assert.equal(requests.length, 1);
@@ -72,6 +75,7 @@ test('bootstrap, dashboard catalog and metadata callers share one HTTP request',
   assert.equal(euro.symbol, 'EURUSD.pro');
   assert.equal(euro.digits, 5);
   assert.equal(gold.digits, 2);
+  assert.equal(resolvedOrderSymbol, 'EURUSD.pro');
   // The second metadata waiter must reuse the first waiter's normalized
   // catalog instead of replacing all the cached objects with another pass.
   assert.equal(euro, getCachedInstrumentMeta('EURUSD.pro', namespace));

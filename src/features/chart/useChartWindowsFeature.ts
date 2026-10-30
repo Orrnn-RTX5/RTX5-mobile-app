@@ -491,6 +491,16 @@ export function useChartWindowsFeature({
       cancelPendingTransition();
       return;
     }
+    if (
+      targetPane.id === currentState.activePaneId
+      && chartWindowContextsMatch(targetPane, currentContextRef.current)
+    ) {
+      // This pane is already committed: no pane-state render or restoration
+      // frame is needed before opening its toolbar options.
+      cancelPendingTransition();
+      confirmToolbarTarget(targetPane, currentContextRef.current);
+      return;
+    }
     requestPaneSelection(targetPane, (confirmedPane, confirmedContext) => {
       confirmToolbarTargetAfterPaneCommit(confirmedPane, confirmedContext);
     });

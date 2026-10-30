@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { beginAuthSubmission, completeAuthenticatedFlow, completeAuthenticatedLogin, dismissAuthFlow, getAuthFlowState, isAuthAttemptCurrent, openAuthFlow, setAuthProgress, showAuthForm, retainAuthEntryHandoff } from './authFlowState';
+import { beginAuthSubmission, beginAuthBrokerSelection, cancelAuthBrokerSelection, completeAuthenticatedFlow, completeAuthenticatedLogin, dismissAuthFlow, getAuthFlowState, isAuthAttemptCurrent, openAuthFlow, setAuthProgress, showAuthForm, retainAuthEntryHandoff } from './authFlowState';
 import { setPublicBrokerContext } from '../../state/publicBrokerContext';
 import { publicBrokerFixture } from '../../testFixtures/publicBroker';
 test.beforeEach(() => { setPublicBrokerContext(publicBrokerFixture()); dismissAuthFlow(); });
@@ -43,6 +43,40 @@ test('quick Login ignores cancelled attempts and broker changes', () => {
   const second = beginAuthSubmission()!; setAuthProgress(second.state.attempt, 'hydrating');
   setPublicBrokerContext(publicBrokerFixture('Other'));
   assert.equal(completeAuthenticatedLogin(second.state.attempt), false);
+  assert.equal(getAuthFlowState().screen, 'guest');
+});
+
+test('explicit broker selection returns to the requested form and invalidates previous attempts', () => {
+  for (const form of ['login', 'demo'] as const) {
+    dismissAuthFlow(); openAuthFlow({ kind: 'market-order', symbol: 'EURUSD', side: 'buy' }, form);
+    const submission = beginAuthSubmission()!;
+    assert.equal(beginAuthBrokerSelection(), false, 'an in-flight submission cannot open the picker');
+    setAuthProgress(submission.state.attempt, 'recoverable-error', 'Retry');
+    assert.equal(beginAuthBrokerSelection(), true);
+    assert.equal(submission.signal.aborted, true);
+    assert.equal(beginAuthSubmission(), null);
+    assert.equal(getAuthFlowState().intent, null);
+    assert.equal(getAuthFlowState().error, '');
+    setPublicBrokerContext(publicBrokerFixture('Selected'));
+    assert.equal(getAuthFlowState().screen, form);
+    assert.equal(getAuthFlowState().context?.brokerId, 'Selected');
+    assert.equal(isAuthAttemptCurrent(submission.state.attempt), false);
+    cancelAuthBrokerSelection();
+    assert.equal(getAuthFlowState().screen, form);
+  }
+});
+
+test('picker cancellation restores the form and dismissal prevents a late selection from reopening it', () => {
+  openAuthFlow(undefined, 'login');
+  const original = getAuthFlowState().context;
+  assert.equal(beginAuthBrokerSelection(), true);
+  cancelAuthBrokerSelection();
+  assert.equal(getAuthFlowState().screen, 'login');
+  assert.equal(getAuthFlowState().context, original);
+  assert.equal(beginAuthBrokerSelection(), true);
+  dismissAuthFlow();
+  setPublicBrokerContext(publicBrokerFixture('Late'));
+  cancelAuthBrokerSelection();
   assert.equal(getAuthFlowState().screen, 'guest');
 });
 test('repeated taps preserve the first draft and duplicate submissions are blocked', () => {
@@ -135,4 +169,18 @@ test('a root trading guard does not exempt arbitrary auth routes from disposal',
   assert.equal(retainAuthEntryHandoff('/quotes'), false);
   dismissAuthFlow();
   assert.equal(getAuthFlowState().intent, null);
+});
+
+test('Accounts plus can open broker options before the pending Brokers push commits', () => {
+  openAuthFlow(undefined, undefined, '/settings/brokers');
+  const attempt = getAuthFlowState().attempt;
+  assert.equal(getAuthFlowState().screen, 'choice');
+  assert.equal(retainAuthEntryHandoff('/settings/brokers'), true);
+  assert.equal(getAuthFlowState().attempt, attempt);
+  showAuthForm('login');
+  const submission = beginAuthSubmission()!;
+  assert.equal(retainAuthEntryHandoff('/(tabs)/quotes'), false, 'only successful login should navigate to Quotes');
+  assert.equal(retainAuthEntryHandoff('/settings/accounts'), false);
+  dismissAuthFlow();
+  assert.equal(submission.signal.aborted, true);
 });

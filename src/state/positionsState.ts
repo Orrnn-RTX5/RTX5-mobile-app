@@ -5,8 +5,8 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { OPEN_POSITIONS_SESSION_CACHE_STORAGE_PREFIX } from './sessionCacheStorage';
-import type { PositionItem } from '../dev/mock/tradingData';
-import { positionsApi, type Position } from '../api/positions';
+import type { PositionItem } from '../domain/tradingModels';
+import { positionsApi, type ClosedPosition, type Position } from '../api/positions';
 import { appQueryClient } from './providers/AppProviders';
 import { resolveTradingLoginString } from './tradingLogin';
 import { invalidateCurrentSessionQueryRoots } from '../query/authenticatedQueryScope';
@@ -36,11 +36,23 @@ import {
 import {
   canCommitUncoordinatedPositionsRead,
   capturePositionsMutationBarrier,
+  invalidatePendingPositionsReads,
 } from './positionsMutationBarrier';
+
+export type ClosedPositionRecordDetails = Readonly<{
+  closePrice?: number;
+  profit?: number;
+  swap?: number;
+  commission?: number;
+  closeTimeSeconds?: number;
+  accountLogin?: string | number | null;
+}>;
 
 type PositionsState = {
   positions: PositionItem[];
   positionSnapshots: Record<string, PositionItem>;
+  knownOpenPositions: PositionItem[];
+  recentlyClosedPositions: ClosedPosition[];
   isLoading: boolean;
   lastFetchLogin: string | null;
   hydratedLogin: string | null;
@@ -49,6 +61,7 @@ type PositionsState = {
   clearPositions: () => void;
   primePositionSnapshot: (position: PositionItem) => void;
   clearPositionSnapshot: (positionId?: string | number) => void;
+  recordClosedPosition: (position: PositionItem, details?: ClosedPositionRecordDetails) => void;
   removePosition: (positionId: string | number) => void;
   beginOptimisticClose: (positionId: string | number) => void;
   finishOptimisticClose: (positionId: string | number) => void;
@@ -227,6 +240,7 @@ const clonePositionForCache = (position: PositionItem): PositionItem => ({
   tp: Number(position.tp) || 0,
   clientCreatedAt: position.clientCreatedAt,
   clientModifiedAt: position.clientModifiedAt,
+  pnlReported: position.pnlReported,
 });
 
 const normalizeCachedPositions = (positions: unknown): PositionItem[] => {
@@ -336,9 +350,173 @@ const getRetryAfterSeconds = (error: unknown): number | null => {
   return parseRetryAfterSeconds(retryAfter);
 };
 
+const MAX_RETAINED_SESSION_POSITIONS = 500;
+
+const parsePositionOpenTimeSeconds = (openTime: unknown, fallbackSeconds: number): number => {
+  if (typeof openTime === 'number' && Number.isFinite(openTime) && openTime > 0) {
+    return openTime > 4.2e10 ? Math.floor(openTime / 1000) : Math.floor(openTime);
+  }
+  if (typeof openTime === 'string' && openTime.trim() !== '') {
+    const asNumber = Number(openTime);
+    if (Number.isFinite(asNumber) && asNumber > 0) {
+      return asNumber > 4.2e10 ? Math.floor(asNumber / 1000) : Math.floor(asNumber);
+    }
+    const parsedMs = new Date(openTime).getTime();
+    if (Number.isFinite(parsedMs) && parsedMs > 0) {
+      return Math.floor(parsedMs / 1000);
+    }
+  }
+  return fallbackSeconds;
+};
+
+const mergeKnownOpenPositions = (
+  existing: PositionItem[],
+  incoming: PositionItem[],
+): PositionItem[] => {
+  if (incoming.length === 0) {
+    return existing;
+  }
+  const byId = new Map<string, PositionItem>();
+  existing.forEach((position) => {
+    const id = String(position.id ?? '').trim();
+    if (id && position.symbol && position.symbol !== UNKNOWN_POSITION_SYMBOL) {
+      byId.set(id, position);
+    }
+  });
+  incoming.forEach((position) => {
+    const id = String(position.id ?? '').trim();
+    if (id && position.symbol && position.symbol !== UNKNOWN_POSITION_SYMBOL) {
+      byId.delete(id);
+      byId.set(id, clonePositionForCache(position));
+    }
+  });
+  const values = [...byId.values()];
+  return values.length > MAX_RETAINED_SESSION_POSITIONS
+    ? values.slice(values.length - MAX_RETAINED_SESSION_POSITIONS)
+    : values;
+};
+
+const findKnownPositionById = (
+  state: Pick<PositionsState, 'positions' | 'positionSnapshots' | 'knownOpenPositions'>,
+  positionId: string | number,
+): PositionItem | undefined => {
+  const targetId = String(positionId).trim();
+  if (!targetId) return undefined;
+  return (
+    state.positions.find((position) => String(position.id) === targetId) ??
+    state.positionSnapshots[targetId] ??
+    state.knownOpenPositions.find((position) => String(position.id) === targetId)
+  );
+};
+
+const toPositiveNumberOption = (value: unknown): number | undefined => {
+  const num = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+  return Number.isFinite(num) && num > 0 ? num : undefined;
+};
+
+const toFiniteNumberOption = (value: unknown): number | undefined => {
+  const num = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : NaN;
+  return Number.isFinite(num) ? num : undefined;
+};
+
+const buildSynthesizedClosedPosition = (
+  position: PositionItem | undefined,
+  accountLogin?: string | number | null,
+  details?: ClosedPositionRecordDetails,
+  dto?: Record<string, unknown>,
+): ClosedPosition | null => {
+  if (!position || !position.symbol || position.symbol === UNKNOWN_POSITION_SYMBOL) {
+    return null;
+  }
+  const ticket = Number(String(position.id ?? '').trim());
+  if (!Number.isFinite(ticket) || ticket <= 0) {
+    return null;
+  }
+  const priceOpen = toPositiveNumberOption(position.openPrice) ?? toPositiveNumberOption(dto?.price_open);
+  const priceClose =
+    toPositiveNumberOption(details?.closePrice) ??
+    toPositiveNumberOption(dto?.price_close) ??
+    toPositiveNumberOption(dto?.close_price) ??
+    toPositiveNumberOption(dto?.closePrice) ??
+    toPositiveNumberOption(dto?.price_current) ??
+    toPositiveNumberOption(position.currentPrice) ??
+    priceOpen;
+  if (!priceOpen || !priceClose) {
+    return null;
+  }
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const openTimeSeconds = parsePositionOpenTimeSeconds(
+    dto?.time_create ?? position.openTime,
+    nowSeconds,
+  );
+  const dtoCloseTimeSeconds = parsePositionOpenTimeSeconds(
+    dto?.time_close ?? dto?.time_update,
+    0,
+  );
+  const rawCloseTimeSeconds =
+    (typeof details?.closeTimeSeconds === 'number' && Number.isFinite(details.closeTimeSeconds) && details.closeTimeSeconds > 0
+      ? Math.floor(details.closeTimeSeconds)
+      : dtoCloseTimeSeconds > 0
+        ? dtoCloseTimeSeconds
+        : nowSeconds);
+  const closeTimeSeconds = Math.max(openTimeSeconds, rawCloseTimeSeconds);
+  const loginNumber = Number(accountLogin ?? details?.accountLogin ?? resolveTradingLoginString()) || 0;
+  const profit =
+    toFiniteNumberOption(details?.profit) ??
+    toFiniteNumberOption(dto?.profit) ??
+    (Number(position.pnl) || 0);
+  const swap =
+    toFiniteNumberOption(details?.swap) ??
+    toFiniteNumberOption(dto?.swap) ??
+    (Number(position.swap) || 0);
+  const commission =
+    toFiniteNumberOption(details?.commission) ??
+    toFiniteNumberOption(dto?.commission) ??
+    (Number(position.commission) || 0);
+
+  return {
+    ticket,
+    account_login: loginNumber,
+    symbol: position.symbol,
+    side: position.side === 'sell' ? 'sell' : 'buy',
+    volume: Number(position.volume) || 0,
+    price_open: priceOpen,
+    price_close: priceClose,
+    profit,
+    swap,
+    commission,
+    time_create: openTimeSeconds,
+    time_update: closeTimeSeconds,
+    time_close: closeTimeSeconds,
+  };
+};
+
+const upsertRecentlyClosedPositions = (
+  existing: ClosedPosition[],
+  additions: ClosedPosition[],
+): ClosedPosition[] => {
+  if (additions.length === 0) {
+    return existing;
+  }
+  const byTicket = new Map<number, ClosedPosition>();
+  additions.forEach((closed) => {
+    if (Number.isFinite(closed.ticket) && closed.ticket > 0) {
+      byTicket.set(closed.ticket, closed);
+    }
+  });
+  existing.forEach((closed) => {
+    if (Number.isFinite(closed.ticket) && closed.ticket > 0 && !byTicket.has(closed.ticket)) {
+      byTicket.set(closed.ticket, closed);
+    }
+  });
+  return [...byTicket.values()].slice(0, MAX_RETAINED_SESSION_POSITIONS);
+};
+
 export const usePositionsState = create<PositionsState>((set, get) => ({
   positions: [],
   positionSnapshots: {},
+  knownOpenPositions: [],
+  recentlyClosedPositions: [],
   isLoading: false,
   lastFetchLogin: null,
   hydratedLogin: null,
@@ -347,12 +525,17 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
     const nextPositions = withoutOptimisticallyClosingPositions(dedupePositionsById(positions));
     const accountLogin = get().lastFetchLogin ?? get().hydratedLogin ?? resolveTradingLoginString();
     scheduleOpenPositionsCacheWrite(accountLogin, nextPositions);
-    set({ positions: nextPositions });
+    set((state) => ({
+      positions: nextPositions,
+      knownOpenPositions: mergeKnownOpenPositions(state.knownOpenPositions, nextPositions),
+    }));
   },
   clearPositions: () =>
     set({
       positions: [],
       positionSnapshots: {},
+      knownOpenPositions: [],
+      recentlyClosedPositions: [],
       isLoading: false,
       lastError: null,
       lastFetchLogin: null,
@@ -364,6 +547,7 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
         ...state.positionSnapshots,
         [String(position.id)]: { ...position },
       },
+      knownOpenPositions: mergeKnownOpenPositions(state.knownOpenPositions, [position]),
     })),
   clearPositionSnapshot: (positionId) =>
     set((state) => {
@@ -375,16 +559,40 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
       delete nextSnapshots[String(positionId)];
       return { positionSnapshots: nextSnapshots };
     }),
+  recordClosedPosition: (position, details) =>
+    set((state) => {
+      const accountLogin =
+        details?.accountLogin ?? state.lastFetchLogin ?? state.hydratedLogin ?? resolveTradingLoginString();
+      const closedRecord = buildSynthesizedClosedPosition(position, accountLogin, details);
+      return {
+        knownOpenPositions: mergeKnownOpenPositions(state.knownOpenPositions, [position]),
+        recentlyClosedPositions: closedRecord
+          ? upsertRecentlyClosedPositions(state.recentlyClosedPositions, [closedRecord])
+          : state.recentlyClosedPositions,
+      };
+    }),
   removePosition: (positionId) =>
     set((state) => {
       const nextPositions = state.positions.filter((position) => String(position.id) !== String(positionId));
       const accountLogin = state.lastFetchLogin ?? state.hydratedLogin ?? resolveTradingLoginString();
       scheduleOpenPositionsCacheWrite(accountLogin, nextPositions);
+      const removedPosition = isPositionOptimisticallyClosing(positionId)
+        ? findKnownPositionById(state, positionId)
+        : undefined;
+      const closedRecord = removedPosition
+        ? buildSynthesizedClosedPosition(removedPosition, accountLogin)
+        : null;
       return {
         positions: nextPositions,
         positionSnapshots: Object.fromEntries(
           Object.entries(state.positionSnapshots).filter(([id]) => id !== String(positionId)),
         ),
+        knownOpenPositions: removedPosition
+          ? mergeKnownOpenPositions(state.knownOpenPositions, [removedPosition])
+          : state.knownOpenPositions,
+        recentlyClosedPositions: closedRecord
+          ? upsertRecentlyClosedPositions(state.recentlyClosedPositions, [closedRecord])
+          : state.recentlyClosedPositions,
       };
     }),
   beginOptimisticClose: (positionId) => {
@@ -404,12 +612,17 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
       ]));
       const accountLogin = state.lastFetchLogin ?? state.hydratedLogin ?? resolveTradingLoginString();
       scheduleOpenPositionsCacheWrite(accountLogin, restoredPositions);
+      const rolledBackTicket = Number(String(position.id ?? '').trim());
       return {
         positions: restoredPositions,
         positionSnapshots: {
           ...state.positionSnapshots,
           [String(position.id)]: { ...position },
         },
+        knownOpenPositions: mergeKnownOpenPositions(state.knownOpenPositions, [position]),
+        recentlyClosedPositions: Number.isFinite(rolledBackTicket)
+          ? state.recentlyClosedPositions.filter((item) => item.ticket !== rolledBackTicket)
+          : state.recentlyClosedPositions,
       };
     });
   },
@@ -454,6 +667,29 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
       }
 
       const nextLogin = accountLogin ?? state.lastFetchLogin ?? state.hydratedLogin ?? resolveTradingLoginString();
+      const loginChanged = nextLogin
+        ? shouldClearPositionsForLoginSwitch(
+            state.lastFetchLogin ?? state.hydratedLogin,
+            nextLogin,
+          )
+        : false;
+      const synthesizedClosed: ClosedPosition[] = [];
+      if (!loginChanged && removedPositionIds.size > 0) {
+        removedPositionIds.forEach((id) => {
+          const knownPosition = findKnownPositionById(state, id);
+          const matchingDto = incomingDtos.find((dto) => resolvePositionId(dto) === id);
+          const closedRecord = buildSynthesizedClosedPosition(
+            knownPosition,
+            nextLogin,
+            undefined,
+            matchingDto && typeof matchingDto === 'object' ? (matchingDto as Record<string, unknown>) : undefined,
+          );
+          if (closedRecord) {
+            synthesizedClosed.push(closedRecord);
+          }
+        });
+      }
+      terminalPositionIds.forEach(markPositionOptimisticallyClosing);
       scheduleOpenPositionsCacheWrite(nextLogin, nextPositions);
       return {
         positions: nextPositions,
@@ -462,6 +698,13 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
             Object.entries(state.positionSnapshots).filter(([id]) => !removedPositionIds.has(id)),
           )
           : state.positionSnapshots,
+        knownOpenPositions: mergeKnownOpenPositions(
+          loginChanged ? [] : state.knownOpenPositions,
+          nextPositions,
+        ),
+        recentlyClosedPositions: loginChanged
+          ? []
+          : upsertRecentlyClosedPositions(state.recentlyClosedPositions, synthesizedClosed),
         lastFetchLogin: accountLogin ?? state.lastFetchLogin,
         hydratedLogin: accountLogin ?? state.hydratedLogin,
         lastError: null,
@@ -516,11 +759,21 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
             'accountSummary',
           ]);
         }
+        const knownPosition = findKnownPositionById(state, targetId);
+        const closedRecord = buildSynthesizedClosedPosition(
+          knownPosition,
+          nextLogin,
+          undefined,
+          dto,
+        );
         return {
           positions: nextPositions,
           positionSnapshots: Object.fromEntries(
             Object.entries(state.positionSnapshots).filter(([id]) => id !== targetId),
           ),
+          recentlyClosedPositions: closedRecord
+            ? upsertRecentlyClosedPositions(state.recentlyClosedPositions, [closedRecord])
+            : state.recentlyClosedPositions,
           lastFetchLogin: accountLogin ?? state.lastFetchLogin,
           hydratedLogin: accountLogin ?? state.hydratedLogin,
           lastError: null,
@@ -552,6 +805,7 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
       scheduleOpenPositionsCacheWrite(nextLogin, normalizedPositions);
       return {
         positions: normalizedPositions,
+        knownOpenPositions: mergeKnownOpenPositions(state.knownOpenPositions, [reconciled]),
         lastFetchLogin: accountLogin ?? state.lastFetchLogin,
         hydratedLogin: accountLogin ?? state.hydratedLogin,
         lastError: null,
@@ -566,6 +820,9 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
 
       const accountLogin = state.lastFetchLogin ?? state.hydratedLogin ?? resolveTradingLoginString();
       if (isTerminalPositionUpdate(dto)) {
+        const terminalId = resolvePositionId(dto);
+        if (terminalId) markPositionOptimisticallyClosing(terminalId);
+        invalidatePendingPositionsReads();
         // A position was closed (SL/TP hit, server-side close, etc.).
         // Invalidate history even if the open event was never observed. This
         // lets an exact terminal ticket clear an awaiting Chart SL/TP draft
@@ -583,16 +840,29 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
 
         const nextPositions = state.positions.filter((position) => position.id !== existing.id);
         scheduleOpenPositionsCacheWrite(accountLogin, nextPositions);
+        const closedRecord = buildSynthesizedClosedPosition(
+          existing,
+          accountLogin,
+          undefined,
+          dto && typeof dto === 'object' ? (dto as Record<string, unknown>) : undefined,
+        );
         return {
           positions: nextPositions,
           positionSnapshots: Object.fromEntries(
             Object.entries(state.positionSnapshots).filter(([id]) => id !== String(existing.id)),
           ),
+          recentlyClosedPositions: closedRecord
+            ? upsertRecentlyClosedPositions(state.recentlyClosedPositions, [closedRecord])
+            : state.recentlyClosedPositions,
         };
       }
 
       const existing = findExistingPosition(state.positions, dto);
       const newItem = mapPositionToItem(dto, existing);
+      if (!existing || existing.volume !== newItem.volume || existing.side !== newItem.side
+        || existing.openPrice !== newItem.openPrice || existing.sl !== newItem.sl || existing.tp !== newItem.tp) {
+        invalidatePendingPositionsReads();
+      }
       if (!existing && newItem.symbol === UNKNOWN_POSITION_SYMBOL) {
         return {};
       }
@@ -629,6 +899,13 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
 
       return {
         positions: sortedPositions,
+        knownOpenPositions: mergeKnownOpenPositions(state.knownOpenPositions, [newItem]),
+        ...(accountLogin
+          ? {
+              lastFetchLogin: state.lastFetchLogin ?? accountLogin,
+              hydratedLogin: state.hydratedLogin ?? accountLogin,
+            }
+          : {}),
       };
     });
   },
@@ -683,14 +960,20 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
       const nextPositions = loginChanged
         ? cachedPositions
         : dedupePositionsById([...latestState.positions, ...cachedPositions]);
+      const sanitizedPositions = withoutOptimisticallyClosingPositions(nextPositions);
 
       // This is only a device-cache hydrate. The focused refresh still asks the
       // backend, but the Trade screen does not have to flash a fake empty state.
       // For the same account we merge cache + memory; for a real account switch
       // we replace old-account rows so stale trades are not shown.
       return {
-        positions: withoutOptimisticallyClosingPositions(nextPositions),
+        positions: sanitizedPositions,
         positionSnapshots: loginChanged ? {} : latestState.positionSnapshots,
+        knownOpenPositions: mergeKnownOpenPositions(
+          loginChanged ? [] : latestState.knownOpenPositions,
+          sanitizedPositions,
+        ),
+        recentlyClosedPositions: loginChanged ? [] : latestState.recentlyClosedPositions,
         lastFetchLogin: loginChanged ? normalizedLogin : latestState.lastFetchLogin ?? normalizedLogin,
         hydratedLogin: normalizedLogin,
         lastError: loginChanged ? null : latestState.lastError,
@@ -743,6 +1026,15 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
                   positions: shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
                     ? cachedPositions
                     : dedupePositionsById([...latestState.positions, ...cachedPositions]),
+                  knownOpenPositions: mergeKnownOpenPositions(
+                    shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
+                      ? []
+                      : latestState.knownOpenPositions,
+                    cachedPositions,
+                  ),
+                  recentlyClosedPositions: shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
+                    ? []
+                    : latestState.recentlyClosedPositions,
                   lastFetchLogin: normalizedLogin,
                   hydratedLogin: normalizedLogin,
                 }
@@ -766,6 +1058,12 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
               positionSnapshots: shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
                 ? {}
                 : latestState.positionSnapshots,
+              knownOpenPositions: shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
+                ? []
+                : latestState.knownOpenPositions,
+              recentlyClosedPositions: shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
+                ? []
+                : latestState.recentlyClosedPositions,
               hydratedLogin: shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
                 ? null
                 : latestState.hydratedLogin,
@@ -782,6 +1080,12 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
                   positions: shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
                     ? cachedPositions
                     : dedupePositionsById([...latestState.positions, ...cachedPositions]),
+                  knownOpenPositions: mergeKnownOpenPositions(
+                    shouldClearPositionsForLoginSwitch(latestState.lastFetchLogin, normalizedLogin)
+                      ? []
+                      : latestState.knownOpenPositions,
+                    cachedPositions,
+                  ),
                   hydratedLogin: normalizedLogin,
                 }
               : {}),
@@ -872,9 +1176,21 @@ export const usePositionsState = create<PositionsState>((set, get) => ({
           const nextPositions = withoutOptimisticallyClosingPositions(
             buildMergedPositions(latestState.positions, positionsArray),
           );
+          const nextPositionIds = new Set(nextPositions.map((position) => String(position.id)));
+          const disappearedOpenPositions = latestState.positions.filter(
+            (position) => !nextPositionIds.has(String(position.id)),
+          );
+          const synthesizedClosed = disappearedOpenPositions
+            .map((position) => buildSynthesizedClosedPosition(position, normalizedLogin))
+            .filter((item): item is ClosedPosition => item !== null);
           scheduleOpenPositionsCacheWrite(normalizedLogin, nextPositions);
           return {
             positions: nextPositions,
+            knownOpenPositions: mergeKnownOpenPositions(latestState.knownOpenPositions, nextPositions),
+            recentlyClosedPositions: upsertRecentlyClosedPositions(
+              latestState.recentlyClosedPositions,
+              synthesizedClosed,
+            ),
             isLoading: false,
             hydratedLogin: normalizedLogin,
             lastError: null,
@@ -942,6 +1258,8 @@ export const resetPositionsSessionState = (): void => {
   usePositionsState.setState({
     positions: [],
     positionSnapshots: {},
+    knownOpenPositions: [],
+    recentlyClosedPositions: [],
     isLoading: false,
     lastFetchLogin: null,
     hydratedLogin: null,

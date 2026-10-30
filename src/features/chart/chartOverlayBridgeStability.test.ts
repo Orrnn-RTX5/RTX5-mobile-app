@@ -318,7 +318,7 @@ test('chart modify selection stays ticket-durable and exposes coordinator reconc
   );
   assertSourceContains(
     nativeSource,
-    /\}, \[activeChartSessionCacheNamespace, normalizedChartPositionSymbol\]\);/,
+    /\}, \[activeChartSessionCacheNamespace, isLoggedIn, normalizedChartPositionSymbol\]\);/,
     'broker-session changes must clear chart SL/TP selection even when the symbol is unchanged',
   );
   assertSourceContains(
@@ -454,7 +454,7 @@ test('overlay bridge: chart movement keeps DOM overlay rebuilds off the hot path
   );
 });
 
-test('chart pending CTA submits the pending order and then exposes chart-side levels', () => {
+test('chart pending CTA gates the retained submission flow independently from previews', () => {
   const handlerSource = source.slice(
     source.indexOf('const handleSubmitPendingTradeFromSheet = useCallback'),
     source.indexOf('const handleToggleChartTradeSheetMode', source.indexOf('const handleSubmitPendingTradeFromSheet = useCallback')),
@@ -465,7 +465,7 @@ test('chart pending CTA submits the pending order and then exposes chart-side le
   assert.doesNotMatch(handlerSource, /Alert\.alert/);
   assertSourceContains(
     handlerSource,
-    /if \(isPendingOrderTypeBackendLocked\(chartTradeOrderType\)\) \{\s*return;\s*\}/,
+    /if \(isPendingOrderPlacementBackendLocked\(chartTradeOrderType\)\) \{\s*return;\s*\}/,
     'pending CTA must fail closed until backend readiness is explicitly enabled',
   );
   assertSourceContains(handlerSource, /ordersApi\.placePendingOrder\(payload\)/, 'pending CTA must submit to the pending-order API');
@@ -569,8 +569,13 @@ test('chart market execution only submits SL and TP that target a new order', ()
   );
   assertSourceContains(
     chartTradeHandlerSource,
+    /const acceptedTrade: AcceptedChartTrade = \{[\s\S]*\.\.\.\(protectionDraftId \? \{ protectionDraftId \} : \{\}\)/,
+    'direct execution must retain the exact chart protection draft token',
+  );
+  assertSourceContains(
+    chartTradeHandlerSource,
     /pathname: '\/trade\/order-ticket'[\s\S]*params: \{[\s\S]*\.\.\.\(protectionDraftId \? \{ protectionDraftId \} : \{\}\)/,
-    'one-click-off navigation must carry the exact chart protection draft token into Order Ticket',
+    'One Click OFF must pass the exact chart protection draft to the order ticket',
   );
   assert.doesNotMatch(
     chartTradeHandlerSource,
@@ -589,9 +594,11 @@ test('chart market execution only submits SL and TP that target a new order', ()
   );
   assertSourceContains(
     orderTicketSource,
-    /if \(!tryBeginChartProtectionDraftSubmission\(routeProtectionDraftId\)\)[\s\S]*publishChartProtectionDraftSubmission\(routeProtectionDraftId\);[\s\S]*const data = await ordersApi\.placeMarketOrder\(payload\)/,
-    'Order Ticket must enforce single-flight and snapshot the chart draft immediately before its Market Execution POST',
+    /publishChartProtectionDraftSubmission\(routeProtectionDraftId\);[\s\S]*const request = ordersApi\.placeMarketOrder\(payload\);[\s\S]*const data = await request/,
+    'Order Ticket must snapshot the chart draft before each independent Market Execution POST',
   );
+  assert.doesNotMatch(orderTicketSource, /tryBeginChartProtectionDraftSubmission|Order Already Submitted/,
+    'a shared protection draft must not suppress a new explicit market-order click');
   assertSourceContains(
     nativeSource,
     /subscribeChartProtectionDraftSubmission\(captureChartProtectionDraftBaseline\)[\s\S]*const terminalTicketObserved = closedPositions\.some\([\s\S]*String\(position\.ticket\) === awaitingTicket[\s\S]*hasChartProtectionDraftReconciled\(\{[\s\S]*terminalTicketObserved/,
@@ -734,7 +741,7 @@ test('overlay bridge: trade labels follow their price coordinate off screen', ()
   );
   assertSourceContains(
     refreshBody,
-    /anchoredLabels\.sort\(function\(left, right\) \{ return left\.y - right\.y; \}\)/,
+    /anchoredLabels\.sort\(function\(left, right\) \{ return left\.y - right\.y[^}]*; \}\)/,
     'line-anchored open-position labels must be sorted for stable draw order',
   );
   assertSourceContains(
@@ -759,7 +766,7 @@ test('overlay bridge: trade labels follow their price coordinate off screen', ()
   );
   assertSourceContains(
     refreshBody,
-    /anchoredLabels\.sort\(function\(left, right\) \{ return left\.y - right\.y; \}\)[\s\S]*var anchoredTops = resolveAnchoredOverlayLabelTops\(anchoredLabels\)/,
+    /anchoredLabels\.sort\(function\(left, right\) \{ return left\.y - right\.y[^}]*; \}\)[\s\S]*var anchoredTops = resolveAnchoredOverlayLabelTops\(anchoredLabels\)/,
     'line-anchored labels must be price-sorted before vertical row spacing is resolved',
   );
   assertSourceContains(
@@ -769,8 +776,8 @@ test('overlay bridge: trade labels follow their price coordinate off screen', ()
   );
   assertSourceContains(
     anchoredTopsBody,
-    /if \(!isOpenPositionOverlayLine\(item\) && item\.paneVisible !== false\) \{[\s\S]*previousVisibleTop = top;[\s\S]*\}[\s\S]*tops\[i\] = top/,
-    'open-position rows must stay on their real price coordinate, and off-pane labels must not reserve space in the visible vertical list',
+    /if \(!isOpenPositionOverlayLine\(item\) && !isPendingOrderDraftLine\(item\) && !isPendingEntry && item\.paneVisible !== false\) \{[\s\S]*previousVisibleTop = top;[\s\S]*\}[\s\S]*tops\[i\] = top/,
+    'open positions and pending entries must stay on their real price coordinate, and off-pane labels must not reserve space in the visible vertical list',
   );
   assertSourceContains(
     refreshBody,
@@ -799,8 +806,8 @@ test('overlay bridge: trade labels follow their price coordinate off screen', ()
   );
   assertSourceContains(
     refreshBody,
-    /openPositionRowYById\[anchoredRowItem\.id\] = resolveAnchoredOverlayRowY[\s\S]*renderAnchoredTradeLine\([\s\S]*openPositionRowYById\[anchoredItem\.id\][\s\S]*renderLabel\(anchoredItem, anchoredTop, 'label:anchored:' /,
-    'each open-position label and connector line must use the same real-price row',
+    /openPositionRowYById\[anchoredRowItem\.id\] = resolveAnchoredOverlayRowY[\s\S]*renderAnchoredTradeLine\([\s\S]*anchoredItem\.y[\s\S]*renderLabel\(anchoredItem, anchoredTop, 'label:anchored:' /,
+    'each entry line keeps its actual price independent of a stacked label',
   );
   assertSourceContains(
     anchoredLineBody,
@@ -834,8 +841,8 @@ test('overlay bridge: trade labels follow their price coordinate off screen', ()
   );
   assertSourceContains(
     refreshBody,
-    /renderAnchoredTradeLine\([\s\S]*isOpenPositionOverlayLine\(anchoredItem\)[\s\S]*openPositionRowYById\[anchoredItem\.id\]/,
-    'open-position dotted lines must move to the same display row as their text',
+    /renderAnchoredTradeLine\([\s\S]*isOpenPositionOverlayLine\(anchoredItem\)[\s\S]*anchoredItem\.y/,
+    'open-position dotted lines stay at actual entry prices when labels stack',
   );
   assertSourceContains(
     refreshBody,
@@ -851,7 +858,7 @@ test('overlay bridge: trade labels follow their price coordinate off screen', ()
   assert.doesNotMatch(refreshBody, /anchoredBounds|bounds\.minTop|bounds\.maxTop/);
   assert.doesNotMatch(refreshBody, /nudgeAnchoredLabelsAwayFrom/);
   assert.doesNotMatch(refreshBody, /label\.style\.textShadow = '0 1px 1px/);
-  assert.doesNotMatch(refreshBody, /label\.style\.background/);
+  assert.match(refreshBody, /label\.style\.backgroundColor = isPendingEntryLabel \? \(lastChartBackgroundColor \|\| '#FFFFFF'\) : 'transparent'/);
   assert.doesNotMatch(refreshBody, /label\.style\.boxShadow/);
 });
 
@@ -864,10 +871,10 @@ test('overlay bridge: right-axis trade price boxes keep close entries visible', 
     /line\.id === 'chart-trade-sl-preview' \|\| line\.id === 'chart-trade-tp-preview'/,
     'direct Market Execution SL and TP drafts must render an MT5-style right-axis price marker',
   );
-  assert.doesNotMatch(
+  assertSourceContains(
     priceBoxEligibilityBody,
-    /startsWith\('chart-trade-'\)|\^chart-trade-/,
-    'locked pending-order previews must not inherit the Market Execution right-axis marker',
+    /isPendingOrderDraftLine\(line\)/,
+    'pending entry and stop-limit drafts must render their right-axis price values',
   );
   assertSourceContains(
     refreshBody,
@@ -882,8 +889,8 @@ test('overlay bridge: right-axis trade price boxes keep close entries visible', 
   );
   assertSourceContains(
     refreshBody,
-    /var isOpenPositionBox = isOpenPositionOverlayLine\(pln\)[\s\S]*if \(!isOpenPositionBox && seenBoxLevels\[boxKey\]\) continue[\s\S]*if \(!isOpenPositionBox\) \{[\s\S]*seenBoxLevels\[boxKey\] = true/,
-    'same-price open positions must bypass displayed-price box deduplication',
+    /var isOpenPositionBox = isOpenPositionOverlayLine\(pln\)[\s\S]*var isPendingDraftBox = isPendingOrderDraftLine\(pln\)[\s\S]*if \(!isOpenPositionBox && !isPendingDraftBox && seenBoxLevels\[boxKey\]\) continue[\s\S]*if \(!isOpenPositionBox && !isPendingDraftBox\) \{[\s\S]*seenBoxLevels\[boxKey\] = true/,
+    'same-price open positions and active pending drafts must bypass displayed-price box deduplication',
   );
   assertSourceContains(
     refreshBody,
@@ -893,7 +900,7 @@ test('overlay bridge: right-axis trade price boxes keep close entries visible', 
   assertSourceContains(
     refreshBody,
     /var sharedRowY = isOpenPositionBox[\s\S]*openPositionRowYById\[pln\.id\][\s\S]*var desiredBoxTop = Math\.round\(sharedRowY - POSITION_BOX_HEIGHT \/ 2\)/,
-    'each open-position price box must use the same row center as its label and connector line',
+    'each open-position price box stays on the actual entry coordinate',
   );
   assertSourceContains(
     refreshBody,
@@ -902,8 +909,8 @@ test('overlay bridge: right-axis trade price boxes keep close entries visible', 
   );
   assertSourceContains(
     refreshBody,
-    /boxEl\.style\.left = \(positionBoxMetrics \? positionBoxMetrics\.axisLeft[\s\S]*boxEl\.style\.width = \(positionBoxMetrics \? positionBoxMetrics\.axisWidth[\s\S]*boxEl\.style\.background = '#FFFFFF'[\s\S]*boxEl\.style\.color = box\.color[\s\S]*boxEl\.style\.border = '1px solid ' \+ box\.color[\s\S]*boxEl\.style\.padding = '0 2px'[\s\S]*boxEl\.style\.textAlign = 'right'[\s\S]*boxEl\.style\.zIndex = '16'/,
-    'right-axis trade boxes must stay pinned to the measured scale with compact MT5 white-fill colored-outline styling',
+    /boxEl\.style\.left = \(positionBoxMetrics \? positionBoxMetrics\.axisLeft[\s\S]*boxEl\.style\.width = \(positionBoxMetrics \? positionBoxMetrics\.axisWidth[\s\S]*boxEl\.style\.background = box\.pendingEntry \? \(lastChartBackgroundColor \|\| '#FFFFFF'\) : '#FFFFFF'[\s\S]*boxEl\.style\.color = box\.color[\s\S]*boxEl\.style\.border = '1px solid ' \+ box\.color[\s\S]*boxEl\.style\.padding = '0 2px'[\s\S]*boxEl\.style\.textAlign = 'right'[\s\S]*boxEl\.style\.zIndex = box\.pendingDraft \? '20' : '16'/,
+    'right-axis trade boxes must stay pinned to the measured scale, with pending entries using the chart background',
   );
   assertSourceContains(
     refreshBody,

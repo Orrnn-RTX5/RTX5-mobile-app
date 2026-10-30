@@ -7,6 +7,7 @@ import { FastPressable as Pressable } from '../../ui/components/FastPressable';
  */
 
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Screen } from '../../ui/components/Screen';
 import { useUserPreferences } from '../../state/userPreferences';
 import { spacing } from '../../ui/theme/index';
@@ -14,9 +15,11 @@ import { useTheme } from '../../ui/theme/useTheme';
 import { ThemeColors } from '../../ui/theme/glass';
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from '../../i18n/useTranslation';
+import { safeRouterBack } from '../../utils/navigation';
 import { requestOneClickPreferenceChange } from './oneClickDisableConfirmation';
 
 export function OneClickTermsScreen() {
+  const router = useRouter();
   const oneClickAccepted = useUserPreferences((s) => s.oneClickAccepted);
   const setOneClickAccepted = useUserPreferences((s) => s.setOneClickAccepted);
   const T = useTheme();
@@ -55,7 +58,13 @@ export function OneClickTermsScreen() {
         />
         <Text style={styles.accept}>{t('I Accept these Terms and Conditions')}</Text>
       </View>
-      <Pressable style={[styles.button, !oneClickAccepted && styles.buttonDisabled]} onPress={() => setOneClickAccepted(true)}>
+      <Pressable
+        style={[styles.button, !oneClickAccepted && styles.buttonDisabled]}
+        onPress={() => {
+          handleOneClickPreferenceChange(true);
+          safeRouterBack(router, '/(tabs)/settings');
+        }}
+      >
         <Text style={styles.buttonText}>{t('Accept').toUpperCase()}</Text>
       </Pressable>
     </Screen>
@@ -108,7 +117,7 @@ const makeStyles = (T: ThemeColors) => StyleSheet.create({
     opacity: 0.4,
   },
   buttonText: {
-    color: T.text,
+    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 20,
   },

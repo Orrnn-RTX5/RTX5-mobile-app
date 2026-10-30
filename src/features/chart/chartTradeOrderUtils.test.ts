@@ -64,6 +64,8 @@ test('pending order validation matches MT5-style trigger direction rules', () =>
     { orderType: 'Sell Limit', entryPrice: 1.2003 },
     { orderType: 'Buy Stop', entryPrice: 1.2004 },
     { orderType: 'Sell Stop', entryPrice: 1.1999 },
+    { orderType: 'Buy Stop Limit', entryPrice: 1.2004, stopLimitPrice: 1.2000 },
+    { orderType: 'Sell Stop Limit', entryPrice: 1.1998, stopLimitPrice: 1.2001 },
   ];
 
   validCases.forEach((input) => {
@@ -75,8 +77,8 @@ test('pending order validation matches MT5-style trigger direction rules', () =>
     { orderType: 'Sell Limit', entryPrice: 1.1998 },
     { orderType: 'Buy Stop', entryPrice: 1.1998 },
     { orderType: 'Sell Stop', entryPrice: 1.2004 },
-    { orderType: 'Buy Stop Limit', entryPrice: 1.2004, stopLimitPrice: 1.2005 },
-    { orderType: 'Sell Stop Limit', entryPrice: 1.1998, stopLimitPrice: 1.1997 },
+    { orderType: 'Buy Stop Limit', entryPrice: 1.2004, stopLimitPrice: 0 },
+    { orderType: 'Sell Stop Limit', entryPrice: 1.2004, stopLimitPrice: 1.1997 },
   ];
 
   invalidCases.forEach((input) => {

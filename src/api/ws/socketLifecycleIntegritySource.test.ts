@@ -13,12 +13,16 @@ test('background lifecycle suspends every non-quote socket before foreground val
   assert.match(layout, /candlesWsService\.suspend\(\)/);
   assert.match(layout, /wsService\.suspend\(\)/);
 
-  const validation = layout.indexOf('brokerApi.getValidAccessToken(false)');
-  const identityGuard = layout.indexOf('isActiveBrokerSessionCurrent(identity)', validation);
-  const resume = layout.indexOf('brokerRealtimeService.resume()', validation);
-  const bootstrap = layout.indexOf('bootstrapApp({ accountLogin: identity.accountLogin })', validation);
-  assert.ok(validation > -1 && identityGuard > validation);
-  assert.ok(resume > identityGuard && bootstrap > resume);
+  assert.match(layout, /isCurrent: \(identity\) => isActiveBrokerSessionCurrent\(identity\)/);
+  assert.match(layout, /validate: \(\) => brokerApi\.getValidAccessToken\(false\)/);
+  assert.match(layout, /refresh: \(identity\) => bootstrapApp\(\{ accountLogin: identity\.accountLogin \}\)/);
+  assert.match(layout, /NetInfo\.addEventListener/);
+  assert.match(layout, /unsubscribeNetwork\(\)/);
+  const recovery = readSource('src/services/foregroundSessionRecovery.ts');
+  const validated = recovery.indexOf('if (!token) throw');
+  const resume = recovery.indexOf('options.resume()', validated);
+  const refresh = recovery.indexOf('options.refresh(identity)', resume);
+  assert.ok(validated > -1 && resume > validated && refresh > resume);
 });
 
 test('socket suspension preserves demand and caches while disconnect keeps logout teardown', () => {

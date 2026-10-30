@@ -6,7 +6,6 @@ import {
   scheduleBackNavigationAfterVisualFrame,
 } from '../../utils/navigation';
 import {
-  hideSidebarDestination,
   showSidebarDestination,
 } from '../../ui/components/sidebarDestinationHostController';
 import { brokersLaunchController } from './brokersLaunchController';
@@ -23,6 +22,7 @@ import {
 } from './BrokersScreen/selectedBrokerHealthGate';
 import { warmDemoAccountForm } from './registerScreenPreload';
 import { selectGuestBrokerById } from '../../services/selectGuestBroker';
+import { openAuthFlow } from '../trade/authFlowState';
 import { scheduleAfterVisualFrame } from '../../utils/afterVisualFrame';
 
 const BROKERS_LAUNCH_HIDDEN_STYLE = {
@@ -144,9 +144,10 @@ export function BrokersLaunchHost() {
         if (!isSelectedPickerStillActive()) return;
         void selectGuestBrokerById(broker.brokerId, isSelectedPickerStillActive).then(selected => {
           if (!selected || !isSelectedPickerStillActive()) return;
-          hideSidebarDestination();
-          brokersLaunchController.hide();
-          router.replace('/(tabs)/quotes');
+          openAuthFlow(undefined, undefined, '/settings/brokers');
+          // The pending Accounts -> Brokers push owns this cover. Hiding it
+          // here would cancel a fast tap's push and leave Quotes underneath
+          // the form. The focused Brokers route removes its own cover.
         }).catch(error => Alert.alert('Broker unavailable', error.message));
       },
       onUnavailable: () => {

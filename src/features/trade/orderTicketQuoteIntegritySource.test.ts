@@ -35,7 +35,7 @@ test('market and pending submissions recheck session feed health and quote integ
   assert.match(marketHandler, /Market Data Unavailable/);
   assert.match(pendingHandler, /currentQuoteAvailability\.allowed/);
   assert.match(pendingHandler, /Market Data Unavailable/);
-  assert.match(source, /disabled=\{tradeActionDisabled \|\| pendingEntryPrice <= 0\}/);
+  assert.match(source, /disabled=\{pendingOrderPlacementBackendLocked \|\| tradeActionDisabled \|\| pendingEntryPrice <= 0\}/);
 });
 
 test('market Buy and Sell surface an account-session mismatch instead of silently returning', () => {

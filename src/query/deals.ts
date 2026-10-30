@@ -1,3 +1,4 @@
+import { getChartDealsRefreshFrom, mergeChartDealHistory } from './chartDealRefresh';
 /**
  * Core module: deals.ts
  *
@@ -12,8 +13,8 @@
  * a fallback when /account/deals fails. The two sources are no longer merged.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { dealsApi, fetchAllAccountDeals, type Deal } from '../api/deals';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { dealsApi, fetchAccountDealHistory, InvalidDealsResponseError, type Deal, type DealHistoryResult } from '../api/deals';
 import { resolveEffectiveHistoryDateRange } from '../features/history/historyDateRange';
 import { useResolvedTradingLogin } from '../state/tradingLogin';
 import { useUserPreferences } from '../state/userPreferences';
@@ -90,27 +91,22 @@ const fetchAccountDealsWithLoginFallback = async (
   login: number | undefined,
   from?: number,
   to?: number,
-) => {
+): Promise<DealHistoryResult> => {
   try {
-    return filterDealsByTimeRange(
-      await fetchAllAccountDeals({ from, to }),
-      from,
-      to,
-    );
+    const result = await fetchAccountDealHistory({ from, to });
+    return { ...result, deals: filterDealsByTimeRange(result.deals, from, to) };
   } catch (accountError) {
-    // Fallback only: /deals/{login} (max 500 rows, no position_ticket).
-    if (login == null) throw accountError;
+    // Corrupt successful responses must not be disguised by a limited fallback.
+    if (login == null || accountError instanceof InvalidDealsResponseError) throw accountError;
     try {
-      return filterDealsByTimeRange(
-        await getLoginDealsWithRangeFallback(login, from, to),
-        from,
-        to,
-      );
-    } catch {
-      throw accountError;
-    }
+      return {
+        deals: filterDealsByTimeRange(await getLoginDealsWithRangeFallback(login, from, to), from, to),
+        complete: false, reason: 'legacy-fallback', fullFetchedAt: Date.now(),
+      };
+    } catch { throw accountError; }
   }
 };
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TanStack Query hook for account deal history (JWT-resolved, date-range aware).
@@ -137,11 +133,12 @@ export function useAccountDealsQuery(options: PollingQueryOptions = {}) {
 
   // Convert ms to Unix seconds for the API (null means omit the param)
   const from = fromMs != null ? Math.floor(fromMs / 1000) : undefined;
-  const to = toMs != null ? Math.floor(toMs / 1000) : undefined;
+  // Deal ranges use an exclusive upper bound; include the entire final day.
+  const to = toMs != null ? Math.ceil((toMs + 1) / 1000) : undefined;
 
   const enabled = Boolean(session) && (options.enabled ?? true);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: buildAccountDealsQueryKey(cacheNamespace, login, from, to),
     queryFn: () => runSessionBoundQuery(
       cacheNamespace,
@@ -153,6 +150,7 @@ export function useAccountDealsQuery(options: PollingQueryOptions = {}) {
     staleTime: options.staleTime,
     subscribed: options.subscribed,
   });
+  return { ...query, data: query.data?.deals, historyComplete: query.data?.complete, historyIncompleteReason: query.data?.reason };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,22 +168,35 @@ export function useChartDealsQuery(
   login: number | undefined,
   options: ChartDealsQueryOptions = {},
 ) {
+  const queryClient = useQueryClient();
   const session = useActiveBrokerQuerySession();
   const cacheNamespace = getSessionQueryCacheNamespace(session);
   const enabled = Boolean(session) && (options.enabled ?? true);
 
-  return useQuery({
-    queryKey: getChartDealsQueryKey(cacheNamespace, login),
+  const queryKey = getChartDealsQueryKey(cacheNamespace, login);
+  const query = useQuery({
+    queryKey,
     queryFn: () => runSessionBoundQuery(
       cacheNamespace,
-      () => fetchAccountDealsWithLoginFallback(login),
+      async () => {
+        const previous = queryClient.getQueryData<DealHistoryResult>(queryKey);
+        // Periodic full reconciliation covers backdated or corrected executions.
+        const from = getChartDealsRefreshFrom(previous);
+        if (from === undefined || !previous) {
+          return fetchAccountDealsWithLoginFallback(login);
+        }
+        const incoming = await fetchAccountDealsWithLoginFallback(login, from);
+        return mergeChartDealHistory(previous, incoming);
+      },
     ),
     enabled,
-    refetchInterval: resolvePollingRefetchInterval(enabled, 5_000, options.refetchInterval),
+    refetchInterval: resolvePollingRefetchInterval(enabled, 30_000, options.refetchInterval),
+    refetchIntervalInBackground: false,
     refetchOnMount: options.refetchOnMount,
-    staleTime: options.staleTime,
+    staleTime: options.staleTime ?? 30_000,
     subscribed: options.subscribed,
   });
+  return { ...query, data: query.data?.deals, historyComplete: query.data?.complete, historyIncompleteReason: query.data?.reason };
 }
 
 /**
@@ -202,7 +213,7 @@ export function useDealsQuery(
   const enabled = Boolean(session) && !!login && (options.enabled ?? true);
   const from = options.from;
   const to = options.to;
-  return useQuery({
+  const query = useQuery({
     queryKey: getDealsQueryKey(cacheNamespace, login, from, to),
     queryFn: () => runSessionBoundQuery(
       cacheNamespace,
@@ -214,4 +225,5 @@ export function useDealsQuery(
     staleTime: options.staleTime,
     subscribed: options.subscribed,
   });
+  return { ...query, data: query.data?.deals, historyComplete: query.data?.complete, historyIncompleteReason: query.data?.reason };
 }

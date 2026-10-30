@@ -13,6 +13,13 @@ import {
   getOrderTicketOriginHref,
   orderTicketLaunchController,
 } from './orderTicketLaunchController';
+import {
+  ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+  loadOrderTicketScreenRoute,
+} from './orderTicketScreenPreload';
+import { preloadDeferredRouteModule } from '../../ui/components/DeferredRouteMount';
+import { resolveTradingLoginString } from '../../state/tradingLogin';
+import { prefetchOrderTicketData } from '../../utils/navigationPrefetch';
 import { safeRouterBack } from '../../utils/navigation';
 
 type OrderTicketLaunchHostGlobal = typeof globalThis & {
@@ -130,6 +137,17 @@ export function OrderTicketLaunchHost() {
       backInFlightRef.current = false;
     }
   }, [snapshot.visible, snapshot.revision]);
+
+  useEffect(() => {
+    if (snapshot.revision === 0 || !snapshot.symbol) {
+      return;
+    }
+    void preloadDeferredRouteModule(
+      ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+      loadOrderTicketScreenRoute,
+    );
+    prefetchOrderTicketData(resolveTradingLoginString(), snapshot.symbol);
+  }, [snapshot.revision, snapshot.symbol]);
 
   useEffect(() => () => {
     if (backGuardTimerRef.current) {

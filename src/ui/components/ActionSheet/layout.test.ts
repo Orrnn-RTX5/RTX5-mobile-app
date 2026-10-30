@@ -411,7 +411,7 @@ test('an alternating MT5 config is parked before React can paint replacement row
   );
   assert.match(
     visibilityEffectSource,
-    /const shouldPrepareParkedMt5Open =[\s\S]*visible &&[\s\S]*activeEntryMotion === 'mt5Slide' &&[\s\S]*hostHiddenImperativelyRef\.current[\s\S]*const shouldReleaseParkedMt5Open =[\s\S]*mt5ConfigSwapAnimationPendingRef\.current &&[\s\S]*!mt5ConfigSwapHostParkedRef\.current[\s\S]*!shouldPrepareParkedMt5Open &&[\s\S]*!shouldReleaseParkedMt5Open/,
+    /const shouldRestoreHiddenOpen = visible && hostHiddenImperativelyRef\.current;[\s\S]*const shouldPrepareParkedMt5Open =[\s\S]*shouldRestoreHiddenOpen && activeEntryMotion === 'mt5Slide'[\s\S]*const shouldReleaseParkedMt5Open =[\s\S]*mt5ConfigSwapAnimationPendingRef\.current &&[\s\S]*!mt5ConfigSwapHostParkedRef\.current[\s\S]*!shouldRestoreHiddenOpen &&[\s\S]*!shouldReleaseParkedMt5Open/,
   );
   assert.match(
     visibilityEffectSource,
@@ -604,7 +604,7 @@ test('android instant sheets keep final-frame opening while MT5 sheets snap the 
     /activeDetent === 'large'\s*\?\s*Number\.POSITIVE_INFINITY\s*:\s*reservedChromeHeight \+ maximumActionsViewportHeight/,
   );
   assert.match(source, /length: uniformActionRowHeight,[\s\S]*offset: uniformActionRowHeight \* index/);
-  assert.match(source, /const deferredActionListKey = activeDeferOffscreenActions[\s\S]*activeVisualKey \?\? 'deferred-action-list'/);
+  assert.match(source, /const deferredActionListKey = activeDeferOffscreenActions[\s\S]*searchableActionListKey\(activeVisualKey, activeSearchable && !scrollSheetChrome, query\)/);
   assert.match(source, /key=\{deferredActionListKey\}/);
   assert.match(source, /const handleSearchQueryChange = useCallback[\s\S]*activeDeferOffscreenActions[\s\S]*scrollToOffset\(\{ offset: 0, animated: false \}\)[\s\S]*setQuery\(nextQuery\)/);
   assert.match(source, /if \(!visible\)[\s\S]*activeDeferOffscreenActions[\s\S]*scrollToOffset\(\{ offset: 0, animated: false \}\)[\s\S]*activeSearchable && query\.length > 0[\s\S]*setQuery\(''\)/);

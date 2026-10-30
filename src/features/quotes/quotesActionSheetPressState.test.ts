@@ -179,7 +179,7 @@ test('quote symbol action sheets stay Quotes-private and open synchronously on c
   );
   assert.match(
     source,
-    /const openChartTabForSymbol = useCallback\(\(sym: string\) => \{[\s\S]*const chartTimeframe = prepareChartSymbol\(sym\);[\s\S]*prefetchChartSelectionHistory\(sym, chartTimeframe\);[\s\S]*const revealRequestedChart = \(\) => \{[\s\S]*const visualRevision = showFastTabVisual\('chart'\);[\s\S]*navigateMountedSidebarTab\('\/chart'\)[\s\S]*router\.push\('\/\(tabs\)\/chart'\)[\s\S]*scheduleQuoteSheetVisualBoundary\(revealRequestedChart\);[\s\S]*\}, \{ routeChange: true \}\);/,
+    /const openChartTabForSymbol = useCallback\(\(sym: string\) => \{[\s\S]*const chartTimeframe = prepareChartSymbol\((?:sym|targetSymbol)\);[\s\S]*prefetchChartSelectionHistory\((?:sym|targetSymbol), chartTimeframe\);[\s\S]*const revealRequestedChart = \(\) => \{[\s\S]*const visualRevision = showFastTabVisual\('chart'\);[\s\S]*navigateMountedSidebarTab\('\/chart'\)[\s\S]*router\.push\('\/\(tabs\)\/chart'\)[\s\S]*scheduleQuoteSheetVisualBoundary\(revealRequestedChart\);[\s\S]*\}, \{ routeChange: true \}\);/,
     'the previous-symbol Chart surface must stay hidden until the target symbol reaches the retained tree',
   );
   assert.match(
@@ -216,7 +216,7 @@ test('quote symbol action sheets stay Quotes-private and open synchronously on c
   );
   assert.match(
     preparationSource,
-    /if \(prefetchChartHistory\) \{[\s\S]*prefetchChartSelectionHistory\(sym, chartTimeframe\)[\s\S]*prepareOrderTicketLaunch\(sym, 'quotes'\);[\s\S]*prepareQuoteInfoLaunch\(sym\)/,
+    /if \(prefetchChartHistory\) \{[\s\S]*prefetchChartSelectionHistory\((?:sym|targetSymbol), chartTimeframe\)[\s\S]*prepareOrderTicketLaunch\(sym, 'quotes'\);[\s\S]*prepareQuoteInfoLaunch\(sym\)/,
     'chart-history and destination work must remain outside the synchronous open callback',
   );
   assert.doesNotMatch(

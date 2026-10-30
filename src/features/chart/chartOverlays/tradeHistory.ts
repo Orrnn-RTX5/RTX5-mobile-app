@@ -73,8 +73,8 @@ export type ChartTradeHistoryOverlay = {
 };
 
 const VOLUME_EPSILON = 1e-9;
-// MT5's history connector is slightly stronger than a one-pixel guide.
-const TRADE_HISTORY_CONNECTOR_LINE_WIDTH = 1.5;
+// Keep overlapping history connectors light enough to read the candles.
+const TRADE_HISTORY_CONNECTOR_LINE_WIDTH = 1;
 
 const toFinitePositiveNumber = (value: unknown): number | null => {
   const numeric = Number(value);
@@ -296,7 +296,9 @@ const consumeOpeningLots = (
   return remaining;
 };
 
-const pairAtomicDeals = (executions: NormalizedDealExecution[]): MatchedExecution[] => {
+const pairAtomicDeals = (
+  executions: NormalizedDealExecution[],
+): { matches: MatchedExecution[]; openings: OpeningLot[] } => {
   const openings: OpeningLot[] = [];
   const matches: MatchedExecution[] = [];
 
@@ -315,7 +317,7 @@ const pairAtomicDeals = (executions: NormalizedDealExecution[]): MatchedExecutio
     }
   });
 
-  return matches;
+  return { matches, openings };
 };
 
 const buildCandleTimeline = (
@@ -406,7 +408,16 @@ const alignExecutionToLoadedCandle = (
     && nextGap > 0
     && nextGap <= timeline.expectedDurationSeconds * 1.5;
   const candleEnd = hasPlausibleNextBoundary ? nextCandleTime : expectedEnd;
-  return executionTime < candleEnd ? candleTime : null;
+  if (executionTime < candleEnd) return candleTime;
+  if (nextCandleTime === undefined && !timeline.isMonthly) {
+    // Live executions or broker-clock timestamps can arrive slightly ahead of
+    // the latest loaded bar before the next quote tick opens a new candle.
+    const liveTailGraceSeconds = Math.max(timeline.expectedDurationSeconds * 15, 4 * 60 * 60);
+    if (executionTime < candleEnd + liveTailGraceSeconds) {
+      return candleTime;
+    }
+  }
+  return null;
 };
 
 const buildExecutionMarker = (
@@ -509,14 +520,22 @@ export const buildChartTradeHistoryOverlay = ({
   const pairedPositionCloseSignatures = new Set<string>();
   const pairedOpeningSignatures = new Set<string>();
   const pairedOpeningLocationSignatures = new Set<string>();
+  const pairedNoTicketOpeningLocationSignatures = new Set<string>();
   const atomicOpeningPositionTickets = new Set<string>();
   const pairedFallbackSignatures = new Set<string>();
   const normalizedDeals = normalizeDealExecutions(deals ?? [], normalizedChartSymbol);
 
   normalizedDeals.forEach((execution) => {
     if (execution.entry !== 'in') return;
+    const locationSignature = fallbackOpeningLocationSignature(
+      execution.action,
+      execution.time,
+      execution.price,
+    );
     if (execution.positionTicket) {
       atomicOpeningPositionTickets.add(execution.positionTicket);
+    } else {
+      pairedNoTicketOpeningLocationSignatures.add(locationSignature);
     }
     pairedOpeningSignatures.add(fallbackOpeningSignature(
       execution.positionTicket,
@@ -524,11 +543,7 @@ export const buildChartTradeHistoryOverlay = ({
       execution.time,
       execution.price,
     ));
-    pairedOpeningLocationSignatures.add(fallbackOpeningLocationSignature(
-      execution.action,
-      execution.time,
-      execution.price,
-    ));
+    pairedOpeningLocationSignatures.add(locationSignature);
   });
 
   // Keep the live-position opening as a temporary execution source. This is
@@ -537,15 +552,19 @@ export const buildChartTradeHistoryOverlay = ({
   const retainedOpeningExecutions = normalizeOpenPositionExecutions(
     openPositions ?? [],
     normalizedChartSymbol,
-  ).filter((execution) => (
-    execution.positionTicket
+  ).filter((execution) => {
+    const locationSignature = fallbackOpeningLocationSignature(
+      execution.action,
+      execution.time,
+      execution.price,
+    );
+    if (pairedNoTicketOpeningLocationSignatures.has(locationSignature)) {
+      return false;
+    }
+    return execution.positionTicket
       ? !atomicOpeningPositionTickets.has(execution.positionTicket)
-      : !pairedOpeningLocationSignatures.has(fallbackOpeningLocationSignature(
-        execution.action,
-        execution.time,
-        execution.price,
-      ))
-  ));
+      : !pairedOpeningLocationSignatures.has(locationSignature);
+  });
   retainedOpeningExecutions.forEach((execution) => {
     pairedOpeningSignatures.add(fallbackOpeningSignature(
       execution.positionTicket,
@@ -559,9 +578,37 @@ export const buildChartTradeHistoryOverlay = ({
       execution.price,
     ));
   });
-  const atomicMatches = pairAtomicDeals(
+  const { matches: atomicMatches, openings: pairedOpeningLots } = pairAtomicDeals(
     [...normalizedDeals, ...retainedOpeningExecutions].sort(compareNormalizedExecutions),
   );
+  const fullyClosedPositionTickets = new Set<string>();
+  const partiallyOpenPositionTickets = new Set<string>();
+  const fullyClosedNoTicketOpeningLocations = new Set<string>();
+  const partiallyOpenNoTicketOpeningLocations = new Set<string>();
+  pairedOpeningLots.forEach((lot) => {
+    const isFullyClosed =
+      lot.execution.volume > VOLUME_EPSILON && lot.remainingVolume <= VOLUME_EPSILON;
+    if (lot.execution.positionTicket) {
+      if (isFullyClosed && !partiallyOpenPositionTickets.has(lot.execution.positionTicket)) {
+        fullyClosedPositionTickets.add(lot.execution.positionTicket);
+      } else {
+        partiallyOpenPositionTickets.add(lot.execution.positionTicket);
+        fullyClosedPositionTickets.delete(lot.execution.positionTicket);
+      }
+      return;
+    }
+    const locationSignature = fallbackOpeningLocationSignature(
+      lot.execution.action,
+      lot.execution.time,
+      lot.execution.price,
+    );
+    if (isFullyClosed && !partiallyOpenNoTicketOpeningLocations.has(locationSignature)) {
+      fullyClosedNoTicketOpeningLocations.add(locationSignature);
+    } else {
+      partiallyOpenNoTicketOpeningLocations.add(locationSignature);
+      fullyClosedNoTicketOpeningLocations.delete(locationSignature);
+    }
+  });
 
   // An execution arrow does not depend on the trade being closed. MT5 paints
   // the entry arrow as soon as an entry_in deal exists, then adds the exit
@@ -657,8 +704,12 @@ export const buildChartTradeHistoryOverlay = ({
     // Some broker history adapters expose the terminal close moment only as
     // time_update. Prefer the dedicated close field, then use that documented
     // ClosedPosition fallback so a valid completed trade is not discarded.
-    const closeTime = normalizeTimestampToSeconds(record.time_close)
+    const rawCloseTime = normalizeTimestampToSeconds(record.time_close)
       ?? normalizeTimestampToSeconds(record.time_update);
+    const closeTime =
+      rawCloseTime !== null && openTime !== null && rawCloseTime < openTime && openTime - rawCloseTime <= 60
+        ? openTime
+        : rawCloseTime;
     if (
       symbol !== normalizedChartSymbol
       || !side
@@ -673,13 +724,22 @@ export const buildChartTradeHistoryOverlay = ({
 
     const positionTicket = toPositiveIdentifier(record.ticket);
     const signature = fallbackTradeSignature(side, openTime, openPrice, closeTime, closePrice);
+    const openingLocationSignature = fallbackOpeningLocationSignature(
+      side,
+      openTime,
+      openPrice,
+    );
     if (
-      (positionTicket && pairedPositionCloseSignatures.has(positionCloseSignature(
-        positionTicket,
-        side,
-        closeTime,
-        closePrice,
-      )))
+      (positionTicket && (
+        fullyClosedPositionTickets.has(positionTicket)
+        || pairedPositionCloseSignatures.has(positionCloseSignature(
+          positionTicket,
+          side,
+          closeTime,
+          closePrice,
+        ))
+      ))
+      || fullyClosedNoTicketOpeningLocations.has(openingLocationSignature)
       || pairedFallbackSignatures.has(signature)
     ) {
       return;
@@ -736,17 +796,16 @@ export const buildChartTradeHistoryOverlay = ({
     // second and price. Location-only reuse is reserved for rows whose broker
     // omitted the position ticket, where no stronger identity exists.
     const openingAlreadyRepresented = positionTicket
-      ? pairedOpeningSignatures.has(fallbackOpeningSignature(
-        positionTicket,
-        side,
-        openTime,
-        openPrice,
-      ))
-      : pairedOpeningLocationSignatures.has(fallbackOpeningLocationSignature(
-        side,
-        openTime,
-        openPrice,
-      ));
+      ? (
+        pairedOpeningSignatures.has(fallbackOpeningSignature(
+          positionTicket,
+          side,
+          openTime,
+          openPrice,
+        ))
+        || pairedNoTicketOpeningLocationSignatures.has(openingLocationSignature)
+      )
+      : pairedOpeningLocationSignatures.has(openingLocationSignature);
     if (alignedOpenTime !== null && !openingAlreadyRepresented) {
       const marker = buildExecutionMarker(
         openingExecution,

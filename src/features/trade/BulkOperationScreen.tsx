@@ -20,10 +20,12 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePositionsState } from '../../state/positionsState';
+import { isRenderablePositionSymbol } from '../../state/positionsMapper';
 import { useUserPreferences } from '../../state/userPreferences';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { resolveTradingLoginString } from '../../state/tradingLogin';
 import { positionsApi } from '../../api/positions';
+import { StaleBrokerSessionError } from '../../api/brokerApi';
 import { appQueryClient } from '../../state/providers/AppProviders';
 import { spacing } from '../../ui/theme/index';
 import { useTheme } from '../../ui/theme/useTheme';
@@ -33,10 +35,9 @@ import { safeRouterBack } from '../../utils/navigation';
 import { useTranslation } from '../../i18n/useTranslation';
 import { CRITICAL_TRADE_ACTION_MAX_LATENCY_MS } from '../../utils/actionLatency';
 import { bulkModeLabel, filterPositionsForBulk } from './tradeFlow';
-import { resolveLivePositionPnl } from './livePositionMetrics';
-import { runBulkClose } from './bulkClose';
+import { resolveLivePositionPnl, resolveLivePositionPrice } from './livePositionMetrics';
+import { resolveBulkCloseFeedback, runBulkClose } from './bulkClose';
 import {
-  classifyTradingError,
   createFrontendTradingError,
   formatTradingErrorFeedback,
 } from '../../api/tradingErrors';
@@ -53,7 +54,7 @@ import {
 } from '../../market/feedHealthRuntime';
 import {
   captureActiveBrokerSessionProvenance,
-  isActiveBrokerSessionProvenanceCurrent,
+  isActiveBrokerSessionCurrent,
 } from '../../state/activeBrokerSession';
 import { invalidateSessionQueryRoots } from '../../query/authenticatedQueryScope';
 import { requestOrrnnDemoTradeAuth } from './tradeAuthPrompt';
@@ -78,10 +79,11 @@ export function BulkOperationScreen() {
   const { t } = useTranslation();
   const investorReadOnly = useInvestorReadOnlySession();
   const retainedPositionsRef = useRef(usePositionsState.getState().positions);
+  const retainLivePositions = isScreenFocused && !isRunning && !runningRef.current;
   const positions = usePositionsState((state) => (
-    isScreenFocused ? state.positions : retainedPositionsRef.current
+    retainLivePositions ? state.positions : retainedPositionsRef.current
   ));
-  if (isScreenFocused) {
+  if (retainLivePositions) {
     retainedPositionsRef.current = positions;
   }
   const resolvedLogin = resolveTradingLoginString();
@@ -97,9 +99,22 @@ export function BulkOperationScreen() {
       : translated;
   }, [mode, t]);
 
+  const renderablePositions = useMemo(
+    () => positions.filter((position) => isRenderablePositionSymbol(position.symbol)),
+    [positions],
+  );
+  const allPositionSymbols = useMemo(
+    () => Array.from(new Set(renderablePositions.map((position) => position.symbol))),
+    [renderablePositions],
+  );
+  const allPositionQuotes = useLiveSymbolQuotes(
+    allPositionSymbols,
+    isScreenFocused && allPositionSymbols.length > 0 && (mode === 'profitable' || mode === 'losing'),
+    0,
+  );
   const affectedPositions = useMemo(
-    () => filterPositionsForBulk(positions, mode),
-    [positions, mode]
+    () => filterPositionsForBulk(renderablePositions, mode, allPositionQuotes),
+    [renderablePositions, mode, allPositionQuotes]
   );
   const affectedSymbols = useMemo(
     () => Array.from(new Set(affectedPositions.map((position) => position.symbol))),
@@ -216,6 +231,7 @@ export function BulkOperationScreen() {
     const actionProvenance = captureActiveBrokerSessionProvenance();
     if (!actionProvenance) return;
 
+    retainedPositionsRef.current = positions;
     runningRef.current = true;
     setIsRunning(true);
     setStatusMessage(null);
@@ -224,31 +240,44 @@ export function BulkOperationScreen() {
     const snapshots = affectedPositions.map((position) => ({ ...position }));
     const state = usePositionsState.getState();
     for (const position of snapshots) {
+      const symbolQuote = quotes[position.symbol];
+      const liveClosePrice = resolveLivePositionPrice(position, symbolQuote);
+      const liveClosePnl = resolveLivePositionPnl(position, symbolQuote);
+      state.recordClosedPosition(position, {
+        closePrice: Number.isFinite(liveClosePrice) && liveClosePrice > 0 ? liveClosePrice : undefined,
+        profit: Number.isFinite(liveClosePnl) ? liveClosePnl : undefined,
+        accountLogin: resolvedLogin,
+      });
       state.beginOptimisticClose(position.id);
     }
 
     safeRouterBack(router, '/(tabs)/trade');
 
-    // The first close runs alone: a 503 ENGINE_CLOSE_UNAVAILABLE (or an
-    // investor read-only login) stops the batch instead of firing N doomed
-    // closes. Nothing here retries.
-    const { results, stopError } = await runBulkClose(
+    // Serialize closes and check account ownership before every send. A normal
+    // token refresh keeps this account identity; switching accounts does not.
+    const summary = await runBulkClose(
       snapshots,
       (position) => positionsApi.closePosition(position.id),
+      {
+        assertCurrent: () => {
+          if (!isActiveBrokerSessionCurrent(actionProvenance.identity)) {
+            throw new StaleBrokerSessionError();
+          }
+        },
+      },
     );
-    if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) {
+    if (!isActiveBrokerSessionCurrent(actionProvenance.identity)) {
       runningRef.current = false;
+      setIsRunning(false);
       return;
     }
 
     const latest = usePositionsState.getState();
-    let failed = 0;
-    results.forEach((result, index) => {
+    summary.results.forEach((result, index) => {
       const snapshot = snapshots[index];
       if (result.status === 'fulfilled') {
         latest.finishOptimisticClose(snapshot.id);
       } else {
-        failed += 1;
         latest.rollbackOptimisticClose(snapshot);
       }
     });
@@ -258,28 +287,31 @@ export function BulkOperationScreen() {
       actionProvenance.cacheNamespace,
       ['positionHistory', 'accountDeals', 'deals', 'positions', 'ordersByLogin', 'accountSummary', 'transactions'],
     );
+    setTimeout(() => {
+      if (!isActiveBrokerSessionCurrent(actionProvenance.identity)) return;
+      void invalidateSessionQueryRoots(
+        appQueryClient,
+        actionProvenance.cacheNamespace,
+        ['positionHistory', 'accountDeals', 'deals', 'positions', 'ordersByLogin', 'accountSummary', 'transactions'],
+      );
+    }, 1200);
 
     if (resolvedLogin) {
       void latest.refreshPositions(resolvedLogin);
     }
 
-    if (stopError) {
-      const feedback = classifyTradingError(stopError, { action: 'close-position' });
-      Alert.alert(feedback.title, t(feedback.message));
-    } else if (failed > 0) {
-      const feedback = classifyTradingError(
-        new Error(`${failed} of ${snapshots.length} closes failed`),
-        { action: 'close-position' },
-      );
-      Alert.alert(feedback.title, t('Some positions could not be closed. Check Trade and try again.'));
+    const feedback = resolveBulkCloseFeedback(summary);
+    if (feedback) {
+      Alert.alert(t(feedback.title), t(feedback.message));
     }
 
     runningRef.current = false;
     setIsRunning(false);
-  }, [affectedPositions, mode, resolveBulkQuoteBlock, resolvedLogin, t]);
+  }, [affectedPositions, mode, positions, resolveBulkQuoteBlock, resolvedLogin, t]);
 
   if (!isScreenFocused) {
-    return <View style={[styles.root, { backgroundColor: screenBg }]} />;
+    // Keep the screen content mounted while the route pops back to Trade so
+    // losing navigation focus never flashes a blank white surface.
   }
 
   return (

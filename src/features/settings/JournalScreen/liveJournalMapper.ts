@@ -1,5 +1,5 @@
 import type { ClosedPosition } from '../../../api/positions';
-import type { PositionItem } from '../../../dev/mock/tradingData';
+import type { PositionItem } from '../../../domain/tradingModels';
 import type {
   MarketType,
   TradeCloseType,

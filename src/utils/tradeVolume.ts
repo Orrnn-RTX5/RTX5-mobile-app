@@ -36,9 +36,12 @@ function roundToDecimals(value: number, decimals: number) {
 }
 
 export function resolveTradeVolumeBounds(bounds?: TradeVolumeBounds) {
-  const minVolume = Math.max(toFiniteNumber(bounds?.minVolume) ?? DEFAULT_TRADE_VOLUME, DEFAULT_TRADE_VOLUME);
-  const maxVolume = Math.max(toFiniteNumber(bounds?.maxVolume) ?? FALLBACK_MAX_TRADE_VOLUME, minVolume);
-  const stepVolume = Math.max(toFiniteNumber(bounds?.stepVolume) ?? FALLBACK_TRADE_VOLUME_STEP, FALLBACK_TRADE_VOLUME_STEP);
+  const rawMin = toFiniteNumber(bounds?.minVolume);
+  const minVolume = rawMin !== null && rawMin > 0 ? rawMin : DEFAULT_TRADE_VOLUME;
+  const rawMax = toFiniteNumber(bounds?.maxVolume);
+  const maxVolume = Math.max(rawMax !== null && rawMax > 0 ? rawMax : FALLBACK_MAX_TRADE_VOLUME, minVolume);
+  const rawStep = toFiniteNumber(bounds?.stepVolume);
+  const stepVolume = rawStep !== null && rawStep > 0 ? rawStep : FALLBACK_TRADE_VOLUME_STEP;
   const decimals = Math.max(countDecimals(minVolume), countDecimals(stepVolume), 2);
 
   return {

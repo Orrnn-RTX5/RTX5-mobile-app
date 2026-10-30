@@ -27,6 +27,7 @@ import {
 import { subscribeQuoteSnapshotReconcile } from '../../market/quoteSnapshotReconcileRuntime';
 import { subscribePublicBrokerContext } from '../../state/publicBrokerContext';
 import { subscribePublicQuoteInvalidation } from '../../state/publicQuoteAvailability';
+import { registerExecutionQuoteReader } from '../../market/executionQuoteSource';
 import { markQuoteSnapshotUnavailable, QuoteSnapshotContinuity } from './quoteSnapshotContinuity';
 import {
   applyLiveQuoteTickToSnapshot,
@@ -82,6 +83,37 @@ const getQuoteDisplayScope = () => ({
   credentialKey: getQuoteCacheNamespace(),
 });
 
+let snapshotCacheScope = { sessionKey: '', credentialKey: '' };
+
+const synchronizeQuoteSnapshotScope = (): string => {
+  const namespace = getQuoteCacheNamespace();
+  if (snapshotCacheScope.credentialKey === namespace) return namespace;
+  const nextScope = getQuoteDisplayScope();
+  if (snapshotCacheScope.sessionKey === nextScope.sessionKey) {
+    // Keep only one last price per symbol across token rotation, including
+    // volume-only repairs that arrived after the last websocket tick. The
+    // continuity cache marks those prices unavailable for the new credential.
+    for (const snapshot of snapshotsBySymbol.values()) {
+      if (snapshot) quoteSnapshotContinuity.retain(snapshotCacheScope, snapshot.symbol, snapshot);
+    }
+  } else {
+    quoteSnapshotContinuity.clear();
+  }
+  snapshotCacheScope = nextScope;
+  snapshotsBySymbol.clear();
+  listenersBySymbol.clear();
+  pendingNotifySymbols.clear();
+  if (notifyAnimationFrame !== null) {
+    cancelAnimationFrame(notifyAnimationFrame);
+    notifyAnimationFrame = null;
+  }
+  if (notifyTimer) {
+    clearTimeout(notifyTimer);
+    notifyTimer = null;
+  }
+  return namespace;
+};
+
 const subscribeQuoteCacheNamespace = (listener: () => void): (() => void) => {
   const unsubscribePublic = subscribePublicBrokerContext(listener);
   const unsubscribeSession = subscribeActiveBrokerSession(() => listener());
@@ -100,8 +132,12 @@ const subscribeQuoteCacheNamespace = (listener: () => void): (() => void) => {
   };
 };
 
+// One runtime subscription releases old credential scopes even while no quote
+// row is mounted. Hook subscriptions still own their normal render lifecycle.
+subscribeQuoteCacheNamespace(synchronizeQuoteSnapshotScope);
+
 const getQuoteCacheNamespaceSnapshot = (): string =>
-  getQuoteCacheNamespace();
+  synchronizeQuoteSnapshotScope();
 
 const getServerQuoteCacheNamespaceSnapshot = (): string => '';
 
@@ -113,7 +149,7 @@ const useActiveQuoteCacheNamespace = (): string =>
   );
 
 const scopeQuoteSnapshotKey = (symbolKey: string): string => {
-  const namespace = getQuoteCacheNamespace();
+  const namespace = synchronizeQuoteSnapshotScope();
   return namespace && symbolKey ? `${namespace}|${symbolKey}` : '';
 };
 
@@ -304,6 +340,12 @@ const resolveSnapshot = (symbol: string): LiveQuoteSnapshot | undefined => {
 export const getCurrentLiveQuoteSnapshot = (
   symbol: string,
 ): LiveQuoteSnapshot | undefined => resolveSnapshot(normalizeQuoteSymbolKey(symbol));
+
+registerExecutionQuoteReader((namespace, symbol) => (
+  getQuoteDisplayScope().sessionKey === namespace
+    ? getCurrentLiveQuoteSnapshot(symbol)
+    : undefined
+));
 
 export const subscribeLiveQuoteSnapshots = (
   symbols: string[],
@@ -850,6 +892,7 @@ export const resetLiveQuoteSnapshotRuntimeState = (): void => {
   snapshotPauseTimers.forEach((timer) => clearTimeout(timer));
   snapshotPauseTimers.clear();
   snapshotsBySymbol.clear();
+  snapshotCacheScope = { sessionKey: '', credentialKey: '' };
   quoteSnapshotContinuity.clear();
   listenersBySymbol.clear();
   pendingNotifySymbols.clear();

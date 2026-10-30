@@ -12,6 +12,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { bindNativeQueryFocus } from './nativeQueryFocus';
 import { bindNativeInteractionLifecycle } from '../../utils/interactionLifecycle';
+import { PendingOrderEventBanner } from '../../ui/components/PendingOrderEventBanner';
 
 function getQueryErrorStatus(error: unknown): number | undefined {
   if (!error || typeof error !== 'object') {
@@ -70,7 +71,7 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
-        <QueryClientProvider client={appQueryClient}>{children}</QueryClientProvider>
+        <QueryClientProvider client={appQueryClient}>{children}<PendingOrderEventBanner /></QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

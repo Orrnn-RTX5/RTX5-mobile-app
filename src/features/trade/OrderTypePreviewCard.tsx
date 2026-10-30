@@ -1,3 +1,4 @@
+import { formatBackendPrice } from '../../utils/backendPrice';
 import { useCallback, useMemo, useState } from 'react';
 import { LayoutChangeEvent, PanResponder, StyleSheet, Text, View } from 'react-native';
 import Svg, {
@@ -290,7 +291,7 @@ export function OrderTypePreviewCard({
                   fontWeight='800'
                   textAnchor='middle'
                 >
-                  {resolvedTriggerPrice.toFixed(decimals)}
+                  {formatBackendPrice(resolvedTriggerPrice)}
                 </SvgText>
                 <Circle cx={chartRightX - 8} cy={triggerY} r={5.5} fill={triggerColor} />
                 <Circle
@@ -311,7 +312,7 @@ export function OrderTypePreviewCard({
                 ASK
               </SvgText>
               <SvgText x={(RIGHT_AXIS_WIDTH - 16) / 2} y={21} fill='#FFFFFF' fontSize='9' fontWeight='800' textAnchor='middle'>
-                {ask.toFixed(decimals)}
+                {formatBackendPrice(ask)}
               </SvgText>
             </G>
 
@@ -321,7 +322,7 @@ export function OrderTypePreviewCard({
                 BID
               </SvgText>
               <SvgText x={(RIGHT_AXIS_WIDTH - 16) / 2} y={21} fill='#FFFFFF' fontSize='9' fontWeight='800' textAnchor='middle'>
-                {bid.toFixed(decimals)}
+                {formatBackendPrice(bid)}
               </SvgText>
             </G>
           </Svg>

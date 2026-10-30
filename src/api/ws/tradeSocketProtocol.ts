@@ -14,7 +14,7 @@
  * Kept free of React Native imports so it can be unit tested under node.
  */
 
-export const TRADE_SOCKET_CHANNEL_PREFIXES = ['positions', 'metrics'] as const;
+export const TRADE_SOCKET_CHANNEL_PREFIXES = ['positions', 'metrics', 'orders'] as const;
 
 export type TradeSocketSubscribeMessage = Readonly<{ action: 'subscribe'; channel: string }>;
 
@@ -124,9 +124,11 @@ export const parseTradeSocketFrame = (payload: unknown): TradeSocketFrame => {
 
   // Legacy flat shapes: `{channel, event, data:[rows]}`, `{channel, data:{...row}}`,
   // `{type:'position.update', data:{...}}`, or a bare record.
-  const eventName =
-    outerEventName ||
-    normalizeTradeSocketEventName(record.type ?? record.event ?? record.action);
+  const explicitEventName = normalizeTradeSocketEventName(record.event ?? record.type ?? record.action);
+  // A pending row has its own order `type` (buy_limit, sell_stop, ...).
+  // That field must not hide an ORDER_PLACED / ORDER_MODIFIED envelope.
+  const eventName = explicitEventName && !['event', 'message', 'update'].includes(explicitEventName)
+    ? explicitEventName : outerEventName || explicitEventName;
   return Object.freeze({
     kind: 'event' as const,
     channel,

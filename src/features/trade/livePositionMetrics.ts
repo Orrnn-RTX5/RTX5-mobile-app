@@ -1,4 +1,4 @@
-import type { PositionItem, QuoteItem } from '../../dev/mock/tradingData';
+import type { PositionItem, QuoteItem } from '../../domain/tradingModels';
 import { normalizeSymbol } from '../../domain/symbols.ts';
 import { MARKET_QUOTE_STALE_AFTER_MS } from '../../market/quotePolicy.ts';
 
@@ -165,6 +165,45 @@ export function sumLivePositionPnl(
 ): number {
   return positions.reduce(
     (total, position) => total + resolveLivePositionPnl(position, quotesBySymbol[position.symbol]),
+    0,
+  );
+}
+
+export function resolveLivePositionMargin(
+  position: PositionItem,
+  quote?: QuoteLike,
+  leverage = 100,
+): number {
+  const volume = toFiniteNumber(position.volume) ?? 0;
+  if (volume <= 0) {
+    return 0;
+  }
+
+  const openPrice = toFiniteNumber(position.openPrice);
+  const price =
+    openPrice !== undefined && openPrice > 0
+      ? openPrice
+      : resolveLivePositionPrice(position, quote);
+  if (!Number.isFinite(price) || price <= 0) {
+    return 0;
+  }
+
+  const contractSize = inferContractSize(position, quote);
+  const effectiveLeverage = toFiniteNumber(leverage);
+  const safeLeverage =
+    effectiveLeverage !== undefined && effectiveLeverage > 0 ? effectiveLeverage : 100;
+  const margin = (volume * contractSize * price) / safeLeverage;
+  return Number.isFinite(margin) && margin > 0 ? margin : 0;
+}
+
+export function sumLivePositionMargin(
+  positions: PositionItem[],
+  quotesBySymbol: Record<string, Partial<QuoteItem> | undefined> = {},
+  leverage = 100,
+): number {
+  return positions.reduce(
+    (total, position) =>
+      total + resolveLivePositionMargin(position, quotesBySymbol[position.symbol], leverage),
     0,
   );
 }

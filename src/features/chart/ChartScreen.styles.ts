@@ -227,7 +227,7 @@ export function makeStyles(T: ThemeColors, isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'stretch',
       justifyContent: 'flex-end',
-      columnGap: 8,
+      columnGap: 4,
       minHeight: 48,
       paddingLeft: 6,
       paddingRight: 0,
@@ -1749,6 +1749,15 @@ export function makeStyles(T: ThemeColors, isDark: boolean) {
       fontSize: 17,
       fontWeight: '600',
       fontVariant: ['tabular-nums'],
+    },
+    stepperModalDragHint: {
+      color: TRADE_SHEET_TEXT_MUTED,
+      fontSize: 12,
+      textAlign: 'center',
+      marginTop: 6,
+    },
+    stepperModalWheelSelection: {
+      borderColor: TRADE_SHEET_BORDER,
     },
     stepperModalMinus: {
       width: 52,

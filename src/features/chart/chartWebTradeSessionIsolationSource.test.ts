@@ -7,6 +7,14 @@ const source = readFileSync(
   resolve(process.cwd(), 'src/features/chart/ChartScreen.web.tsx'),
   'utf8',
 );
+const marketTradeReceiptsSource = readFileSync(
+  resolve(process.cwd(), 'src/features/trade/useMarketTradeReceipts.ts'),
+  'utf8',
+);
+const marketTradeReceiptCallbacksSource = readFileSync(
+  resolve(process.cwd(), 'src/features/trade/marketTradeReceiptCallbacks.ts'),
+  'utf8',
+);
 
 test('web chart trade callbacks cannot render a prior broker epoch result', () => {
   const start = source.indexOf('const LiveTradeButtons');
@@ -17,10 +25,14 @@ test('web chart trade callbacks cannot render a prior broker epoch result', () =
   assert.match(buttons, /String\(tradingLogin\) !== actionProvenance\.identity\.accountLogin/);
   assert.match(
     buttons,
-    /onSuccess: \(data: any\) => \{\s*if \(!isActiveBrokerSessionProvenanceCurrent\(actionProvenance\)\)/,
+    /createTradeReceipt\(\{ symbol, side: action\.side, volume: Number\(lotSize\) \}, actionProvenance\.cacheNamespace\)/,
   );
   assert.match(
-    buttons,
-    /onError: \(err: any\) => \{\s*if \(!isActiveBrokerSessionProvenanceCurrent\(actionProvenance\)\)/,
+    marketTradeReceiptsSource,
+    /\(\) => isMarketOrderFeedbackCurrent\(namespace\)/,
+  );
+  assert.match(
+    marketTradeReceiptCallbacksSource,
+    /status: isCurrent\(\) \? status : 'cancelled'/,
   );
 });

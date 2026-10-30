@@ -30,6 +30,7 @@ export function LoginAccountScreen(props: Props) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const positions = useRef<Record<string, number>>({});
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(() => { setLogoFailed(false); }, [props.logoUrl]);
   const focus = (key: string) => {
     if (timer.current) clearTimeout(timer.current);
     const reveal = () => {

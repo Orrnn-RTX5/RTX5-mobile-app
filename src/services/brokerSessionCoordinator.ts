@@ -18,6 +18,7 @@ import { candlesWsService } from '../domain/candles/ws/candlesSocket';
 import { resetPersistedCandleCacheSession } from '../domain/candles/state/persistedCandleCache';
 import { resetQuoteRuntimeState } from '../features/quotes/resetQuoteRuntimeState';
 import { resetBrokerSymbolResolverCache } from '../api/orders/symbolResolver';
+import { resetInstrumentMetaCache } from '../api/instrumentMeta';
 import { resetAcceptedMarketOrderSymbolCache } from '../api/orders/placeMarketOrder';
 import { resetAcceptedPendingOrderSymbolCache } from '../api/orders/placePendingOrder';
 import { BROKER_SERVERS_KEY } from '../query/broker';
@@ -232,6 +233,7 @@ export const teardownBrokerSessionRuntime = async (): Promise<void> => {
   resetSessionMarketData();
   resetPositionsSessionState();
   resetBrokerSymbolResolverCache();
+  resetInstrumentMetaCache();
   resetAcceptedMarketOrderSymbolCache();
   resetAcceptedPendingOrderSymbolCache();
   resetPersistedCandleCacheSession();

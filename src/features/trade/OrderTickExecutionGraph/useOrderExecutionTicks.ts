@@ -5,12 +5,11 @@
  * of `TickPoint` history. Every rendered point comes from an observed broker
  * quote; an idle or unavailable feed leaves the trace unchanged.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import {
   appendTick,
   createInitialTickHistory,
   isFiniteTickValue,
-  roundToDecimals,
 } from './tickHelpers';
 import { DEFAULT_MAX_TICKS, type LiveOrderTickExecutionGraphProps, type TickPoint } from './types';
 
@@ -23,38 +22,31 @@ export function useOrderExecutionTicks({
   maxTicks = DEFAULT_MAX_TICKS,
   priceDecimals = 5,
 }: LiveOrderTickExecutionGraphProps) {
-  const [ticks, setTicks] = useState<TickPoint[]>([]);
   const lastRealTickKeyRef = useRef('');
+  const previousSymbolRef = useRef(symbol);
+  const ticksRef = useRef<TickPoint[]>([]);
 
-  useEffect(() => {
-    setTicks([]);
+  if (previousSymbolRef.current !== symbol) {
+    previousSymbolRef.current = symbol;
+    ticksRef.current = [];
     lastRealTickKeyRef.current = '';
-  }, [symbol]);
+  }
 
-  useEffect(() => {
-    if (!enabled || !isFiniteTickValue(bid) || !isFiniteTickValue(ask) || bid <= 0 || ask <= 0 || ask < bid) {
-      return;
-    }
-
+  if (enabled && isFiniteTickValue(bid) && isFiniteTickValue(ask) && bid > 0 && ask > 0 && ask >= bid) {
     const tickTime = isFiniteTickValue(timestamp) && timestamp > 0 ? timestamp : Date.now();
     const nextTick: TickPoint = {
       time: tickTime,
-      bid: roundToDecimals(bid, priceDecimals),
-      ask: roundToDecimals(ask, priceDecimals),
+      bid,
+      ask,
     };
     const tickKey = `${nextTick.time}:${nextTick.bid}:${nextTick.ask}`;
-    if (tickKey === lastRealTickKeyRef.current) {
-      return;
+    if (tickKey !== lastRealTickKeyRef.current) {
+      lastRealTickKeyRef.current = tickKey;
+      ticksRef.current = ticksRef.current.length === 0
+        ? createInitialTickHistory(nextTick, priceDecimals, maxTicks)
+        : appendTick(ticksRef.current, nextTick, maxTicks);
     }
+  }
 
-    lastRealTickKeyRef.current = tickKey;
-    setTicks((currentTicks) => {
-      if (currentTicks.length === 0) {
-        return createInitialTickHistory(nextTick, priceDecimals, maxTicks);
-      }
-      return appendTick(currentTicks, nextTick, maxTicks);
-    });
-  }, [ask, bid, enabled, maxTicks, priceDecimals, timestamp]);
-
-  return ticks;
+  return ticksRef.current;
 }

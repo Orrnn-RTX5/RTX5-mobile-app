@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 
 import {
   assertSourceContains,
+  assertSourceOmits,
   extractFunctionBody,
   readChartScreenSource,
 } from '../support/chartSourceTestUtils';
@@ -213,7 +214,7 @@ test('SL and TP drag keeps moving at the top and bottom chart boundaries', () =>
 
   assertSourceContains(
     resolveDragPriceBody,
-    /series\.coordinateToPrice\(point\.y\)[\s\S]*activeTradeLineDrag && activeTradeLineDrag\.priceScaleRangeLock[\s\S]*lock\.to - normalizedY \* \(lock\.to - lock\.from\)/,
+    /series\.coordinateToPrice\(lineY\)[\s\S]*drag && drag\.priceScaleRangeLock[\s\S]*lock\.to - normalizedY \* \(lock\.to - lock\.from\)/,
     'drag price resolution must fall back to the locked price range when edge coordinates stop producing chart prices',
   );
   assertSourceContains(
@@ -257,7 +258,7 @@ test('SL and TP drag keeps candles fixed while moving vertically', () => {
   );
   assertSourceContains(
     finishDragBody,
-    /keepTradeLineDragPriceScaleLocked\(drag\.priceScaleRangeLock\)[\s\S]*isValidPriceRange\(drag\.manualRangeBeforeDrag\)[\s\S]*rememberManualVerticalPanRange\(drag\.manualRangeBeforeDrag\)[\s\S]*applyManualVerticalPanLockedRange\(\)[\s\S]*else \{[\s\S]*enableRightPriceAutoScale\(\)[\s\S]*postChartTradeLineDrag\('end', drag\.dragKey, roundOverlayDragPrice\(drag\.lastPrice\) \|\| drag\.lastPrice\)/,
+    /keepTradeLineDragPriceScaleLocked\(drag\.priceScaleRangeLock\)[\s\S]*isValidPriceRange\(drag\.manualRangeBeforeDrag\)[\s\S]*rememberManualVerticalPanRange\(drag\.manualRangeBeforeDrag\)[\s\S]*applyManualVerticalPanLockedRange\(\)[\s\S]*else \{[\s\S]*enableRightPriceAutoScale\(\)[\s\S]*postChartTradeLineDrag\(cancelled[\s\S]*'cancel' : 'end', drag\.dragKey, roundOverlayDragPrice\(drag\.lastPrice\) \|\| drag\.lastPrice\)/,
     'SL/TP drag release must restore preexisting manual ownership or return an auto-owned chart to autoscale',
   );
 });
@@ -335,7 +336,7 @@ test('SL and TP drag moves the line while keeping right-axis badges hidden', () 
   );
 });
 
-test('SL and TP drag hides only the active label and price value while retaining its line', () => {
+test('SL and TP drag retains its label, live price handle and horizontal line', () => {
   const activeDragBody = extractFunctionBody(source, 'isActiveSltpDragLine');
   const refreshBody = extractFunctionBody(source, 'refreshOverlayDomLabels(payload)');
   const finishDragBody = extractAssignedFunctionBody(source, 'finishTradeLineDrag');
@@ -343,17 +344,17 @@ test('SL and TP drag hides only the active label and price value while retaining
   assertSourceContains(
     activeDragBody,
     /line\.dragKey !== activeTradeLineDrag\.dragKey[\s\S]*line\.dragKey === 'sl'[\s\S]*line\.dragKey === 'tp'[\s\S]*\/\^position-stop:\(\?:sl\|tp\):\//,
-    'only the exact active draft or existing-position SL/TP line may suppress its text',
+    'only the exact active draft or existing-position SL/TP line owns the drag',
   );
   assertSourceContains(
     refreshBody,
-    /renderAnchoredTradeLine\([\s\S]*anchoredItem,[\s\S]*lineKey,[\s\S]*\);[\s\S]*if \(!isActiveSltpDragLine\(anchoredItem\)\) \{[\s\S]*renderLabel\(anchoredItem/,
-    'active SL/TP drag must retain the horizontal line while omitting its label and value',
+    /renderAnchoredTradeLine\([\s\S]*anchoredItem,[\s\S]*lineKey,[\s\S]*\);[\s\S]*renderLabel\(anchoredItem/,
+    'active SL/TP drag retains the horizontal line and its price label',
   );
-  assertSourceContains(
+  assertSourceOmits(
     refreshBody,
     /if \(isActiveSltpDragLine\(pln\)\) continue;/,
-    'the active SL/TP right-axis price value must also stay hidden during drag',
+    'the active SL/TP right-axis handle stays visible during drag',
   );
   assertSourceContains(
     finishDragBody,
@@ -362,8 +363,8 @@ test('SL and TP drag hides only the active label and price value while retaining
   );
 });
 
-test('SL and TP drag magnifier follows only the exact active protection line and always cleans up', () => {
-  const resolveMagnifierLineBody = extractFunctionBody(source, 'resolveActiveSltpDragLine');
+test('trade drag magnifier follows the exact active protection or pending draft line and always cleans up', () => {
+  const resolveMagnifierLineBody = extractFunctionBody(source, 'resolveActiveTradeLineMagnifierLine');
   const beginDragBody = extractAssignedFunctionBody(source, 'beginTradeLineDrag');
   const continueDragBody = extractAssignedFunctionBody(source, 'continueTradeLineDrag');
   const finishDragBody = extractAssignedFunctionBody(source, 'finishTradeLineDrag');
@@ -371,8 +372,8 @@ test('SL and TP drag magnifier follows only the exact active protection line and
 
   assertSourceContains(
     resolveMagnifierLineBody,
-    /if \(isActiveSltpDragLine\(lines\[i\]\)\) \{\s*return lines\[i\];/,
-    'the magnifier must reuse the exact SL/TP drag-key gate instead of appearing for entry or pending lines',
+    /isActiveSltpDragLine\(lines\[i\]\)[\s\S]*isPendingOrderDraftLine\(lines\[i\]\)[\s\S]*lines\[i\]\.dragKey === activeTradeLineDrag\.dragKey[\s\S]*return lines\[i\];/,
+    'the magnifier must match the exact active protection line or pending entry/stop-limit draft',
   );
   assertSourceContains(
     beginDragBody,
@@ -457,7 +458,7 @@ test('SL and TP drag preserves the active WebView price while native overlays re
 
   assertSourceContains(
     source,
-    /function preserveActiveTradeLineDragPayload\(payload\)[\s\S]*price: activeTradeLineDrag\.lastPrice/,
+    /function preserveActiveTradeLineDragPayload\(payload\)[\s\S]*withDraggedOverlayLinePrice\(line, activeTradeLineDrag\.lastPrice\)/,
     'incoming overlay payloads during drag must keep the local finger price',
   );
   assertSourceContains(
@@ -472,7 +473,7 @@ test('SL and TP drag preserves the active WebView price while native overlays re
   );
 });
 
-test('pending chart CTA submits the pending order and then exposes chart-side levels', () => {
+test('pending chart CTA gates the retained submission flow independently from previews', () => {
   const handlerSource = source.slice(
     source.indexOf('const handleSubmitPendingTradeFromSheet = useCallback'),
     source.indexOf('const handleToggleChartTradeSheetMode', source.indexOf('const handleSubmitPendingTradeFromSheet = useCallback')),
@@ -480,7 +481,7 @@ test('pending chart CTA submits the pending order and then exposes chart-side le
 
   assertSourceContains(
     handlerSource,
-    /if \(isPendingOrderTypeBackendLocked\(chartTradeOrderType\)\) \{\s*return;\s*\}/,
+    /if \(isPendingOrderPlacementBackendLocked\(chartTradeOrderType\)\) \{\s*return;\s*\}/,
     'pending CTA must fail closed until backend readiness is explicitly enabled',
   );
   assertSourceContains(
@@ -729,17 +730,17 @@ test('tap menu is suppressed while lot input or picker interaction is active', (
   );
 });
 
-test('toolbar SL/TP toggles the compact Market Execution panel without activating either level', () => {
+test('toolbar SL/TP exposes pending previews independently and preserves inactive market protection', () => {
   const openHandlerStart = source.indexOf('const handleActivateDirectChartProtection = useCallback');
-  const openHandlerEnd = source.indexOf('const scrollChartTradeTypeTabsToOrderType', openHandlerStart);
+  const openHandlerEnd = source.indexOf('const handleChartTradeOrderTypeSelect', openHandlerStart);
   assert.notEqual(openHandlerStart, -1, 'direct SL/TP toolbar handler was not found');
   assert.notEqual(openHandlerEnd, -1, 'direct SL/TP toolbar handler end was not found');
 
   const openHandlerSource = source.slice(openHandlerStart, openHandlerEnd);
   assertSourceContains(
     openHandlerSource,
-    /runImmediateAction\('chart\.sltp\.direct'[\s\S]*if \(isNewMarketOrderProtectionBackendLocked\(\)\) \{\s*return;\s*\}[\s\S]*activateDirectChartProtection\(\);/,
-    'SL/TP toolbar handler must check the new Market Execution protection capability before activation',
+    /runImmediateAction\('chart\.sltp\.direct'[\s\S]*if \(isChartTradePanelBackendLocked\(\)\) \{\s*return;\s*\}[\s\S]*activateDirectChartProtection\(\);/,
+    'SL/TP toolbar must allow the pending preview panel independently of placement or market protection',
   );
   assert.doesNotMatch(openHandlerSource, /Alert\.alert/);
   const openSheetStart = source.indexOf('const activateDirectChartProtection = useCallback');
@@ -747,12 +748,12 @@ test('toolbar SL/TP toggles the compact Market Execution panel without activatin
   const openSheetSource = source.slice(openSheetStart, openSheetEnd);
   assertSourceContains(
     openSheetSource,
-    /const nextSheetMode = resolveChartSltpToolbarTapMode\(showChartTradeSheet\)[\s\S]*if \(nextSheetMode === 'hidden'\) \{[\s\S]*snapTradeSheet\(nextSheetMode\)[\s\S]*return;[\s\S]*if \(!chartDirectProtectionActive\) \{[\s\S]*setSelectedChartPositionTicket\(null\)[\s\S]*resetChartTradePanelLevels\(orderType, \{\s*enableProtectionDrafts: false,\s*positionTargetOverride: null,\s*\}\)[\s\S]*setChartShowOnChartItem\('slTpLevels', true\)[\s\S]*setChartDirectProtectionActive\(true\)[\s\S]*\}[\s\S]*snapTradeSheet\(nextSheetMode\)/,
+    /const nextSheetMode = resolveChartSltpToolbarTapMode\(showChartTradeSheet\)[\s\S]*if \(nextSheetMode === 'hidden'\) \{[\s\S]*snapTradeSheet\(nextSheetMode, true\)[\s\S]*return;[\s\S]*if \(!chartDirectProtectionActive\) \{[\s\S]*setSelectedChartPositionTicket\(null\)[\s\S]*resetChartTradePanelLevels\(orderType, \{\s*enableProtectionDrafts: false,\s*positionTargetOverride: null,\s*\}\)[\s\S]*setChartShowOnChartItem\('slTpLevels', true\)[\s\S]*setChartDirectProtectionActive\(true\)[\s\S]*\}[\s\S]*snapTradeSheet\(nextSheetMode, true\)/,
     'SL/TP must close when visible, otherwise initialize one Market Execution draft and open compact',
   );
   assertSourceContains(
     openSheetSource,
-    /if \(!chartDirectProtectionActive\) \{[\s\S]*resetChartTradePanelLevels[\s\S]*\}[\s\S]*snapTradeSheet\(nextSheetMode\)/,
+    /if \(!chartDirectProtectionActive\) \{[\s\S]*resetChartTradePanelLevels[\s\S]*\}[\s\S]*snapTradeSheet\(nextSheetMode, true\)/,
     'reopening the compact panel must preserve an already-enabled or dragged direct SL/TP draft',
   );
   assert.doesNotMatch(
@@ -835,13 +836,13 @@ test('toolbar SL/TP toggles the compact Market Execution panel without activatin
   );
   assertSourceContains(
     source,
-    /mountChartTradeSheet: isScreenFocused && !isChartExpanded/,
-    'SL/TP sheet must stay pre-mounted while Chart is focused',
+    /mountChartTradeSheet: isScreenFocused,/,
+    'SL/TP sheet must stay pre-mounted while Chart is focused, including fullscreen',
   );
   assertSourceContains(
     source,
-    /const chartSlTpBackendLocked = newMarketOrderProtectionBackendLocked/,
-    'the toolbar lock must always represent the Market Execution SL/TP path',
+    /const chartSlTpBackendLocked = (?:!isLoggedIn \|\| )?isChartTradePanelBackendLocked\(\)/,
+    'the toolbar lock must allow preview access independently of placement readiness',
   );
   assertSourceContains(
     source,
@@ -991,7 +992,7 @@ test('trade sheet volume lot value is manually editable without opening only the
   }
 });
 
-test('volume stepper modal center value is manually editable', () => {
+test('volume and pending price stepper values are manually editable', () => {
   assertSourceContains(
     chartTradeControlsSource,
     /editable = false[\s\S]*const \[draft, setDraft\] = React\.useState/,
@@ -1009,8 +1010,8 @@ test('volume stepper modal center value is manually editable', () => {
   );
   assertSourceContains(
     source,
-    /<ChartStepperModal[\s\S]*editable=\{chartStepperEditor\?\.kind === 'volume'\}/,
-    'only the volume chart stepper should enable manual modal input',
+    /<ChartStepperModal[\s\S]*editable=\{chartStepperEditor\?\.kind === 'volume' \|\| chartStepperEditor\?\.kind === 'price' \|\| chartStepperEditor\?\.kind === 'stopLimitPrice'\}/,
+    'volume and both pending price fields should enable manual modal input',
   );
 });
 
@@ -1131,16 +1132,16 @@ test('compact footer lot editing does not add an Android pre-keyboard lift gap',
   );
 });
 
-test('SL and TP drag starts immediately from pointer-down', () => {
+test('draft SL and TP drag starts immediately; executed-position levels require a deliberate hold', () => {
   assertSourceContains(
     source,
     /var beginTradeLineDragFromHit = function\(event, resolvedHit\)[\s\S]*return beginTradeLineDrag\(event, resolvedHit\.hit\)/,
-    'SL/TP drag must begin immediately from the resolved line hit',
+    'draft SL/TP drag retains direct manipulation from the resolved line hit',
   );
   assertSourceContains(
     source,
     /var onPointerDown = function\(event\)[\s\S]*resolveTradeLineDragHitFromEvent\(event\)[\s\S]*beginTradeLineDragFromHit\(event, tradeLineHit\)/,
-    'pointer-down must directly claim new-trade and open-position SL/TP lines',
+    'pointer-down must resolve a draft drag or arm an executed-position hold',
   );
   assert.doesNotMatch(
     source,
@@ -1217,5 +1218,28 @@ test('opening SL/TP sheet closes lot picker and lot editor state', () => {
     source,
     /useEffect\(\(\) => \{[\s\S]*if \(showChartTradeSheet\)[\s\S]*setFooterLotPickerMode\(null\)[\s\S]*setFooterLotEditorFocused\(false\)[\s\S]*setFooterLotEditorOpening\(false\)/,
     'SL/TP sheet must clear footer lot editing state',
+  );
+});
+
+test('chart SL/TP toolbar icon renders the split red/green stop-loss and take-profit vector icon', () => {
+  const iconsPath = (() => {
+    const candidates = [
+      resolve(process.cwd(), 'src/features/chart/components/ChartToolbarIcons.tsx'),
+      resolve(process.cwd(), 'rtx5-app/src/features/chart/components/ChartToolbarIcons.tsx'),
+    ];
+    return candidates.find((candidate) => existsSync(candidate));
+  })();
+  assert.ok(iconsPath, 'ChartToolbarIcons.tsx was not found from the test working directory');
+  const iconsSource = readFileSync(iconsPath, 'utf8');
+
+  assertSourceContains(
+    iconsSource,
+    /LinearGradient id="sltpRedFill"[\s\S]*LinearGradient id="sltpGreenFill"[\s\S]*d="M6\.35 5H8\.65V11\.8H10\.85L7\.5 18\.5L4\.15 11\.8H6\.35Z"[\s\S]*d="M16\.5 5\.5L19\.85 12\.2H17\.65V19H15\.35V12\.2H13\.15Z"[\s\S]*export const TvOneClick =/,
+    'ChartToolbarIcons must render the refined SL/TP vector icon and the One-Click Trading toolbar icon',
+  );
+  assertSourceContains(
+    source,
+    /<TvTradeClock[\s\S]*size=\{CHART_HEADER_ICON_SIZE\}[\s\S]*active=\{chartDirectProtectionActive\}[\s\S]*onPress=\{\(\) => routeChartWindowToolbarAction\('oneClick'\)\}[\s\S]*<TvOneClick[\s\S]*size=\{CHART_HEADER_ICON_SIZE\}[\s\S]*color=\{oneClickAccepted \? BLUE : HEADER_CONTROL_COLOR\}[\s\S]*active=\{oneClickAccepted\}/,
+    'ChartScreen must render the SL/TP and One-Click Trading icons in the compact header toolbar',
   );
 });

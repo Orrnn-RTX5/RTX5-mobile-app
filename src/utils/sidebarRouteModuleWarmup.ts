@@ -61,6 +61,9 @@ export function warmSidebarRouteModules() {
 
   return () => {
     cancelled = true;
+    if (cursor < SIDEBAR_ROUTE_MODULE_LOADERS.length) {
+      sidebarRouteModuleWarmupStarted = false;
+    }
     cancelScheduledWork.forEach((cancel) => cancel());
     cancelScheduledWork.length = 0;
   };

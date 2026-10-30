@@ -6,6 +6,14 @@ import {
   redactSensitiveString,
 } from './authRedaction';
 
+test('demo investor password is redacted in structured and string diagnostics', () => {
+  assert.deepEqual(redactAuthPayload({ investor_pass: 'Investor123!', investorPassword: 'Investor456!' }), {
+    investor_pass: '[redacted]', investorPassword: '[redacted]',
+  });
+  const redacted = redactSensitiveString('{"investor_pass":"Investor123!","password":"Master123!"}');
+  assert.doesNotMatch(redacted, /Investor123!|Master123!/);
+});
+
 test('redactAuthPayload removes auth secrets from nested login payloads', () => {
   assert.deepEqual(
     redactAuthPayload({

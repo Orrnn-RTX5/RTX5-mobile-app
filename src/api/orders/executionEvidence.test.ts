@@ -44,3 +44,8 @@ test('never confirms an explicitly rejected response', () => {
     { ticket: 81003, executionPrice: 1.08423, confirmed: false },
   );
 });
+
+test('accepted pending receipts cannot promote a requested price to a confirmed execution', () => {
+  assert.equal(resolveBrokerExecutionEvidence({status:'accepted',ticket:'81003',price:1.08423}).confirmed,false);
+  assert.equal(resolveBrokerExecutionEvidence({status:'filled',ticket:'90071992547409931234',price:1.08423}).ticket,'90071992547409931234');
+});

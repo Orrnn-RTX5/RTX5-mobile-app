@@ -22,7 +22,7 @@ import {
   type ActiveBrokerSessionProvenance,
 } from '../state/activeBrokerSession';
 import { redactDiagnosticValue } from '../utils/securityRedaction';
-import type { QuoteItem } from '../dev/mock/tradingData';
+import type { QuoteItem } from '../domain/tradingModels';
 import { normalizeSymbol } from '../domain/symbols';
 import { hasQuotePriceChange } from '../utils/quotePriceChange';
 import { calculateQuoteSpreadPoints, resolveQuoteDisplayDigits } from '../utils/quoteSpread';

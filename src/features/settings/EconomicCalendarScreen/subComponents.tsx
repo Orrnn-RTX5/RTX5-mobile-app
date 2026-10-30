@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, AppState, Text, View } from 'react-native';
-import type { ImpactLevel } from '../../../dev/mock/calendarData';
+import type { ImpactLevel } from '../../../api/economicCalendar';
 import { COUNTRY_COLORS, DEFAULT_COUNTRY_COLOR, IMPACT_CONFIG } from './eventHelpers';
 
 export function PulseDot({ color, size = 6, active = true }: { color: string; size?: number; active?: boolean }) {

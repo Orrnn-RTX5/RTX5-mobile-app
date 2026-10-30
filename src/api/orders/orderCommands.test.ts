@@ -111,7 +111,20 @@ test('polling returns the fill once the command is final, tolerating 404 and tra
   assert.deepEqual(outcome, { kind: 'filled', data: FILL });
   assert.equal(paths.length, 4);
   assert.equal(paths[0], '/order-commands/order-abc12345?account_login=200074');
-  assert.equal(clock.now(), 4 * 500);
+  assert.equal(clock.now(), 3 * 500);
+});
+
+test('an already completed backend command is read immediately and never waits for a poll timer', async () => {
+  let waits = 0; let reads = 0;
+  const request = pollOrderCommand({
+    clientOrderId: 'order-immediate', accountLogin: 200074,
+    sleep: async () => { waits++; },
+    fetchCommand: async () => { reads++; return { status: 200, body: { type: 'order_filled', data: FILL } }; },
+  });
+  assert.equal(reads, 1, 'the backend read starts in the initiating call');
+  const result = await request;
+  assert.deepEqual(result, { kind: 'filled', data: FILL });
+  assert.equal(waits, 0);
 });
 
 test('polling stops at 30 s with a pending outcome', async () => {

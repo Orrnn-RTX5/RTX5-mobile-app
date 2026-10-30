@@ -23,11 +23,24 @@ import Svg, { Path, Defs, LinearGradient, Stop, Circle } from 'react-native-svg'
 import { useMarketData } from '../../query/websocket';
 import { useLiveCandles } from '../../domain/candles/hooks/useLiveCandles';
 import { safeRouterBack } from '../../utils/navigation';
+import { formatBackendPrice } from '../../utils/backendPrice';
+import { formatBackendDailyChange } from '../../utils/backendDailyChange';
 import { scheduleChartActionLaunchCovered } from './chartActionLaunchController';
 
 // Performance periods — labels only; values computed dynamically from candle data
 const PERF_LABELS = ['Hour', 'Today', 'Week', 'Month', 'Year'] as const;
 const PERF_CANDLE_COUNTS: Record<string, number> = { Hour: 60, Today: 1440, Week: 10080, Month: 43200, Year: 525600 };
+const TIMEFRAME_MINUTES: Record<string, number> = {
+  M1: 1,
+  M5: 5,
+  M15: 15,
+  M30: 30,
+  H1: 60,
+  H4: 240,
+  D1: 1440,
+  W1: 10080,
+  MN: 43200,
+};
 
 const HMR_PERIODS = [
   { time: '23:25 – 23 Mar, 03:35', leverage: '1:200', events: 'ECB Cipollone Speech · Fed Chair Remarks' },
@@ -153,12 +166,12 @@ export function ChartAnalyticsScreen() {
 
   const currentSymbol = symbol || 'EUR/USD';
   const chartTimeframe = useUserPreferences((s) => s.chartTimeframe);
-  const decimals = getDecimals(currentSymbol);
 
   // ── Live WebSocket Price ──────────────────────────────────────────
   const liveQuotes = useMarketData([currentSymbol], isScreenFocused);
   const liveQuote = liveQuotes[currentSymbol];
   const livePrice = liveQuote?.bid ?? 0;
+  const decimals = liveQuote?.digits ?? getDecimals(currentSymbol);
 
   // ── Live Candles (OHLC) from WebSocket ────────────────────────────
   const { candles } = useLiveCandles(currentSymbol, chartTimeframe, isScreenFocused);
@@ -166,11 +179,16 @@ export function ChartAnalyticsScreen() {
   // ── Daily Range data from candles ─────────────────────────────────
   const rangeData = useMemo(() => {
     if (candles.length === 0) return { low: 0, high: 0, open: 0, current: 0, points: [] as { time: string; price: number }[] };
-    const closes = candles.map(c => c.close);
-    const low = Math.min(...candles.map(c => c.low));
-    const high = Math.max(...candles.map(c => c.high));
-    const open = candles[0].open;
-    const current = candles[candles.length - 1].close;
+    const latestCandle = candles[candles.length - 1];
+    const latestDayKey = new Date(latestCandle.time * 1000).toISOString().slice(0, 10);
+    const dayCandles = candles.filter(
+      (c) => new Date(c.time * 1000).toISOString().slice(0, 10) === latestDayKey,
+    );
+    const activeRangeCandles = dayCandles.length > 0 ? dayCandles : candles;
+    const low = Math.min(...activeRangeCandles.map(c => c.low));
+    const high = Math.max(...activeRangeCandles.map(c => c.high));
+    const open = activeRangeCandles[0].open;
+    const current = latestCandle.close;
     // Sample last 20 candles for sparkline
     const sample = candles.slice(-20);
     const points = sample.map(c => ({ time: formatTime(c.time), price: c.close }));
@@ -183,14 +201,16 @@ export function ChartAnalyticsScreen() {
     if (!current || candles.length === 0) {
       return PERF_LABELS.map((label) => ({ label, change: 0, isDown: false }));
     }
+    const tfMinutes = TIMEFRAME_MINUTES[String(chartTimeframe).toUpperCase()] || 1;
     return PERF_LABELS.map((label) => {
-      const lookback = Math.min(PERF_CANDLE_COUNTS[label], candles.length);
+      const barsForPeriod = Math.max(1, Math.round(PERF_CANDLE_COUNTS[label] / tfMinutes));
+      const lookback = Math.min(barsForPeriod, candles.length);
       const pastCandle = candles[Math.max(0, candles.length - lookback)];
-      const pastPrice = pastCandle?.close || current;
+      const pastPrice = (lookback === 1 ? pastCandle?.open : pastCandle?.close) || current;
       const change = pastPrice !== 0 ? ((current - pastPrice) / pastPrice) * 100 : 0;
       return { label, change: Math.round(change * 100) / 100, isDown: change < 0 };
     });
-  }, [candles, rangeData.current, livePrice]);
+  }, [candles, chartTimeframe, rangeData.current, livePrice]);
 
   // Expand/collapse state for each section
   const [hmrExpanded, setHmrExpanded] = useState(false);
@@ -262,16 +282,13 @@ export function ChartAnalyticsScreen() {
           const current = livePrice || rangeData.current;
           const range = rangeData.high - rangeData.low;
           const positionPct = range > 0 ? Math.max(0, Math.min(100, ((current - rangeData.low) / range) * 100)) : 50;
-          const change = current - rangeData.open;
-          const changePct = rangeData.open > 0 ? (change / rangeData.open) * 100 : 0;
-          const isUp = change >= 0;
-          const accentColor = isUp ? T.trading.profit : T.trading.sell.primary;
+          const changePct = liveQuote?.changePct;
+          const hasDailyChange = typeof changePct === 'number' && Number.isFinite(changePct);
+          const isUp = typeof changePct === 'number' && changePct >= 0;
+          const accentColor = hasDailyChange ? (isUp ? T.trading.profit : T.trading.sell.primary) : T.textMuted;
           const volatilityPct = current > 0 ? (range / current) * 100 : 0;
 
-          const priceStr = current.toFixed(decimals);
-
-          const formatSigned = (n: number, fixed: number, suffix = '') =>
-            `${n >= 0 ? '+' : ''}${n.toFixed(fixed)}${suffix}`;
+          const priceStr = formatBackendPrice(current);
 
           // Where to render the position indicator zone label
           const zoneLabel = positionPct >= 66 ? t('Upper') : positionPct >= 33 ? t('Mid') : t('Lower');
@@ -296,10 +313,10 @@ export function ChartAnalyticsScreen() {
                 <Text style={styles.rangeHeroPrice} numberOfLines={1} adjustsFontSizeToFit>
                   {priceStr}
                 </Text>
-                <View style={[styles.rangeChangePill, { backgroundColor: isUp ? T.upGlow : 'rgba(239,68,68,0.12)', borderColor: isUp ? `${T.trading.profit}60` : 'rgba(239,68,68,0.25)' }]}>
-                  <Ionicons name={isUp ? 'caret-up' : 'caret-down'} size={11} color={accentColor} />
+                <View style={[styles.rangeChangePill, { backgroundColor: hasDailyChange ? (isUp ? T.upGlow : 'rgba(239,68,68,0.12)') : 'transparent', borderColor: hasDailyChange ? (isUp ? `${T.trading.profit}60` : 'rgba(239,68,68,0.25)') : T.border }]}>
+                  <Ionicons name={hasDailyChange ? (isUp ? 'caret-up' : 'caret-down') : 'remove'} size={11} color={accentColor} />
                   <Text style={[styles.rangeChangePillText, { color: accentColor }]}>
-                    {formatSigned(changePct, 2, '%')}
+                    {formatBackendDailyChange(changePct)}
                   </Text>
                 </View>
               </View>
@@ -335,11 +352,11 @@ export function ChartAnalyticsScreen() {
                 <View style={styles.rangeEndpointsRow}>
                   <View style={styles.rangeEndpointCol}>
                     <Text style={styles.rangeEndpointLabel}>{t('Low')}</Text>
-                    <Text style={styles.rangeEndpointValue}>{rangeData.low.toFixed(decimals)}</Text>
+                    <Text style={styles.rangeEndpointValue}>{formatBackendPrice(rangeData.low)}</Text>
                   </View>
                   <View style={[styles.rangeEndpointCol, { alignItems: 'flex-end' }]}>
                     <Text style={styles.rangeEndpointLabel}>{t('High')}</Text>
-                    <Text style={styles.rangeEndpointValue}>{rangeData.high.toFixed(decimals)}</Text>
+                    <Text style={styles.rangeEndpointValue}>{formatBackendPrice(rangeData.high)}</Text>
                   </View>
                 </View>
               </View>
@@ -348,7 +365,7 @@ export function ChartAnalyticsScreen() {
               <View style={styles.rangeStatsRow}>
                 <View style={styles.rangeStatItem}>
                   <Text style={styles.rangeStatLabel}>{t('Open')}</Text>
-                  <Text style={styles.rangeStatValue}>{rangeData.open.toFixed(decimals)}</Text>
+                  <Text style={styles.rangeStatValue}>{formatBackendPrice(rangeData.open)}</Text>
                 </View>
                 <View style={styles.rangeStatDivider} />
                 <View style={styles.rangeStatItem}>
@@ -363,7 +380,7 @@ export function ChartAnalyticsScreen() {
                 <View style={styles.rangeStatDivider} />
                 <View style={styles.rangeStatItem}>
                   <Text style={styles.rangeStatLabel}>{t('Change')}</Text>
-                  <Text style={[styles.rangeStatValue, { color: accentColor }]}>{formatSigned(change, decimals)}</Text>
+                  <Text style={[styles.rangeStatValue, { color: accentColor }]}>{formatBackendDailyChange(changePct)}</Text>
                 </View>
               </View>
             </View>

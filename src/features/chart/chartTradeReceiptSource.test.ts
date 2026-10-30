@@ -178,7 +178,7 @@ test('rapid chart trades use one uncapped MT5-style receipt row per accepted tap
   assert.match(stackSource, /onPress=\{\(\) => onDismiss\(event\.queueId\)\}/);
   assert.match(
     controllerSource,
-    /if \(existingIndex < 0\) \{\s*return \[event, \.\.\.snapshot\];/,
+    /if \(existingIndex < 0\) \{\s*return \[\.\.\.snapshot, event\];/,
   );
   assert.match(controllerSource, /const dismissTimers = new Map<number,/);
   assert.match(controllerSource, /removeChartTradeReceipt\(snapshot, queueId\)/);

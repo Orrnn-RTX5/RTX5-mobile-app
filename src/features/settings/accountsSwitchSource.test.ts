@@ -138,7 +138,7 @@ test('accounts screen uses broker branding and opens long-press delete for other
   const activeSessionStorageSource = readSource('src/state/activeBrokerSessionStorage.ts');
 
   assert.doesNotMatch(source, /AppLogo/);
-  assert.match(source, /import \{ ActivityIndicator, Alert, FlatList, Image, Platform, StyleSheet, Text, View \} from 'react-native'/);
+  assert.match(source, /import \{[^}]*\bImage\b[^}]*\} from 'react-native'/);
   // Other-accounts list is virtualized: render the on-screen rows, lazy-render the rest on scroll.
   assert.match(source, /<FlatList[\s\S]*data=\{otherRows\}[\s\S]*initialNumToRender=/);
   assert.match(source, /import \{ useBrokerConfig, useBrokerServers \} from '\.\.\/\.\.\/query\/broker'/);

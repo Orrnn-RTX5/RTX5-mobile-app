@@ -12,6 +12,7 @@ type FooterLotPickerMode = 'absolute' | 'increase' | 'decrease';
 export type ChartWindowTradeRowProps = Readonly<{
   context: AuxiliaryChartTradeRowRenderContext;
   active: boolean;
+  executionDisabled?: boolean;
   isDark: boolean;
   lotSize: number;
   lotInvalid?: boolean;
@@ -32,6 +33,7 @@ export type ChartWindowTradeRowProps = Readonly<{
 export const ChartWindowTradeRow = memo(function ChartWindowTradeRow({
   context,
   active,
+  executionDisabled = false,
   isDark,
   lotSize,
   lotInvalid = false,
@@ -65,6 +67,7 @@ export const ChartWindowTradeRow = memo(function ChartWindowTradeRow({
       onIncreaseLot={onIncreaseLot}
       variant="compact"
       active={active}
+      executionDisabled={executionDisabled}
       isSymbolExecutionOwner={isExecutionOwner}
       isDark={isDark}
       buyColor={theme.trading.buy.primary}

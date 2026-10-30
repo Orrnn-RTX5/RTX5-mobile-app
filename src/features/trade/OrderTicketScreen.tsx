@@ -18,6 +18,7 @@ import {
   useEffect,
   useCallback,
   useImperativeHandle,
+  useSyncExternalStore,
   type ComponentProps,
 } from 'react';
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -28,16 +29,20 @@ import { useIsDarkTheme } from '../../state/themeMode';
 import { usePositionsState } from '../../state/positionsState';
 import { resolveTradingLogin, resolveTradingLoginString, useResolvedTradingLogin } from '../../state/tradingLogin';
 import { ordersApi } from '../../api/orders';
+import { scheduleMarketOrderSummaryRefresh } from '../../query/orders';
 import { resolveBrokerExecutionEvidence } from '../../api/orders/executionEvidence';
+import { isMarketOrderFeedbackCurrent } from '../../api/orders/marketOrderFeedback';
+import { createMarketOrderIntentId } from '../../api/orders/marketOrderInFlight';
 import { useAccountSummary } from '../../query/account';
 import { useMarginCalculation } from '../../query/calculators';
 import type { MarginCalcPayload } from '../../api/calculators';
 import { useInstrumentMeta } from '../../query/instruments';
 import { useMarketSymbols } from '../../query/market';
-import { useMarketStatus } from '../../query/marketStatus';
 import { checkOrderPolicy } from '../../services/tradingPolicy';
 import { useTheme, ThemeColors } from '../../ui/theme/useTheme';
 import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
+import { orderTicketMarginDisplay } from './orderTicketBackendValues';
 import {
   safeRouterBack,
   scheduleBackNavigationAfterVisualFrame,
@@ -57,7 +62,10 @@ import { assertTradeSide, normalizeTradeSide, TRADE_SIDE, type TradeSide } from 
 import { classifyTradingError, createFrontendTradingError } from '../../api/tradingErrors';
 import { TradeFeedbackModal, TRADE_MODAL_INITIAL, type TradeFeedbackState } from '../../ui/components/TradeFeedbackModal';
 import { resolveConfirmedTradeReceipt } from '../../ui/components/tradeFeedbackPresentation';
-import { useConfirmedTradeReceiptAutoDismiss } from '../../ui/components/useConfirmedTradeReceiptAutoDismiss';
+import {
+  ChartTradeReceiptStack,
+  createChartTradeReceiptStackController,
+} from '../chart/components/ChartTradeReceiptStack';
 import { FastPressable } from '../../ui/components/FastPressable';
 import { ActionSheet } from '../../ui/components/ActionSheet';
 import { useDeferredRouteContentReady } from '../../ui/components/DeferredRouteMount';
@@ -88,6 +96,7 @@ import { redactDiagnosticValue, redactSensitiveString } from '../../utils/securi
 import { LiveOrderTickExecutionGraph } from './OrderTickExecutionGraph';
 import {
   captureActiveBrokerSessionProvenance,
+  subscribeActiveBrokerSession,
   isActiveBrokerSessionProvenanceCurrent,
 } from '../../state/activeBrokerSession';
 import { requestOrrnnDemoTradeAuth } from './tradeAuthPrompt';
@@ -103,17 +112,22 @@ import {
 import {
   getActiveSltpUnavailableMessage,
   isPendingOrderTypeBackendLocked,
+  isPendingOrderPlacementBackendLocked,
   isNewMarketOrderProtectionBackendLocked,
   isPendingOrderProtectionBackendLocked,
   SLTP_COMING_SOON_TITLE,
 } from './tradeBackendCapabilities';
+import { PENDING_ORDER_PREVIEW_MESSAGE } from '../../config/pendingOrderAvailability';
+import { PendingOrderFields } from './PendingOrderFields';
+import { pendingMinimumDistance, pendingExpiry, pendingPriceRulesReady, validatePendingOrder, type PendingTimeInForce } from '../../domain/pendingOrders';
+import { normalizePendingOrderType } from '../../api/orders/pendingOrderPayload';
 import {
   publishChartProtectionDraftExecution,
   publishChartProtectionDraftSubmission,
   releaseChartProtectionDraftSubmission,
-  tryBeginChartProtectionDraftSubmission,
 } from '../chart/chartProtectionDraftLifecycle';
 import { markTradeIntent } from '../../utils/tradeIntent';
+import { createOrderTicketReceiptAnchor, type OrderTicketReceiptAnchor } from './orderTicketReceiptAnchor';
 
 /* Main screen */
 // A single action model keeps BUY and SELL button behavior consistent across
@@ -131,14 +145,7 @@ type OrderTicketTradeAction = {
   execTestID: string;
 };
 
-const ORDER_TICKET_TRADE_CONFIRMATION_VISIBLE_MS = 5000;
-const ORDER_TICKET_TRADE_CONFIRMATION_MAX_ITEMS = 3;
 const ORDER_TICKET_FULL_CONTENT_DELAY_MS = 0;
-// No artificial settle — the launch shell already covers first paint. Data and
-// heavy sections mount on the next deferred frame only (delay 0).
-const ORDER_TICKET_DATA_READY_DELAY_MS = 0;
-const ORDER_TICKET_HEAVY_CONTENT_DELAY_MS = 0;
-const ORDER_TICKET_FALLBACK_LEVERAGE = 100;
 const ORDER_TICKET_DIAGNOSTICS_ENABLED =
   typeof process !== 'undefined' && process.env.EXPO_PUBLIC_DEBUG_CHART_TRADE === 'true';
 const logOrderTicketDiagnostic = (...args: Parameters<typeof console.log>) => {
@@ -155,13 +162,6 @@ const isOrderTicketLeverageValue = (value: number | null | undefined): value is 
 );
 
 const formatOrderTicketLeverage = (value: number) => `1:${value}` as const;
-
-type OrderTicketTradeConfirmation = {
-  id: string;
-  symbol: string;
-  side: TradeSide;
-  volumeLabel: string;
-};
 
 /**
  * Main Order Ticket screen for placing new trades. Orchestrates order type tabs (Market, Limit, Stop), lot size, and SL/TP fields.
@@ -251,6 +251,7 @@ type OrderTicketSymbolPickerSheetHostProps = {
 };
 
 const ORDER_TICKET_SYMBOL_PICKER_VISUAL_KEY = 'orderTicket.symbolPicker';
+const lastOrderTicketReceiptGeometry: Parameters<OrderTicketReceiptAnchor['update']>[0] = {};
 
 /**
  * Retained route-local sheet host. It owns only picker visibility so opening
@@ -266,6 +267,10 @@ const OrderTicketSymbolPickerSheetHost = memo(forwardRef<
   const close = useCallback(() => setSymbolPickerOpen(false), []);
 
   useImperativeHandle(ref, () => ({ open }), [open]);
+
+  if (!symbolPickerOpen) {
+    return null;
+  }
 
   return (
     <ActionSheet
@@ -314,7 +319,7 @@ function OrderTicketInteractiveContent() {
   }>();
   const resolvedOrigin = resolveOrderTicketOrigin(origin);
   const originHref = getOrderTicketOriginHref(resolvedOrigin);
-  const routeInitialSymbol = String(routeSymbol || '').trim();
+  const routeInitialSymbol = String(routeSymbol || 'EURUSD').trim() || 'EURUSD';
   const routeProtectionDraftId =
     typeof routeProtectionDraftIdParam === 'string'
       ? routeProtectionDraftIdParam.trim()
@@ -349,11 +354,11 @@ function OrderTicketInteractiveContent() {
   const { t } = useTranslation();
   const isDark = useIsDarkTheme();
   const styles = useMemo(() => makeStyles(T, isDark), [T, isDark]);
-  const routeDataReady = useDeferredRouteContentReady(ORDER_TICKET_DATA_READY_DELAY_MS);
-  const heavyContentReady = useDeferredRouteContentReady(ORDER_TICKET_HEAVY_CONTENT_DELAY_MS);
-  const routeQueriesActive = isScreenFocused && routeDataReady;
+  // The outer route already painted its shell. Start values and graph now,
+  // without another timer for each section.
+  const heavyContentReady = isScreenFocused;
+  const routeQueriesActive = isScreenFocused;
   const { data: marketSymbols = [], isFetching: marketSymbolsFetching } = useMarketSymbols(routeQueriesActive);
-  const { data: marketStatus } = useMarketStatus(symbol, routeQueriesActive);
   useEffect(() => {
     if (!isScreenFocused || useUserPreferences.getState().isLoggedIn) return;
     requestOrrnnDemoTradeAuth({ kind: 'order-ticket', symbol: routeSymbol, side: routeSide ?? undefined, volume: tradeVolume, origin: resolvedOrigin });
@@ -395,9 +400,6 @@ function OrderTicketInteractiveContent() {
   // The order type decides whether this ticket submits immediately or prepares
   // a pending order with an editable trigger price.
   const [orderType, setOrderType] = useState<ChartOrderType>('Market Execution');
-  const orderTypeTabsRef = useRef<ScrollView | null>(null);
-  const orderTypeTabsViewportWidthRef = useRef(0);
-  const orderTypeTabLayoutsRef = useRef<Partial<Record<ChartOrderType, { x: number; width: number }>>>({});
   const { data: instrumentMeta } = useInstrumentMeta(symbol, routeQueriesActive);
   // Broker metadata defines the valid lot range and step size for the symbol.
   const volumeBounds = useMemo(
@@ -414,8 +416,22 @@ function OrderTicketInteractiveContent() {
   const [slPrice, setSlPrice] = useState(initialSlPrice);
   const [tpEnabled, setTpEnabled] = useState(initialTpPrice > 0);
   const [tpPrice, setTpPrice] = useState(initialTpPrice);
+  const [symbolCatalogReady, setSymbolCatalogReady] = useState(false);
+
+  useEffect(() => {
+    if (!isScreenFocused || symbolCatalogReady) {
+      return;
+    }
+    const frameId = requestAnimationFrame(() => {
+      setSymbolCatalogReady(true);
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [isScreenFocused, symbolCatalogReady]);
 
   const availableSymbols = useMemo(() => {
+    if (!symbolCatalogReady) {
+      return [];
+    }
     const seen = new Set<string>();
     const options: string[] = [];
     const addSymbol = (candidate: string | undefined) => {
@@ -433,10 +449,11 @@ function OrderTicketInteractiveContent() {
       .forEach(addSymbol);
 
     return options;
-  }, [marketSymbols, symbol]);
+  }, [marketSymbols, symbol, symbolCatalogReady]);
 
   const handleOpenSymbolPicker = useCallback(() => {
     runImmediateAction('orderTicket.symbol.open', () => {
+      setSymbolCatalogReady(true);
       symbolPickerSheetRef.current?.open();
     });
   }, []);
@@ -476,58 +493,76 @@ function OrderTicketInteractiveContent() {
     title: '',
     message: '',
   });
-  const [tradeConfirmations, setTradeConfirmations] = useState<OrderTicketTradeConfirmation[]>([]);
-  const tradeConfirmationTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const showModal = useCallback((state: TradeFeedbackState) => {
+  const [orderTicketReceiptController] = useState(createChartTradeReceiptStackController);
+  const [orderTicketReceiptAnchor] = useState<OrderTicketReceiptAnchor>(() => {
+    const anchor = createOrderTicketReceiptAnchor();
+    if (Object.keys(lastOrderTicketReceiptGeometry).length > 0) {
+      anchor.update({ ...lastOrderTicketReceiptGeometry, scrollOffset: 0 });
+    }
+    const baseUpdate = anchor.update;
+    return {
+      ...anchor,
+      update(patch) {
+        Object.assign(lastOrderTicketReceiptGeometry, patch);
+        baseUpdate(patch);
+      },
+    };
+  });
+  const nextReceiptIdRef = useRef(1);
+  const showModal = useCallback((
+    state: TradeFeedbackState,
+    receiptId?: number,
+    unresolvedStatus?: 'failed' | 'unconfirmed',
+  ) => {
+    const submitted = receiptId === undefined ? undefined
+      : orderTicketReceiptController.getSnapshot().find(event => event.queueId === receiptId);
+    // Unmount/account cleanup must not resurrect an old submitted receipt.
+    if (receiptId !== undefined && !submitted) return;
+    const receipt = resolveConfirmedTradeReceipt(state);
+    if (receipt) {
+      orderTicketReceiptController.applyEvent({
+        queueId: receiptId ?? nextReceiptIdRef.current++,
+        status: 'confirmed',
+        side: receipt.side,
+        symbol: receipt.symbol,
+        volume: Number(state.volume),
+        feedback: state,
+      });
+      setModalState(current => current.visible ? TRADE_MODAL_INITIAL : current);
+      return;
+    }
+    if (submitted) {
+      orderTicketReceiptController.applyEvent({
+        ...submitted,
+        status: unresolvedStatus ?? (state.type === 'error' ? 'failed' : 'unconfirmed'),
+        feedback: state,
+      });
+      setModalState(current => current.visible ? TRADE_MODAL_INITIAL : current);
+      return;
+    }
+    // Keep rejection and incomplete-execution details; never mark them done.
     setModalState(state);
-  }, []);
+  }, [orderTicketReceiptController]);
+
+  useEffect(() => {
+    let namespace = captureActiveBrokerSessionProvenance()?.cacheNamespace;
+    const unsubscribe = subscribeActiveBrokerSession(() => {
+      const nextNamespace = captureActiveBrokerSessionProvenance()?.cacheNamespace;
+      if (nextNamespace !== namespace) {
+        namespace = nextNamespace;
+        orderTicketReceiptController.clear();
+        setModalState(TRADE_MODAL_INITIAL);
+      }
+    });
+    return () => {
+      unsubscribe();
+      orderTicketReceiptController.clear();
+    };
+  }, [orderTicketReceiptController]);
 
   const handleModalClose = useCallback(() => {
     setModalState(prev => ({ ...prev, visible: false }));
   }, []);
-  useConfirmedTradeReceiptAutoDismiss(modalState, handleModalClose);
-  // Broker-confirmed fills reuse the chart's one-click receipt bar so both
-  // routing modes end with the identical execution popup — here inside the
-  // order screen. Rejections and confirmation-pending results keep the
-  // detailed feedback modal below.
-  const confirmedTradeReceipt = resolveConfirmedTradeReceipt(modalState);
-
-  const showTradeConfirmation = useCallback(({
-    side,
-    symbol: confirmationSymbol,
-    volume: confirmationVolume,
-  }: {
-    side: TradeSide;
-    symbol: string;
-    volume: number | string;
-  }) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const volumeLabel = typeof confirmationVolume === 'number'
-      ? formatTradeVolume(confirmationVolume, volumeBounds)
-      : String(confirmationVolume || '');
-    const confirmation: OrderTicketTradeConfirmation = {
-      id,
-      symbol: String(confirmationSymbol || symbol || '').replace(/\//g, ''),
-      side,
-      volumeLabel,
-    };
-
-    setTradeConfirmations((current) =>
-      [confirmation, ...current].slice(0, ORDER_TICKET_TRADE_CONFIRMATION_MAX_ITEMS),
-    );
-
-    const timer = setTimeout(() => {
-      setTradeConfirmations((current) => current.filter((item) => item.id !== id));
-    }, ORDER_TICKET_TRADE_CONFIRMATION_VISIBLE_MS);
-    tradeConfirmationTimersRef.current.push(timer);
-  }, [symbol, volumeBounds]);
-
-  useEffect(() => () => {
-    tradeConfirmationTimersRef.current.forEach((timer) => clearTimeout(timer));
-    tradeConfirmationTimersRef.current = [];
-  }, []);
-
   // Keep the editable volume field aligned with saved preferences and the
   // latest broker volume limits.
   useEffect(() => {
@@ -552,7 +587,12 @@ function OrderTicketInteractiveContent() {
   const [quoteFreshnessNow, setQuoteFreshnessNow] = useState(() => Date.now());
   useEffect(() => {
     if (!isScreenFocused) return;
-    const timer = setInterval(() => setQuoteFreshnessNow(Date.now()), 1_000);
+    const timer = setInterval(() => {
+      const now = Date.now();
+      if (resolveSessionQuoteActionAvailability(executableLiveQuoteRef.current, now).allowed !== quoteAllowedRef.current) {
+        setQuoteFreshnessNow(now);
+      }
+    }, 1_000);
     return () => clearInterval(timer);
   }, [isScreenFocused]);
   const quoteTimeMs = normalizeQuoteTickTimestampToMs(
@@ -575,9 +615,13 @@ function OrderTicketInteractiveContent() {
     : null;
   const quoteActionAvailability = resolveSessionQuoteActionAvailability(
     executableLiveQuote,
-    quoteFreshnessNow,
+    Math.max(Date.now(), quoteFreshnessNow),
   );
   const quoteIsUnavailable = !quoteActionAvailability.allowed;
+  const executableLiveQuoteRef = useRef(executableLiveQuote);
+  executableLiveQuoteRef.current = executableLiveQuote;
+  const quoteAllowedRef = useRef(quoteActionAvailability.allowed);
+  quoteAllowedRef.current = quoteActionAvailability.allowed;
   const quoteUnavailableMessage = quoteActionBlockMessage(quoteActionAvailability);
   const resolveCurrentQuoteAvailability = () =>
     resolveSessionQuoteActionAvailability(executableLiveQuote, Date.now());
@@ -587,27 +631,14 @@ function OrderTicketInteractiveContent() {
   // Reactive numeric login — the codebase's standard source for query hooks
   // keyed by account login (see useResolvedTradingLogin docs).
   const loginNum = useResolvedTradingLogin();
-  const { data: accountSummary } = useAccountSummary(loginStr, { enabled: routeQueriesActive });
+  const { data: accountSummary, isError: accountSummaryError } = useAccountSummary(loginStr, { enabled: routeQueriesActive });
   const backendLeverage = isOrderTicketLeverageValue(accountSummary?.leverage)
     ? accountSummary.leverage
     : null;
-  const leverage = backendLeverage ?? ORDER_TICKET_FALLBACK_LEVERAGE;
   const leverageDisplay = backendLeverage !== null
     ? formatOrderTicketLeverage(backendLeverage)
     : '--';
-  const currency = accountSummary?.currency || 'USD';
-
-  // Local margin estimate is used only as a fallback while the authoritative
-  // server figure loads or if it fails. The displayed leverage itself comes
-  // from the account summary returned by the backend.
-  let contractSize = 100000;
-  if (symbol.includes('XAU') || symbol.includes('XAG')) contractSize = 100;
-  else if (symbol.includes('BTC') || symbol.includes('ETH')) contractSize = 1;
-  else if (symbol.includes('US30') || symbol.includes('SPX') || symbol.includes('NAS') || symbol.includes('GER') || symbol.includes('UK')) contractSize = 10;
-
-  const estimatedMargin = Number.isFinite(ASK) && ASK > 0
-    ? (volume * contractSize * ASK) / leverage
-    : 0;
+  const currency = accountSummary?.currency;
 
   // Authoritative margin from the server calculator. It applies the account's
   // real leverage, the broker's contract specs, and the symbol's margin mode —
@@ -620,29 +651,22 @@ function OrderTicketInteractiveContent() {
     if (!symbol || !(volume > 0)) return null;
     return { account_login: loginNum, symbol, side: 'buy', volume };
   }, [loginNum, routeQueriesActive, symbol, volume]);
-  const { data: serverMargin, isFetching: marginFetching, isError: marginError } = useMarginCalculation(marginCalcPayload);
+  const { data: serverMargin, isError: marginError } = useMarginCalculation(marginCalcPayload);
 
   const serverRequiredMargin =
     typeof serverMargin?.required_margin === 'number' && Number.isFinite(serverMargin.required_margin)
       ? serverMargin.required_margin
       : null;
-  // Prefer the server figure; fall back to the local estimate only until it
-  // arrives. This keeps the account leverage path tied to the backend.
-  const resolvedMargin = serverRequiredMargin ?? estimatedMargin;
-
-  const marginDisplay = currency === 'USD'
-    ? `-$${fmt.price(resolvedMargin)}`
-    : `-${fmt.price(resolvedMargin)} ${currency}`;
+  const marginDisplay = orderTicketMarginDisplay(serverRequiredMargin, currency);
 
   const baseSymbol = symbol.replace(/[a-z_.-].*$/, '');
-  const displayDecimals = 2;
   const pipSize = baseSymbol.includes('JPY') ? 0.01 : baseSymbol.includes('BTC') ? 10 : baseSymbol.includes('XAU') ? 0.1 : 0.0001;
   const priceTickSize = instrumentMeta?.tickSize && instrumentMeta.tickSize > 0 ? instrumentMeta.tickSize : pipSize;
   // Price precision comes from broker tick size when available; otherwise the
   // ticket falls back to a symbol-family pip size.
   const priceDecimals = useMemo(
-    () => resolveOrderTicketPriceDecimals(priceTickSize, BID, ASK),
-    [ASK, BID, priceTickSize],
+    () => instrumentMeta?.digits ?? resolveOrderTicketPriceDecimals(priceTickSize, BID, ASK),
+    [ASK, BID, priceTickSize, instrumentMeta?.digits],
   );
   const pricePointSize = useMemo(() => {
     if (priceTickSize > 0) {
@@ -651,8 +675,8 @@ function OrderTicketInteractiveContent() {
     return Math.pow(10, -Math.max(priceDecimals, 0));
   }, [priceDecimals, priceTickSize]);
   const pendingOffset = useMemo(
-    () => resolveOrderTicketPendingOffset(baseSymbol, pricePointSize),
-    [baseSymbol, pricePointSize],
+    () => Math.max(resolveOrderTicketPendingOffset(baseSymbol, pricePointSize), pendingMinimumDistance({ digits: priceDecimals, stopsLevel: instrumentMeta?.stopsLevel }) + pricePointSize),
+    [baseSymbol, pricePointSize, priceDecimals, instrumentMeta?.stopsLevel],
   );
   const stopLimitOffset = useMemo(
     () => resolveOrderTicketStopLimitOffset(baseSymbol, pricePointSize, pendingOffset),
@@ -675,8 +699,11 @@ function OrderTicketInteractiveContent() {
   );
   const [pendingEntryPrice, setPendingEntryPrice] = useState(0);
   const [pendingStopLimitPrice, setPendingStopLimitPrice] = useState(0);
+  const [pendingTimeInForce, setPendingTimeInForce] = useState<PendingTimeInForce>('GTC');
+  const [pendingExpirySeconds, setPendingExpirySeconds] = useState<number | null>(null);
   const lastConfiguredPendingOrderTypeRef = useRef<ChartOrderType | null>(null);
   const isPendingOrderType = isPendingChartOrderType(orderType);
+  const pendingOrderPlacementBackendLocked = isPendingOrderPlacementBackendLocked(orderType);
   const isStopLimitOrderType = isStopLimitChartOrderType(orderType);
   const newMarketOrderProtectionBackendLocked =
     isNewMarketOrderProtectionBackendLocked();
@@ -738,6 +765,8 @@ function OrderTicketInteractiveContent() {
     }
 
     setPendingEntryPrice(nextEntry);
+    setSlEnabled(false); setSlPrice(0); setTpEnabled(false); setTpPrice(0);
+    setPendingTimeInForce('GTC'); setPendingExpirySeconds(null);
     setPendingStopLimitPrice(
       resolveDefaultStopLimitPrice(orderType, nextEntry, stopLimitOffset, roundPendingPrice),
     );
@@ -769,13 +798,13 @@ function OrderTicketInteractiveContent() {
   );
   // Helper text explains which pending-order line can be moved in the preview.
   const pendingPreviewSummary = useMemo(() => {
-    const triggerValue = pendingEntryPrice > 0 ? pendingEntryPrice.toFixed(priceDecimals) : '--';
+    const triggerValue = pendingEntryPrice > 0 ? formatBackendPrice(pendingEntryPrice) : '--';
     if (!isPendingOrderType) {
       return '';
     }
 
     if (isStopLimitOrderType) {
-      const stopLimitValue = pendingStopLimitPrice > 0 ? pendingStopLimitPrice.toFixed(priceDecimals) : '--';
+      const stopLimitValue = pendingStopLimitPrice > 0 ? formatBackendPrice(pendingStopLimitPrice) : '--';
       return `Drag the dotted trigger line in the graph to move the pending price.\nTrigger: ${triggerValue}\nStop Limit: ${stopLimitValue}`;
     }
 
@@ -788,44 +817,40 @@ function OrderTicketInteractiveContent() {
     priceDecimals,
   ]);
 
-  // Keep the selected order type centered in the horizontal tab rail.
-  const scrollOrderTypeTabsToSelection = useCallback(
-    (selected: ChartOrderType, animated: boolean) => {
-      const layout = orderTypeTabLayoutsRef.current[selected];
-      const viewportWidth = orderTypeTabsViewportWidthRef.current;
-
-      if (!layout || viewportWidth <= 0) {
-        return;
-      }
-
-      const targetX = Math.max(0, layout.x - (viewportWidth - layout.width) / 2);
-      orderTypeTabsRef.current?.scrollTo({ x: targetX, animated });
+  const [pendingSide, setPendingSide] = useState<TradeSide | null>(null);
+  const [tradeActionLocked, setTradeActionLocked] = useState(false);
+  const marketPendingCountsRef = useRef({ buy: 0, sell: 0 });
+  const marketPendingCounts = marketPendingCountsRef.current;
+  const setMarketPendingCounts = useCallback(
+    (update: (counts: { buy: number; sell: number }) => { buy: number; sell: number }) => {
+      marketPendingCountsRef.current = update(marketPendingCountsRef.current);
     },
     [],
   );
-
-  useEffect(() => {
-    scrollOrderTypeTabsToSelection(orderType, false);
-  }, [orderType, scrollOrderTypeTabsToSelection]);
-
-  const [pendingSide, setPendingSide] = useState<TradeSide | null>(null);
-  const [tradeActionLocked, setTradeActionLocked] = useState(false);
-  // The tap lock blocks double-submits while a trade request is in flight.
+  // Pending-order preview submission has its own lock. Market taps are
+  // independent intents; FastPressable handles duplicate callbacks per gesture.
   const tradeTapLockRef = useRef(false);
   const tradeTapLockSideRef = useRef<TradeSide | null>(null);
   // Investor (read-only) login: every order action is disabled.
   const investorReadOnly = useInvestorReadOnlySession();
-  const readinessError = checkOrderPolicy(instrumentMeta, volume, routeSide ?? 'buy', accountDetails);
-  const policyReady = !readinessError && marketSymbols.includes(symbol) && marketStatus?.trade_open === true;
-  const marginReady = !marginFetching && !marginError && Number.isFinite(serverMargin?.required_margin) && Number.isFinite(serverMargin?.free_margin) && (serverMargin?.free_margin ?? -1) >= 0 && Number.isFinite(serverMargin?.max_lots) && volume <= (serverMargin?.max_lots ?? 0);
-  const tradeActionDisabled =
-    investorReadOnly || pendingSide !== null || tradeActionLocked || quoteIsUnavailable || !policyReady || !marginReady;
-  const pricePanelActionUnavailable = !oneClickAccepted || !isMarketExecution;
-  const isTradeActionPending = (side: TradeSide) => pendingSide === side;
-  const isSideActionDisabled = (side: TradeSide) => tradeActionDisabled || Boolean(checkOrderPolicy(instrumentMeta, volume, side, accountDetails));
+  // Match One-Click submission: local permissions and quotes guard the tap;
+  // the order endpoint decides final market/margin acceptance. Calculator
+  // previews load independently and never hold up an executable order.
+  const tradePolicyErrors = useMemo(() => ({
+    buy: checkOrderPolicy(instrumentMeta, volume, 'buy', accountDetails),
+    sell: checkOrderPolicy(instrumentMeta, volume, 'sell', accountDetails),
+  }), [instrumentMeta, volume, accountDetails]);
+  const tradeActionUnavailable = investorReadOnly || quoteIsUnavailable
+    || Boolean(tradePolicyErrors.buy && tradePolicyErrors.sell);
+  const tradeActionDisabled = tradeActionUnavailable
+    || (!isMarketExecution && (pendingSide !== null || tradeActionLocked));
+  const pricePanelActionUnavailable = !isMarketExecution;
+  const isTradeActionPending = (side: TradeSide) => isMarketExecution
+    ? marketPendingCounts[side] > 0 : pendingSide === side;
+  const isSideActionDisabled = (side: TradeSide) => tradeActionDisabled || Boolean(tradePolicyErrors[side]);
   const isPricePanelActionDisabled = (side: TradeSide) => pricePanelActionUnavailable || isSideActionDisabled(side);
   const getPricePanelActionOpacity = (side: TradeSide) =>
-    pricePanelActionUnavailable || isTradeActionPending(side) ? 0.5 : 1;
+    pricePanelActionUnavailable || isSideActionDisabled(side) ? 0.5 : 1;
   const tradeButtonActions: readonly OrderTicketTradeAction[] = [
     {
       side: TRADE_SIDE.sell,
@@ -870,8 +895,9 @@ function OrderTicketInteractiveContent() {
       return;
     }
     if (blockInvestorTradeAction(t)) return;
-    if (!policyReady || !marginReady || checkOrderPolicy(instrumentMeta, volume, side, accountDetails)) {
-      showModal({ visible: true, type: 'error', title: 'Trading unavailable', message: readinessError || 'Wait for account symbols, market status and margin checks to complete.', side });
+    const policyError = checkOrderPolicy(instrumentMeta, volume, side, accountDetails);
+    if (policyError) {
+      showModal({ visible: true, type: 'error', title: 'Trading unavailable', message: policyError, side });
       return;
     }
     const requestedSide = assertTradeSide(side);
@@ -912,35 +938,6 @@ function OrderTicketInteractiveContent() {
       });
       return;
     }
-    if (tradeTapLockRef.current || tradeActionLocked || pendingSide !== null) {
-      logOrderTicketDiagnostic('[TRADE-BUTTON-PRESS]', {
-        symbol,
-        buttonPressed: requestedSide,
-        displayedLabel: requestedSide === 'buy' ? 'BUY' : 'SELL',
-        sidePassedToHandler: requestedSide,
-        routeSide: routeSide ?? null,
-        ignored: true,
-        lockSide: tradeTapLockSideRef.current ?? pendingSide,
-        reason: tradeTapLockRef.current
-          ? 'tap-lock'
-          : tradeActionLocked
-            ? 'trade-action-locked'
-            : 'pending-side',
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-    tradeTapLockRef.current = true;
-    tradeTapLockSideRef.current = requestedSide;
-    setTradeActionLocked(true);
-    setPendingSide(requestedSide);
-    const releaseTradeTapLock = () => {
-      tradeTapLockRef.current = false;
-      tradeTapLockSideRef.current = null;
-      setTradeActionLocked(false);
-      setPendingSide(null);
-    };
-
     logOrderTicketDiagnostic('[TRADE-BUTTON-PRESS]', {
       symbol,
       buttonPressed: requestedSide,
@@ -956,7 +953,6 @@ function OrderTicketInteractiveContent() {
         'The app does not have a valid local trading session. Log in again before placing an order.',
       );
       showModal({ visible: true, type: 'error', title: feedback.title, message: feedback.message, side: requestedSide });
-      releaseTradeTapLock();
       return;
     }
 
@@ -967,7 +963,6 @@ function OrderTicketInteractiveContent() {
         'The app could not resolve the active trading account from local state. Select an account and try again.',
       );
       showModal({ visible: true, type: 'error', title: feedback.title, message: feedback.message, side: requestedSide });
-      releaseTradeTapLock();
       return;
     }
     const marketActionProvenance = captureActiveBrokerSessionProvenance();
@@ -986,11 +981,11 @@ function OrderTicketInteractiveContent() {
         message: feedback.message,
         side: requestedSide,
       });
-      releaseTradeTapLock();
       return;
     }
 
     let releaseProtectionSubmissionOnExit = false;
+    let submittedReceiptId: number | undefined;
     try {
       // Live API Integration: POST /api/v2/orders
       // Places a market order via the centralized ordersApi.
@@ -1010,6 +1005,7 @@ function OrderTicketInteractiveContent() {
       // makes some MT5 bridges interpret it as "set price to zero" and the
       // backend rejects the insert. Same for trailing_stop/trailing_step/magic.
       const payload = {
+        frontendIntentId: createMarketOrderIntentId(),
         account_login: tradingLogin,
         broker_id: brokerIdForOrder,
         symbol: symbol,
@@ -1036,21 +1032,22 @@ function OrderTicketInteractiveContent() {
         resolvedOrigin === 'chart' &&
         normalizeSymbol(symbol) === routeInitialSymbol
       ) {
-        if (!tryBeginChartProtectionDraftSubmission(routeProtectionDraftId)) {
-          showModal({
-            visible: true,
-            type: 'error',
-            title: 'Order Already Submitted',
-            message: 'Wait for this protected Market Execution order to reconcile before submitting it again.',
-            side: requestedSide,
-          });
-          return;
-        }
         releaseProtectionSubmissionOnExit = true;
         publishChartProtectionDraftSubmission(routeProtectionDraftId);
       }
-      const data = await ordersApi.placeMarketOrder(payload);
-      if (!isActiveBrokerSessionProvenanceCurrent(marketActionProvenance)) return;
+      // Start transport before React busy-state rendering can occupy the tap.
+      const request = ordersApi.placeMarketOrder(payload);
+      submittedReceiptId = nextReceiptIdRef.current++;
+      orderTicketReceiptController.applyEvent({
+        queueId: submittedReceiptId,
+        status: 'pending',
+        side: requestedSide,
+        symbol: symbol.replace(/\//g, ''),
+        volume,
+      });
+      setMarketPendingCounts(counts => ({ ...counts, [requestedSide]: counts[requestedSide] + 1 }));
+      const data = await request;
+      if (!isMarketOrderFeedbackCurrent(marketActionProvenance.cacheNamespace)) return;
       logOrderTicketDiagnostic('[TRADE-RESPONSE]', {
         requestSide: requestedSide,
         result: data?.status ?? 'success',
@@ -1063,7 +1060,7 @@ function OrderTicketInteractiveContent() {
           { status: 400, data: { message: data.comment || `Server returned status: ${data.status}` } },
           { action: 'place-order' },
         );
-        showModal({ visible: true, type: 'error', title: feedback.title, message: feedback.message, side: requestedSide });
+        showModal({ visible: true, type: 'error', title: feedback.title, message: feedback.message, side: requestedSide }, submittedReceiptId);
         return;
       }
 
@@ -1074,12 +1071,6 @@ function OrderTicketInteractiveContent() {
       // decrease, close, or reverse an existing position, and it does not echo
       // authoritative SL/TP. The API-owned captured-session reconciliation is
       // the only writer for this market mutation.
-
-      void invalidateSessionQueryRoots(
-        queryClient,
-        marketActionProvenance.cacheNamespace,
-        ['positions', 'accountSummary', 'transactions'],
-      );
 
       const displaySymbol = symbol.replace(/\//g, '');
       const successFeedback: TradeFeedbackState = executionEvidence.confirmed
@@ -1124,27 +1115,42 @@ function OrderTicketInteractiveContent() {
         });
         releaseProtectionSubmissionOnExit = false;
       }
-      showModal(successFeedback);
+      showModal(successFeedback, submittedReceiptId);
+      // Display broker evidence first. The API already reconciles positions;
+      // coalesce summary refreshes through the same path as One-Click Trading.
+      scheduleMarketOrderSummaryRefresh(queryClient, marketActionProvenance.cacheNamespace);
     } catch (error: any) {
-      if (!isActiveBrokerSessionProvenanceCurrent(marketActionProvenance)) return;
+      if (!isMarketOrderFeedbackCurrent(marketActionProvenance.cacheNamespace)) return;
       const feedback = classifyTradingError(error, { action: 'place-order' });
-      // Extract raw server message so we can see the exact rejection reason
+      // Extract raw server message for redacted diagnostics; user-facing modal uses mapped feedback
       const rawMsg = redactSensitiveString(
         String(error?.response?.data?.message || error?.response?.data?.error || error?.data?.message || ''),
       );
-      const displayMsg = rawMsg ? `${feedback.message}\n\nServer: ${rawMsg}` : feedback.message;
+      const displayMsg = feedback.message || rawMsg;
       warnOrderTicketDiagnostic('[TRADE-RESPONSE]', {
         requestSide: requestedSide,
         result: 'error',
         backendSide: error?.response?.data?.side ?? error?.data?.side ?? null,
         rawResponse: error?.response?.data ?? error?.data ?? error,
       });
-      showModal({ visible: true, type: 'error', title: feedback.title, message: displayMsg, side: requestedSide });
+      showModal(
+        { visible: true, type: 'error', title: feedback.title, message: displayMsg, side: requestedSide },
+        submittedReceiptId,
+        feedback.status !== 202 && (feedback.kind === 'backend-rejection' || feedback.kind === 'rate-limit')
+          ? 'failed' : 'unconfirmed',
+      );
     } finally {
+      const unsettledReceipt = submittedReceiptId === undefined ? undefined
+        : orderTicketReceiptController.getSnapshot().find(event => event.queueId === submittedReceiptId);
+      if (unsettledReceipt?.status === 'pending') {
+        orderTicketReceiptController.applyEvent({ ...unsettledReceipt, status: 'cancelled' });
+      }
       if (releaseProtectionSubmissionOnExit && routeProtectionDraftId) {
         releaseChartProtectionDraftSubmission(routeProtectionDraftId);
       }
-      releaseTradeTapLock();
+      if (submittedReceiptId !== undefined) {
+        setMarketPendingCounts(counts => ({ ...counts, [requestedSide]: Math.max(0, counts[requestedSide] - 1) }));
+      }
     }
   };
 
@@ -1178,9 +1184,10 @@ function OrderTicketInteractiveContent() {
   );
 
   const resolveProtectionPriceSeed = useCallback(() => {
+    if (isPendingOrderType) return isStopLimitOrderType ? pendingStopLimitPrice : pendingEntryPrice;
     if (BID > 0 && ASK > 0) return (BID + ASK) / 2;
     return 0;
-  }, [ASK, BID]);
+  }, [ASK, BID, isPendingOrderType, isStopLimitOrderType, pendingEntryPrice, pendingStopLimitPrice]);
 
   const adjustStopLoss = useCallback(
     (direction: -1 | 1) => {
@@ -1245,6 +1252,8 @@ function OrderTicketInteractiveContent() {
   // Pending orders share market-order safety checks, then add price_open and
   // type so the backend can create the correct pending order.
   const handlePlacePendingOrder = async () => {
+    // A retained callback must not prompt for login or submit a preview draft.
+    if (isPendingOrderPlacementBackendLocked(orderType)) return;
     if (requestOrrnnDemoTradeAuth({
       kind: 'pending-order',
       symbol,
@@ -1254,9 +1263,6 @@ function OrderTicketInteractiveContent() {
       return;
     }
     if (blockInvestorTradeAction(t)) return;
-    // Defense in depth: the visible tabs are locked too, but a stale retained
-    // screen must never reach the dormant API path before backend readiness.
-    if (isPendingOrderTypeBackendLocked(orderType)) return;
     if (isMarketExecution) return;
     const pendingProtectionLockedAtSubmit =
       isPendingOrderProtectionBackendLocked();
@@ -1286,10 +1292,29 @@ function OrderTicketInteractiveContent() {
     if (tradeTapLockRef.current || tradeActionLocked || pendingSide !== null) return;
 
     const pendingSideValue = getChartOrderSide(orderType);
+    const pendingType = normalizePendingOrderType(orderType);
+    if (!pendingPriceRulesReady({ digits: instrumentMeta?.digits, stopsLevel: instrumentMeta?.stopsLevel })) {
+      showModal({ visible: true, type: 'error', title: 'Symbol Details Unavailable', message: 'Wait for the symbol price precision and stop distance to load.', side: pendingSideValue });
+      return;
+    }
+    const pendingValidation = pendingType ? validatePendingOrder({
+      type: pendingType, price: roundPendingPrice(pendingEntryPrice), priceLimit: roundPendingPrice(pendingStopLimitPrice),
+      sl: slEnabled ? roundPendingPrice(slPrice) : null, tp: tpEnabled ? roundPendingPrice(tpPrice) : null,
+      bid: currentQuoteAvailability.bid, ask: currentQuoteAvailability.ask,
+      digits: priceDecimals, tickSize: priceTickSize, stopsLevel: instrumentMeta?.stopsLevel,
+    }) : 'Select a valid pending order type.';
+    if (pendingValidation) {
+      showModal({ visible: true, type: 'error', title: 'Invalid Pending Order', message: pendingValidation, side: pendingSideValue });
+      return;
+    }
+    const pendingPolicyError = checkOrderPolicy(instrumentMeta, volume, pendingSideValue, accountDetails);
+    if (pendingPolicyError) {
+      const feedback = createFrontendTradingError('Order Not Allowed', pendingPolicyError);
+      showModal({ visible: true, type: 'error', title: feedback.title, message: feedback.message, side: pendingSideValue });
+      return;
+    }
     tradeTapLockRef.current = true;
     tradeTapLockSideRef.current = pendingSideValue;
-    setTradeActionLocked(true);
-    setPendingSide(pendingSideValue);
     const releaseLock = () => {
       tradeTapLockRef.current = false;
       tradeTapLockSideRef.current = null;
@@ -1323,6 +1348,7 @@ function OrderTicketInteractiveContent() {
       return;
     }
 
+    let pendingReceiptId: number | undefined;
     try {
       const brokerIdForOrder = brokerId || undefined;
       const payload = {
@@ -1331,6 +1357,10 @@ function OrderTicketInteractiveContent() {
         symbol,
         side: pendingSideValue,
         volume,
+        digits: priceDecimals,
+        tickSize: priceTickSize,
+        time_in_force: pendingTimeInForce,
+        expiry: pendingExpiry(pendingTimeInForce, pendingExpirySeconds),
         ...(pendingEntryPrice > 0 ? { price: pendingEntryPrice } : {}),
         ...(isStopLimitOrderType && pendingStopLimitPrice > 0 ? { stopLimitPrice: pendingStopLimitPrice } : {}),
         ...(!pendingProtectionLockedAtSubmit && slEnabled && slPrice > 0 ? { price_sl: slPrice } : {}),
@@ -1341,7 +1371,14 @@ function OrderTicketInteractiveContent() {
 
       logOrderTicketDiagnostic('[PENDING-ORDER-PAYLOAD]', payload);
 
-      const data = await ordersApi.placePendingOrder(payload);
+      const request = ordersApi.placePendingOrder(payload);
+      pendingReceiptId = nextReceiptIdRef.current++;
+      orderTicketReceiptController.applyEvent({
+        queueId: pendingReceiptId, status: 'pending', side: pendingSideValue, symbol, volume,
+      });
+      setTradeActionLocked(true);
+      setPendingSide(pendingSideValue);
+      const data = await request;
       if (!isActiveBrokerSessionProvenanceCurrent(pendingActionProvenance)) return;
 
       if (['rejected', 'failed', 'error'].includes((data.status ?? '').toLowerCase())) {
@@ -1349,21 +1386,23 @@ function OrderTicketInteractiveContent() {
           { status: 400, data: { message: data.comment || `Server returned status: ${data.status}` } },
           { action: 'place-order' },
         );
-        showModal({ visible: true, type: 'error', title: feedback.title, message: feedback.message, side: pendingSideValue });
+        showModal({ visible: true, type: 'error', title: feedback.title, message: feedback.message, side: pendingSideValue }, pendingReceiptId);
         return;
       }
 
       const pendingOrderEvidence = resolveBrokerExecutionEvidence(data);
 
-      // Invalidate order queries so the chart overlay can pick up the new order.
-      void invalidateSessionQueryRoots(
-        queryClient,
-        pendingActionProvenance.cacheNamespace,
-        ['ordersByLogin', 'accountOrders'],
-      );
-
       if (pendingOrderEvidence.ticket !== undefined) {
-        showTradeConfirmation({ side: pendingSideValue, symbol, volume });
+        const submitted = orderTicketReceiptController.getSnapshot().find(row => row.queueId === pendingReceiptId);
+        if (submitted) orderTicketReceiptController.applyEvent({
+          ...submitted,
+          status: 'placed',
+          feedback: {
+            visible: true, type: 'success', executionConfirmed: false,
+            title: 'Pending Order Placed', side: pendingSideValue, symbol, volume,
+            ticket: String(pendingOrderEvidence.ticket),
+          },
+        });
       } else {
         showModal({
           visible: true,
@@ -1374,28 +1413,44 @@ function OrderTicketInteractiveContent() {
           side: pendingSideValue,
           symbol: symbol.replace(/\//g, ''),
           volume,
-        });
+        }, pendingReceiptId);
       }
+      // Reconcile only after the receipt, without holding the submit lock.
+      void invalidateSessionQueryRoots(
+        queryClient,
+        pendingActionProvenance.cacheNamespace,
+        ['pendingOrders', 'ordersByLogin', 'accountOrders'],
+      );
     } catch (error: any) {
       if (!isActiveBrokerSessionProvenanceCurrent(pendingActionProvenance)) return;
       const feedback = classifyTradingError(error, { action: 'place-order' });
       const rawMsg = redactSensitiveString(
         String(error?.response?.data?.message || error?.response?.data?.error || error?.data?.message || ''),
       );
-      const displayMsg = rawMsg ? `${feedback.message}\n\nServer: ${rawMsg}` : feedback.message;
-      showModal({ visible: true, type: 'error', title: feedback.title, message: displayMsg, side: pendingSideValue });
+      const displayMsg = feedback.message || rawMsg;
+      showModal(
+        { visible: true, type: 'error', title: feedback.title, message: displayMsg, side: pendingSideValue },
+        pendingReceiptId,
+        feedback.status !== 202 && (feedback.kind === 'backend-rejection' || feedback.kind === 'rate-limit')
+          ? 'failed' : 'unconfirmed',
+      );
     } finally {
+      const unsettled = orderTicketReceiptController.getSnapshot().find(row => row.queueId === pendingReceiptId);
+      if (unsettled?.status === 'pending') orderTicketReceiptController.dismiss(unsettled.queueId);
       releaseLock();
     }
   };
 
-  const rawSpreadPoints = pricePointSize > 0 && Number.isFinite(ASK) && Number.isFinite(BID)
+  const rawSpreadPoints = pricePointSize > 0 && ASK > 0 && BID > 0 && Number.isFinite(ASK) && Number.isFinite(BID)
     ? Math.round((ASK - BID) / pricePointSize)
-    : 0;
+    : Number.NaN;
   const spread = Math.max(0, rawSpreadPoints);
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    <View
+      style={[styles.root, { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}
+      onLayout={({ nativeEvent }) => orderTicketReceiptAnchor.update({ rootHeight: nativeEvent.layout.height })}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Compact header: back button, current symbol, and symbol picker. */}
@@ -1435,6 +1490,14 @@ function OrderTicketInteractiveContent() {
         canCancelContentTouches={Platform.OS === 'ios'}
         style={styles.root}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 100 }}
+        onLayout={({ nativeEvent }) => orderTicketReceiptAnchor.update({
+          viewportTop: nativeEvent.layout.y, viewportHeight: nativeEvent.layout.height,
+        })}
+        onScroll={({ nativeEvent }) => orderTicketReceiptAnchor.update({ scrollOffset: nativeEvent.contentOffset.y })}
+        onScrollBeginDrag={({ nativeEvent }) => orderTicketReceiptAnchor.update({ scrollOffset: nativeEvent.contentOffset.y })}
+        onScrollEndDrag={({ nativeEvent }) => orderTicketReceiptAnchor.update({ scrollOffset: nativeEvent.contentOffset.y })}
+        onMomentumScrollEnd={({ nativeEvent }) => orderTicketReceiptAnchor.update({ scrollOffset: nativeEvent.contentOffset.y })}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="always"
         automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
@@ -1442,10 +1505,18 @@ function OrderTicketInteractiveContent() {
       {/* Price panel: large BID/ASK tap targets for one-click market execution. */}
       <View style={styles.pricePanel}>
         <FastPressable
-          style={[styles.priceHalf, { backgroundColor: sellTradeAction.backgroundColor, opacity: getPricePanelActionOpacity(sellTradeAction.side) }]}
+          style={({ pressed }) => [
+            styles.priceHalf,
+            { backgroundColor: sellTradeAction.backgroundColor, opacity: getPricePanelActionOpacity(sellTradeAction.side) },
+            pressed && styles.priceHalfPressed,
+          ]}
+          android_ripple={{ color: 'rgba(255, 255, 255, 0.28)', foreground: true }}
           disabled={isPricePanelActionDisabled(sellTradeAction.side)}
           accessibilityState={{ disabled: isPricePanelActionDisabled(sellTradeAction.side), busy: isTradeActionPending(sellTradeAction.side) }}
           onPress={() => { void handlePlaceOrder(sellTradeAction.side); }}
+          activateOnPressIn
+          activateOnTouchStart
+          unstable_pressDelay={0}
           latencyLabel={`orderTicket.pricePanel.${sellTradeAction.side}`}
           latencyBudgetMs={CRITICAL_TRADE_ACTION_MAX_LATENCY_MS}
           accessibilityRole="button"
@@ -1453,7 +1524,7 @@ function OrderTicketInteractiveContent() {
           testID={sellTradeAction.priceTestID}
         >
           <Text style={[styles.priceTag, { color: sellTradeAction.color }]}>{sellTradeAction.priceLabel}</Text>
-          <Text style={styles.priceMain} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{fmt.price(sellTradeAction.price)}</Text>
+          <Text style={styles.priceMain} numberOfLines={1} adjustsFontSizeToFit>{sellTradeAction.price > 0 ? formatBackendPrice(sellTradeAction.price) : '--'}</Text>
         </FastPressable>
 
         {/* Spread pillar: shows the current difference between ASK and BID. */}
@@ -1464,10 +1535,18 @@ function OrderTicketInteractiveContent() {
         </View>
 
         <FastPressable
-          style={[styles.priceHalf, { backgroundColor: buyTradeAction.backgroundColor, opacity: getPricePanelActionOpacity(buyTradeAction.side) }]}
+          style={({ pressed }) => [
+            styles.priceHalf,
+            { backgroundColor: buyTradeAction.backgroundColor, opacity: getPricePanelActionOpacity(buyTradeAction.side) },
+            pressed && styles.priceHalfPressed,
+          ]}
+          android_ripple={{ color: 'rgba(255, 255, 255, 0.28)', foreground: true }}
           disabled={isPricePanelActionDisabled(buyTradeAction.side)}
           accessibilityState={{ disabled: isPricePanelActionDisabled(buyTradeAction.side), busy: isTradeActionPending(buyTradeAction.side) }}
           onPress={() => { void handlePlaceOrder(buyTradeAction.side); }}
+          activateOnPressIn
+          activateOnTouchStart
+          unstable_pressDelay={0}
           latencyLabel={`orderTicket.pricePanel.${buyTradeAction.side}`}
           latencyBudgetMs={CRITICAL_TRADE_ACTION_MAX_LATENCY_MS}
           accessibilityRole="button"
@@ -1475,7 +1554,7 @@ function OrderTicketInteractiveContent() {
           testID={buyTradeAction.priceTestID}
         >
           <Text style={[styles.priceTag, { color: buyTradeAction.color }]}>{buyTradeAction.priceLabel}</Text>
-          <Text style={styles.priceMain} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{fmt.price(buyTradeAction.price)}</Text>
+          <Text style={styles.priceMain} numberOfLines={1} adjustsFontSizeToFit>{buyTradeAction.price > 0 ? formatBackendPrice(buyTradeAction.price) : '--'}</Text>
         </FastPressable>
       </View>
 
@@ -1487,7 +1566,6 @@ function OrderTicketInteractiveContent() {
  */}
         <Text style={styles.sectionTitle}>ORDER TYPE</Text>
         <ScrollView
-          ref={orderTypeTabsRef}
           horizontal
           directionalLockEnabled
           nestedScrollEnabled
@@ -1495,10 +1573,6 @@ function OrderTicketInteractiveContent() {
           showsHorizontalScrollIndicator={false}
           style={styles.orderTypeTabsScroll}
           contentContainerStyle={styles.orderTypeTabs}
-          onLayout={(event) => {
-            orderTypeTabsViewportWidthRef.current = event.nativeEvent.layout.width;
-            scrollOrderTypeTabsToSelection(orderType, false);
-          }}
         >
           {CHART_ORDER_TYPES.map((option) => {
             const active = option === orderType;
@@ -1507,12 +1581,7 @@ function OrderTicketInteractiveContent() {
             return (
               <FastPressable
                 key={option}
-                onLayout={(event) => {
-                  orderTypeTabLayoutsRef.current[option] = {
-                    x: event.nativeEvent.layout.x,
-                    width: event.nativeEvent.layout.width,
-                  };
-                }}
+                hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
                 style={[
                   styles.orderTypeTab,
                   active && styles.orderTypeTabActive,
@@ -1531,7 +1600,6 @@ function OrderTicketInteractiveContent() {
                     return;
                   }
                   setOrderType(option);
-                  scrollOrderTypeTabsToSelection(option, true);
                 }}
                 latencyLabel={`orderTicket.orderType.${option}`}
               >
@@ -1544,16 +1612,18 @@ function OrderTicketInteractiveContent() {
           })}
         </ScrollView>
 
+
         {/* Volume controls: typed lot input, plus/minus stepper, and quick presets. */}
         <View style={styles.volSection}>
           <Text style={styles.rowLabel}>Volume</Text>
           <View style={styles.volStepper}>
-            <FastPressable style={styles.volBtn} onPress={() => adj(-1)} latencyLabel="orderTicket.volume.decrement" hitSlop={8}>
+            <FastPressable style={styles.volBtn} onPress={() => adj(-1)} accessibilityRole="button" accessibilityLabel={t('Decrease volume')} latencyLabel="orderTicket.volume.decrement" hitSlop={8}>
               <Ionicons name="remove" size={18} color={T.textSub} />
             </FastPressable>
             <View style={styles.volCenter}>
               <TextInput
                 style={styles.volInput}
+                accessibilityLabel={t('Volume')}
                 value={volumeInput}
                 onChangeText={(text) => setVolumeInput(sanitizeTradeVolumeDraft(text))}
                 onBlur={commitVolumeInput}
@@ -1564,7 +1634,7 @@ function OrderTicketInteractiveContent() {
                 placeholderTextColor={T.textMuted}
               />
             </View>
-            <FastPressable style={styles.volBtn} onPress={() => adj(1)} latencyLabel="orderTicket.volume.increment" hitSlop={8}>
+            <FastPressable style={styles.volBtn} onPress={() => adj(1)} accessibilityRole="button" accessibilityLabel={t('Increase volume')} latencyLabel="orderTicket.volume.increment" hitSlop={8}>
               <Ionicons name="add" size={18} color={T.textSub} />
             </FastPressable>
           </View>
@@ -1575,6 +1645,9 @@ function OrderTicketInteractiveContent() {
               key={v}
               style={[styles.quickPill, Math.abs(volume - v) < 0.000001 && styles.quickPillActive]}
               onPress={() => updateVolume(v)}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('Volume')} ${v.toFixed(2)}`}
+              accessibilityState={{ selected: Math.abs(volume - v) < 0.000001 }}
               latencyLabel={`orderTicket.volume.quick.${v.toFixed(2)}`}
             >
               <Text style={[styles.quickTxt, Math.abs(volume - v) < 0.000001 && styles.quickTxtActive]}>
@@ -1587,7 +1660,7 @@ function OrderTicketInteractiveContent() {
         <View style={styles.hairline} />
 
         {/* MT5-style protection controls: compact SL/TP steppers above Fill policy. */}
-        <View style={[styles.sltpRow, protectionBackendLocked && styles.sltpRowDisabled]}>
+        {isMarketExecution && <View style={[styles.sltpRow, protectionBackendLocked && styles.sltpRowDisabled]}>
           <View style={styles.sltpGroup}>
             <FastPressable
               style={styles.sltpBtn}
@@ -1600,9 +1673,21 @@ function OrderTicketInteractiveContent() {
             >
               <Text style={styles.sltpAction}>-</Text>
             </FastPressable>
-            <Text style={[styles.sltpLabel, slEnabled && styles.sltpValue]} numberOfLines={1}>
-              {slEnabled && slPrice > 0 ? slPrice.toFixed(priceDecimals) : 'SL'}
-            </Text>
+            <FastPressable
+              onPress={() => {
+                if (slEnabled) {
+                  setSlEnabled(false);
+                  setSlPrice(0);
+                }
+              }}
+              disabled={!slEnabled || protectionBackendLocked}
+              accessibilityRole="button"
+              accessibilityLabel={slEnabled ? t('Clear Stop Loss') : t('Stop Loss')}
+            >
+              <Text style={[styles.sltpLabel, slEnabled && styles.sltpValue]} numberOfLines={1}>
+                {slEnabled && slPrice > 0 ? formatBackendPrice(slPrice) : 'SL'}
+              </Text>
+            </FastPressable>
             <FastPressable
               style={styles.sltpBtn}
               onPress={() => handleStopLevelAdjustment('sl', 1)}
@@ -1628,9 +1713,21 @@ function OrderTicketInteractiveContent() {
             >
               <Text style={styles.sltpAction}>-</Text>
             </FastPressable>
-            <Text style={[styles.sltpLabel, tpEnabled && styles.sltpValue]} numberOfLines={1}>
-              {tpEnabled && tpPrice > 0 ? tpPrice.toFixed(priceDecimals) : 'TP'}
-            </Text>
+            <FastPressable
+              onPress={() => {
+                if (tpEnabled) {
+                  setTpEnabled(false);
+                  setTpPrice(0);
+                }
+              }}
+              disabled={!tpEnabled || protectionBackendLocked}
+              accessibilityRole="button"
+              accessibilityLabel={tpEnabled ? t('Clear Take Profit') : t('Take Profit')}
+            >
+              <Text style={[styles.sltpLabel, tpEnabled && styles.sltpValue]} numberOfLines={1}>
+                {tpEnabled && tpPrice > 0 ? formatBackendPrice(tpPrice) : 'TP'}
+              </Text>
+            </FastPressable>
             <FastPressable
               style={styles.sltpBtn}
               onPress={() => handleStopLevelAdjustment('tp', 1)}
@@ -1643,7 +1740,7 @@ function OrderTicketInteractiveContent() {
               <Text style={styles.sltpAction}>+</Text>
             </FastPressable>
           </View>
-        </View>
+        </View>}
         {protectionBackendLocked ? (
           <Text style={styles.sltpUnavailableText} accessibilityRole="alert">
             {t(getActiveSltpUnavailableMessage())}
@@ -1654,102 +1751,60 @@ function OrderTicketInteractiveContent() {
         <InfoRow label={t('Fill Policy')} value={t('Immediate or Cancel')} styles={styles} />
         <View style={styles.hairline} />
 
-        <View style={styles.executionGraphWrap}>
-          {heavyContentReady ? (
-            <LiveOrderTickExecutionGraph
-              symbol={symbol}
-              bid={BID}
-              ask={ASK}
-              timestamp={tickTimestamp}
-              priceDecimals={priceDecimals}
-              bidColor="#2563EB"
-              askColor="#EF4444"
-              height={300}
-              isDark={isDark}
-              backgroundColor={T.bg}
-            />
-          ) : (
-            <View style={styles.executionGraphPlaceholder} />
-          )}
-        </View>
-
-        <InfoRow label={t('Spread')} value={`${spread} ${t('pts')}`} styles={styles} />
-        <View style={styles.hairline} />
-        <InfoRow label={t('Margin')} value={marginDisplay} styles={styles} />
-        <View style={styles.hairline} />
-        <InfoRow label={t('Acc. Leverage')} value={leverageDisplay} styles={styles} />
-        <View style={styles.hairline} />
-
-        {quoteIsUnavailable ? (
-          <View style={styles.marketDataGuard} accessibilityRole="alert">
-            <Ionicons name="warning-outline" size={18} color={T.trading.sell.primary} />
-            <Text style={styles.marketDataGuardText}>{quoteUnavailableMessage}</Text>
+        <View style={styles.tradeFeedbackAnchor}>
+          <View style={styles.executionGraphWrap}>
+            {heavyContentReady ? (
+              <LiveOrderTickExecutionGraph
+                symbol={symbol}
+                bid={BID}
+                ask={ASK}
+                timestamp={tickTimestamp}
+                priceDecimals={priceDecimals}
+                bidColor="#2563EB"
+                askColor="#EF4444"
+                height={300}
+                isDark={isDark}
+                backgroundColor={T.bg}
+              />
+            ) : (
+              <View style={styles.executionGraphPlaceholder} />
+            )}
           </View>
-        ) : null}
 
-        {/* One-click parity: confirmed fills show the same compact receipt bar
-            the chart shows for one-click trades, directly above the SELL/BUY
-            buttons inside the order screen. */}
-        {confirmedTradeReceipt ? (
-          <View style={styles.tradeReceiptHost}>
-            <View
-              accessibilityLiveRegion="polite"
-              accessibilityRole="alert"
-              accessibilityLabel={
-                `${confirmedTradeReceipt.symbol}, ${confirmedTradeReceipt.sideAccessibilityLabel}, `
-                + `${confirmedTradeReceipt.volumeLabel} lots, ${confirmedTradeReceipt.doneLabel}`
-              }
-              style={[
-                styles.tradeReceiptBar,
-                {
-                  borderLeftColor: confirmedTradeReceipt.side === 'buy' ? BUY_C : SELL_C,
-                },
-              ]}
-            >
-              <Text style={styles.tradeReceiptSymbol} numberOfLines={1}>
-                {confirmedTradeReceipt.symbol}
-              </Text>
-              <Text
-                style={[
-                  styles.tradeReceiptSide,
-                  { color: confirmedTradeReceipt.side === 'buy' ? BUY_C : SELL_C },
-                ]}
-                numberOfLines={1}
-              >
-                {confirmedTradeReceipt.sideAccessibilityLabel}
-              </Text>
-              <Text style={styles.tradeReceiptVolume} numberOfLines={1}>
-                {confirmedTradeReceipt.volumeLabel}
-              </Text>
-              <FastPressable
-                accessibilityRole="button"
-                accessibilityLabel="Dismiss trade confirmation"
-                hitSlop={10}
-                onPress={handleModalClose}
-                style={styles.tradeReceiptDoneButton}
-              >
-                <Text style={styles.tradeReceiptDone} numberOfLines={1}>
-                  done
-                </Text>
-              </FastPressable>
+          <InfoRow label={t('Spread')} value={Number.isFinite(spread) ? `${spread} ${t('pts')}` : '--'} styles={styles} />
+          <View style={styles.hairline} />
+          <InfoRow label={t('Margin')} value={marginDisplay} loading={marginDisplay === '--' && !marginError && !accountSummaryError} styles={styles} />
+          <View style={styles.hairline} />
+          <InfoRow label={t('Acc. Leverage')} value={leverageDisplay} loading={backendLeverage === null && !accountSummaryError} styles={styles} />
+          <View style={styles.hairline} />
+
+          {quoteIsUnavailable ? (
+            <View style={styles.marketDataGuard} accessibilityRole="alert">
+              <Ionicons name="warning-outline" size={18} color={T.trading.sell.primary} />
+              <Text style={styles.marketDataGuardText}>{quoteUnavailableMessage}</Text>
             </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
 
         {/* Execution buttons: market orders submit immediately; pending orders show trigger controls first. */}
         {isMarketExecution ? (
-          <View style={styles.execRow}>
+          <View
+            style={styles.execRow}
+            onLayout={({ nativeEvent }) => orderTicketReceiptAnchor.update({ actionsTop: nativeEvent.layout.y })}
+          >
             {tradeButtonActions.map((action) => (
               <FastPressable
                 key={action.side}
-                style={({ pressed }) => [
+                style={[
                   styles.execBtn,
                   action.execStyle,
-                  isTradeActionPending(action.side) && styles.execBtnBusy,
-                  tradeActionDisabled && styles.execBtnDisabled,
-                  pressed && { opacity: 0.88 }
+                  tradeActionUnavailable && styles.execBtnDisabled,
                 ]}
+                android_ripple={{ color: 'rgba(255, 255, 255, 0.28)', foreground: true }}
                 onPress={() => { void handlePlaceOrder(action.side); }}
+                activateOnPressIn
+                activateOnTouchStart
+                unstable_pressDelay={0}
                 latencyLabel={`orderTicket.exec.${action.side}`}
                 latencyBudgetMs={CRITICAL_TRADE_ACTION_MAX_LATENCY_MS}
                 disabled={isSideActionDisabled(action.side)}
@@ -1758,19 +1813,15 @@ function OrderTicketInteractiveContent() {
                 accessibilityLabel={action.marketLabel}
                 testID={action.execTestID}
               >
-                {isTradeActionPending(action.side) ? (
-                  <ActivityIndicator color={T.text} />
-                ) : (
-                  <>
-                    <Text style={styles.execCta}>{action.marketLabel}</Text>
-                    <Text style={styles.execLots}>{(volume || 0).toFixed(2)} Lots</Text>
-                  </>
-                )}
+                <View style={styles.execButtonContent}>
+                  <Text style={styles.execCta}>{action.marketLabel}</Text>
+                  <Text style={styles.execLots}>{(volume || 0).toFixed(2)} Lots</Text>
+                </View>
               </FastPressable>
             ))}
           </View>
         ) : (
-          <View>
+          <>
             {/* Pending order info card explains the selected order type and trigger price. */}
             <View style={styles.pendingSubmitPlaceholder}>
               <Ionicons name='analytics-outline' size={18} color={T.accent} />
@@ -1782,46 +1833,39 @@ function OrderTicketInteractiveContent() {
               </View>
             </View>
 
-            {/* Pending entry price stepper moves the trigger by ten price points. */}
-            <View style={[styles.volSection, { marginTop: 10 }]}>
-              <Text style={styles.rowLabel}>{t('Price')}</Text>
-              <View style={styles.volStepper}>
-                <FastPressable
-                  style={styles.volBtn}
-                  onPress={() => handlePendingEntryPriceChange(pendingEntryPrice - pricePointSize * 10)}
-                  latencyLabel="orderTicket.pending.price.decrement"
-                  hitSlop={8}
-                >
-                  <Ionicons name="remove" size={18} color={T.textSub} />
-                </FastPressable>
-                <View style={[styles.volCenter, { width: 140 }]}>
-                  <Text style={styles.volNum}>{pendingEntryPrice > 0 ? pendingEntryPrice.toFixed(priceDecimals) : '--'}</Text>
-                </View>
-                <FastPressable
-                  style={styles.volBtn}
-                  onPress={() => handlePendingEntryPriceChange(pendingEntryPrice + pricePointSize * 10)}
-                  latencyLabel="orderTicket.pending.price.increment"
-                  hitSlop={8}
-                >
-                  <Ionicons name="add" size={18} color={T.textSub} />
-                </FastPressable>
-              </View>
-            </View>
+            <PendingOrderFields type={orderType.toLowerCase().replace(/\s+/g, '_')}
+              price={pendingEntryPrice} priceLimit={pendingStopLimitPrice}
+              sl={slEnabled ? slPrice : 0} tp={tpEnabled ? tpPrice : 0}
+              onPrice={handlePendingEntryPriceChange} onPriceLimit={setPendingStopLimitPrice}
+              onSl={value => { setSlEnabled(value > 0); setSlPrice(value); }}
+              onTp={value => { setTpEnabled(value > 0); setTpPrice(value); }}
+              bid={BID} ask={ASK} rules={{ digits: priceDecimals, tickSize: priceTickSize, stopsLevel: instrumentMeta?.stopsLevel }}
+              timeInForce={pendingTimeInForce} expiry={pendingExpirySeconds}
+              onExpiration={(mode, timestamp) => { setPendingTimeInForce(mode); setPendingExpirySeconds(timestamp); }}
+              disabled={pendingSide !== null || investorReadOnly} />
 
-            {/* Submit button sends the configured pending order. */}
-            <View style={[styles.execRow, { marginTop: 8 }]}>
+            {pendingOrderPlacementBackendLocked ? (
+              <Text style={styles.pendingSubmitText}>{t(PENDING_ORDER_PREVIEW_MESSAGE)}</Text>
+            ) : null}
+            {/* Placement stays disabled while pending orders are preview-only. */}
+            <View
+              style={[styles.execRow, { marginTop: 8 }]}
+              onLayout={({ nativeEvent }) => orderTicketReceiptAnchor.update({ actionsTop: nativeEvent.layout.y })}
+            >
               <FastPressable
                 style={({ pressed }) => [
                   styles.execBtn,
                   orderType.toLowerCase().startsWith('sell') ? styles.execSell : styles.execBuy,
-                  (tradeActionDisabled || pendingEntryPrice <= 0) && styles.execBtnDisabled,
+                  (pendingOrderPlacementBackendLocked || tradeActionDisabled || pendingEntryPrice <= 0) && styles.execBtnDisabled,
                   pressed && { opacity: 0.88 },
                 ]}
-                onPress={() => { void handlePlacePendingOrder(); }}
+                onPress={pendingOrderPlacementBackendLocked ? undefined : () => { void handlePlacePendingOrder(); }}
                 latencyLabel="orderTicket.pending.submit"
-                disabled={tradeActionDisabled || pendingEntryPrice <= 0}
+                unstable_pressDelay={0}
+                disabled={pendingOrderPlacementBackendLocked || tradeActionDisabled || pendingEntryPrice <= 0}
                 accessibilityRole="button"
                 accessibilityLabel={`Place ${orderType}`}
+                accessibilityState={{ disabled: pendingOrderPlacementBackendLocked || tradeActionDisabled || pendingEntryPrice <= 0 }}
                 testID="order-ticket-pending-submit"
               >
                 {pendingSide !== null ? (
@@ -1829,12 +1873,12 @@ function OrderTicketInteractiveContent() {
                 ) : (
                   <>
                     <Text style={styles.execCta}>PLACE {orderType.toUpperCase()}</Text>
-                    <Text style={styles.execLots}>{volume.toFixed(2)} Lots @ {pendingEntryPrice > 0 ? pendingEntryPrice.toFixed(priceDecimals) : '--'}</Text>
+                    <Text style={styles.execLots}>{volume.toFixed(2)} Lots @ {pendingEntryPrice > 0 ? formatBackendPrice(pendingEntryPrice) : '--'}</Text>
                   </>
                 )}
               </FastPressable>
             </View>
-          </View>
+          </>
         )}
 
         {/* Disclaimer: reminds users that final market execution can slip. */}
@@ -1845,49 +1889,20 @@ function OrderTicketInteractiveContent() {
         </View>
       </ScrollView>
 
-      {tradeConfirmations.length > 0 ? (
-        <View
-          pointerEvents="none"
-          style={[styles.tradeConfirmationStack, { bottom: insets.bottom + 112 }]}
-        >
-          {tradeConfirmations.map((confirmation) => {
-            const isBuyConfirmation = confirmation.side === 'buy';
-            const accentColor = isBuyConfirmation ? BUY_C : SELL_C;
-            return (
-              <View
-                key={confirmation.id}
-                style={[
-                  styles.tradeConfirmationCard,
-                  { borderLeftColor: accentColor },
-                ]}
-              >
-                <Text style={styles.tradeConfirmationSymbol} numberOfLines={1}>
-                  {confirmation.symbol}
-                </Text>
-                <Text
-                  style={[
-                    styles.tradeConfirmationSide,
-                    { color: accentColor },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {isBuyConfirmation ? 'Buy' : 'Sell'}
-                </Text>
-                <Text style={styles.tradeConfirmationVolume} numberOfLines={1}>
-                  {confirmation.volumeLabel}
-                </Text>
-                <Text style={styles.tradeConfirmationDone} numberOfLines={1}>
-                  placed
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      ) : null}
+      {/* Keep the virtualized One-Click stack outside the page ScrollView. */}
+      <View style={styles.tradeReceiptHost} pointerEvents="box-none">
+        <OrderTicketAnchoredReceipts
+          anchor={orderTicketReceiptAnchor}
+          controller={orderTicketReceiptController}
+          isDark={isDark}
+          buyColor={BUY_C}
+          sellColor={SELL_C}
+        />
+      </View>
 
       {/* Shared RTX5 execution receipt plus detailed rejected/unconfirmed feedback. */}
       <TradeFeedbackModal
-        state={confirmedTradeReceipt ? TRADE_MODAL_INITIAL : modalState}
+        state={modalState}
         onClose={handleModalClose}
         isDark={isDark}
       />
@@ -1900,17 +1915,30 @@ function OrderTicketInteractiveContent() {
   );
 }
 
+// Subscribe only this overlay to layout/scroll updates, keeping the graph and
+// order form out of the popup placement render path.
+const OrderTicketAnchoredReceipts = memo(function OrderTicketAnchoredReceipts({
+  anchor, ...props
+}: {
+  anchor: OrderTicketReceiptAnchor;
+} & ComponentProps<typeof ChartTradeReceiptStack>) {
+  const placement = useSyncExternalStore(anchor.subscribe, anchor.getSnapshot, anchor.getSnapshot);
+  if (!placement) return null;
+  return <ChartTradeReceiptStack {...props} pendingLabel="sent" topOffset={placement.top} bottomOffset={placement.bottom} />;
+});
+
 /* Info row */
 // Reusable key-value row used by the market data section.
-function InfoRow({ label, value, styles }: {
+function InfoRow({ label, value, styles, loading = false }: {
   label: string;
   value: string;
   styles: any;
+  loading?: boolean;
 }) {
   return (
     <View style={styles.flatRow}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValueWhite}>{value}</Text>
+      {loading ? <ActivityIndicator size="small" accessibilityLabel={`${label} loading`} /> : <Text style={styles.rowValueWhite}>{value}</Text>}
     </View>
   );
 }
@@ -1954,6 +1982,7 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       shadowColor: isDark ? '#000' : '#64748B', shadowOffset: { width: 0, height: 8 }, shadowOpacity: isDark ? 0.3 : 0.08, shadowRadius: 24, elevation: 4
     },
     priceHalf: { flex: 1, minWidth: 0, alignItems: 'center', paddingVertical: 10 },
+    priceHalfPressed: { transform: [{ scale: 0.985 }] },
     priceTag: { fontSize: 10, fontWeight: '600', letterSpacing: 1.2 },
     priceMain: { width: '100%', textAlign: 'center', color: WHITE, fontSize: 24, fontWeight: '600', fontVariant: ['tabular-nums'], padding: 8, letterSpacing: 0 },
     spreadCenter: { width: 40, alignItems: 'center', justifyContent: 'center' },
@@ -2053,8 +2082,8 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
     marketDataGuardText: { flex: 1, color: SUB, fontSize: 12, lineHeight: 17 },
 
     execRow: { flexDirection: 'row', direction: 'ltr', paddingHorizontal: 12, paddingVertical: 6, gap: 8 },
-    execBtn: { flex: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingVertical: 14, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
-    execBtnBusy: { opacity: 0.88 },
+    execBtn: { flex: 1, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+    execButtonContent: { alignItems: 'center' },
     // Mirrors the chart trade buttons' stale-quote dim (opacity 0.5) so the
     // order screen reads as blocked whenever the executable quote is stale.
     execBtnDisabled: { opacity: 0.5 },
@@ -2101,65 +2130,6 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       lineHeight: 17,
       marginTop: 4,
     },
-    tradeConfirmationStack: {
-      position: 'absolute' as any,
-      left: '30%',
-      right: 54,
-      zIndex: 24,
-      elevation: 24,
-      gap: 6,
-    },
-    tradeConfirmationCard: {
-      minHeight: 40,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: isDark ? SURFACE : '#FFFFFF',
-      borderWidth: isDark ? 1 : 0,
-      borderColor: isDark ? T.border : 'transparent',
-      borderLeftWidth: 3,
-      borderRadius: 2,
-      paddingHorizontal: 12,
-      shadowColor: '#000000',
-      shadowOpacity: isDark ? 0.18 : 0.12,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 6,
-      gap: 12,
-    },
-    tradeConfirmationSymbol: {
-      flex: 1.2,
-      minWidth: 0,
-      color: WHITE,
-      fontSize: 13,
-      fontWeight: '600',
-      letterSpacing: 0,
-    },
-    tradeConfirmationSide: {
-      flex: 0.8,
-      minWidth: 0,
-      fontSize: 13,
-      fontWeight: '700',
-      letterSpacing: 0,
-    },
-    tradeConfirmationVolume: {
-      flex: 0.6,
-      minWidth: 0,
-      color: WHITE,
-      fontSize: 13,
-      fontWeight: '600',
-      letterSpacing: 0,
-      textAlign: 'center',
-    },
-    tradeConfirmationDone: {
-      flex: 0.8,
-      minWidth: 0,
-      color: BUY_C,
-      fontSize: 13,
-      fontWeight: '600',
-      letterSpacing: 0,
-      textAlign: 'right',
-    },
-
     /* Success / Error Modal */
     modalOverlay: {
       ...StyleSheet.absoluteFillObject,
@@ -2299,77 +2269,12 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       fontSize: 16,
       fontWeight: '700',
     },
-    // One-click parity receipt: mirrors ChartScreen's chartTradeReceipt*
-    // styles so confirmed fills show the identical compact popup here. Inline
-    // (not absolute) so it sits directly above the SELL/BUY buttons.
+    // Overlay shared with the One-Click receipt stack; it never affects page layout.
+    tradeFeedbackAnchor: { position: 'relative' },
     tradeReceiptHost: {
-      alignItems: 'center',
-      marginTop: 2,
-      marginBottom: 10,
-    },
-    tradeReceiptBar: {
-      // Slightly wider than the chart's 52%/230 bar: native Text metrics run
-      // wider than the WebView's, and the symbol must not ellipsize.
-      width: '94%',
-      minWidth: 0,
-      maxWidth: 260,
-      minHeight: 40,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: isDark ? T.glass2 : '#FFFFFF',
-      borderWidth: isDark ? 1 : 0,
-      borderColor: isDark ? T.border : 'transparent',
-      borderLeftWidth: 3,
-      borderRadius: 2,
-      paddingHorizontal: 10,
-      shadowColor: '#000000',
-      shadowOpacity: isDark ? 0.18 : 0.12,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 6,
-      gap: 8,
-    },
-    tradeReceiptSymbol: {
-      flex: 1.2,
-      minWidth: 0,
-      color: isDark ? T.text : '#0F172A',
-      fontSize: 13,
-      fontWeight: '800',
-      letterSpacing: 0,
-    },
-    tradeReceiptSide: {
-      minWidth: 28,
-      flexGrow: 0,
-      flexShrink: 0,
-      fontSize: 13,
-      fontWeight: '700',
-      letterSpacing: 0,
-    },
-    tradeReceiptVolume: {
-      minWidth: 44,
-      flexGrow: 0,
-      flexShrink: 0,
-      color: isDark ? T.text : '#0F172A',
-      fontSize: 13,
-      fontWeight: '800',
-      letterSpacing: 0,
-      textAlign: 'center',
-      fontVariant: ['tabular-nums'] as any,
-    },
-    tradeReceiptDoneButton: {
-      minWidth: 34,
-      flexGrow: 0,
-      flexShrink: 0,
-      alignSelf: 'stretch',
-      alignItems: 'flex-end',
-      justifyContent: 'center',
-    },
-    tradeReceiptDone: {
-      color: BUY_C,
-      fontSize: 13,
-      fontWeight: '800',
-      letterSpacing: 0,
-      textAlign: 'right',
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 24,
+      elevation: 24,
     },
   });
 }

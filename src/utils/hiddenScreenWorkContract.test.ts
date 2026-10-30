@@ -431,17 +431,19 @@ test('settings, trade, and history screens pause work when another screen is foc
   assert.match(historySource, /import \{ useIsFocused \} from '@react-navigation\/native'/);
   assert.match(historySource, /import \{ useNextFrameValue \} from '\.\.\/\.\.\/hooks\/useNextFrameValue'/);
   assert.match(historySource, /const HistoryScreenInner = memo\(function HistoryScreenInner\(\{ isScreenFocused \}: \{ isScreenFocused: boolean \}\)/);
-  assert.match(historySource, /export function HistoryScreen\(\) \{\s*const isScreenFocused = useIsFocused\(\);\s*const deferredScreenFocused = useNextFrameValue\(isScreenFocused\);\s*return <HistoryScreenInner isScreenFocused=\{deferredScreenFocused\} \/>;\s*\}/);
-  assert.match(historySource, /const historyDataActive = useDeferredActiveFlag\(isScreenFocused\)/);
+  assert.match(historySource, /export function HistoryScreen\(\) \{\s*const isScreenFocused = useIsFocused\(\);\s*const deferredScreenFocused = useNextFrameValue\(isScreenFocused\);\s*return <AccountPageGate page="History"><HistoryScreenInner isScreenFocused=\{deferredScreenFocused\} \/><\/AccountPageGate>;\s*\}/);
+  assert.match(historySource, /const historySubscribed = isScreenFocused && appForeground/);
+  assert.match(historySource, /const historyDataActive = useDeferredActiveFlag\(historySubscribed\)/);
   assert.match(historySource, /usePositionHistoryQuery\(accountLogin, \{\s*enabled: historyDataActive/);
   assert.match(historySource, /useAccountDealsQuery\(\{[\s\S]*enabled: historyDataActive/);
   assert.match(historySource, /useOrdersByLoginQuery\(accountLogin, \{\s*enabled: historyDataActive/);
+  assert.equal((historySource.match(/subscribed: historySubscribed/g) ?? []).length, 4);
 
   assert.match(calendarSource, /const isScreenFocused = useIsFocused\(\)/);
   assert.match(calendarSource, /getInitialEconomicCalendarData/);
   assert.match(calendarSource, /const initialEvents = useMemo\(\(\) => getInitialEconomicCalendarData\(\), \[\]\)/);
   assert.match(calendarSource, /const \[dataEvents, setDataEvents\] = useState<EconomicEvent\[\]>\(initialEvents\)/);
-  assert.match(calendarSource, /if \(!isScreenFocused\) \{[\s\S]*return;[\s\S]*\}/);
+  assert.match(calendarSource, /if \(!isScreenFocused \|\| !appForeground\) \{[\s\S]*return;[\s\S]*\}/);
   assert.doesNotMatch(calendarSource, /CALENDAR_INITIAL_DATA_DELAY_MS|calendarDataReady/);
   assert.match(calendarSource, /const ECON_CALENDAR_BODY_PREWARM_DELAY_MS = 0/);
   assert.match(calendarSource, /const routeBodyReady = useRetainedRouteContentReady\(\s*isScreenFocused, ECON_CALENDAR_BODY_PREWARM_DELAY_MS,\s*\)/);
@@ -452,7 +454,7 @@ test('settings, trade, and history screens pause work when another screen is foc
   // reveals real rows (MT5 parity) instead of fetching on focus.
   assert.match(calendarSource, /const ECON_CALENDAR_IDLE_PREWARM_DELAY_MS = 6000/);
   assert.match(calendarSource, /const prewarmTimer = setTimeout\(\(\) => \{\s*fetchEconomicCalendarData\(\)/);
-  assert.match(calendarSource, /\}, ECON_CALENDAR_IDLE_PREWARM_DELAY_MS\);\s*return \(\) => clearTimeout\(prewarmTimer\);/);
+  assert.match(calendarSource, /\}, ECON_CALENDAR_IDLE_PREWARM_DELAY_MS\);\s*return \(\) => \{\s*disposed = true;\s*clearTimeout\(prewarmTimer\);/);
 
   assert.match(healthSource, /export function useHealth\(enabled = true\)/);
   assert.match(healthSource, /const isEnabled = enabled && Boolean\(session\)/);

@@ -13,7 +13,7 @@ test('chart buy/sell tiles never swap to a spinner and never animate price color
   assert.doesNotMatch(source, /ActivityIndicator/);
   assert.doesNotMatch(source, /from 'react-native'[\s\S]*Animated/);
   assert.doesNotMatch(source, /TRADE_BUTTON_PRICE_UP_FLASH|TRADE_BUTTON_PRICE_DOWN_FLASH/);
-  assert.match(source, /Busy state must NOT swap children/);
+  assert.match(source, /Busy state must NOT swap children|Keep labels, prices and touch targets stable during direct market dispatch/);
   assert.match(source, /No per-tick color animation/);
   assert.match(source, /borderWidth: 2,\s*borderColor: sellBusy \?/);
   assert.match(source, /borderWidth: 2,\s*borderColor: buyBusy \?/);

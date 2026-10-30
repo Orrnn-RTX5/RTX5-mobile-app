@@ -24,7 +24,7 @@ test('chart deals use an unfiltered, broker-session-scoped accountDeals cache en
   assert.match(hook, /getSessionQueryCacheNamespace\(session\)/);
   assert.match(hook, /runSessionBoundQuery\(\s*cacheNamespace,/);
   assert.match(hook, /fetchAccountDealsWithLoginFallback\(login\)/);
-  assert.match(hook, /resolvePollingRefetchInterval\(enabled, 5_000, options\.refetchInterval\)/);
+  assert.match(hook, /resolvePollingRefetchInterval\(enabled, 30_000, options\.refetchInterval\)/);
   assert.doesNotMatch(hook, /useUserPreferences|resolveEffectiveHistoryDateRange|options\.(?:from|to)/);
 });
 
@@ -37,7 +37,7 @@ test('deals use paged /account/deals first and /deals/{login} only as a fallback
     'export function useAccountDealsQuery',
   );
 
-  assert.match(fetcher, /await fetchAllAccountDeals\(\{ from, to \}\)/);
+  assert.match(fetcher, /await fetchAccountDealHistory\(\{ from, to \}\)/);
   assert.match(fetcher, /catch \(accountError\)[\s\S]*getLoginDealsWithRangeFallback\(login, from, to\)/);
   assert.doesNotMatch(fetcher, /Promise\.all\(|mergeDealHistorySources\(/);
 

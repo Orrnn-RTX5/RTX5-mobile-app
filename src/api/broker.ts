@@ -9,6 +9,7 @@ import { withPinnedBrokerEndpoints } from '../config/pinnedBrokerEndpoints';
 import { timedFetch } from '../utils/apiLatency';
 import { recordMarketDataEvent } from '../market/marketDataTelemetry';
 import { createBrokerDirectoryReadCache } from './brokerDirectoryReadCache';
+import { confirmBrokerSignInAvailability } from './brokerSignInAvailability';
 import {
   ADDITIONAL_BROKER_DIRECTORY_BASE_URL,
   ADDITIONAL_BROKER_DIRECTORY_IDS,
@@ -1159,7 +1160,12 @@ export async function checkBrokerServerHealth(serverUrl: string): Promise<void> 
     }
   }
 
-  if (!response.ok) {
+  if (!await confirmBrokerSignInAvailability(serverUrl, response, (configUrl) => timedFetch(configUrl, {
+    headers: { accept: 'application/json' },
+  }, {
+    label: 'broker.signInConfig', method: 'GET', endpoint: '/broker/config', source: 'broker',
+    timeoutMs: BROKER_HEALTH_TIMEOUT_MS,
+  }))) {
     throw new BrokerConfigError(
       response.status,
       'Selected broker is unavailable',

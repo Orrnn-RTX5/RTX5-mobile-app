@@ -10,7 +10,8 @@
  *  - usePlaceOrderMutation  — submits new market orders via POST /api/v2/orders
  */
 
-import { useCallback } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+import { isMarketOrderPending, marketOrderRequests } from '../api/orders/marketOrderInFlight';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ordersApi, type PlaceOrderPayload, type PlaceOrderResponse } from '../api/orders';
 import { StaleBrokerSessionError } from '../api/brokerApi';
@@ -30,7 +31,26 @@ import { createCoalescedSessionRefreshScheduler } from './coalescedSessionRefres
 
 export const ORDERS_BY_LOGIN_KEY = 'ordersByLogin';
 export const ACCOUNT_ORDERS_KEY = 'accountOrders';
+export function usePendingMarketOrderSides(symbol: string): number {
+  const session = useActiveBrokerQuerySession();
+  const scope = getSessionQueryCacheNamespace(session);
+  return useSyncExternalStore(marketOrderRequests.subscribe,
+    () => (isMarketOrderPending(symbol, 'buy', scope) ? 1 : 0) | (isMarketOrderPending(symbol, 'sell', scope) ? 2 : 0),
+    () => 0);
+}
 const placeOrderCacheRefreshScheduler = createCoalescedSessionRefreshScheduler();
+
+/** Shared post-execution refresh; never holds up the order request or receipt. */
+export function scheduleMarketOrderSummaryRefresh(queryClient: QueryClient, cacheNamespace: string): void {
+  placeOrderCacheRefreshScheduler.schedule(
+    queryClient,
+    cacheNamespace,
+    () => invalidateSessionQueryRoots(queryClient, cacheNamespace, [
+      'accountSummary',
+      'transactions',
+    ]),
+  );
+}
 
 export const getOrdersByLoginQueryKey = (
   cacheNamespace: string,
@@ -41,9 +61,12 @@ export const getAccountOrdersQueryKey = (cacheNamespace: string) =>
   [ACCOUNT_ORDERS_KEY, cacheNamespace] as const;
 
 type PollingQueryOptions = {
+  from?: number;
+  to?: number;
   enabled?: boolean;
   refetchInterval?: number | false;
   refetchOnMount?: boolean | 'always';
+  subscribed?: boolean;
 };
 
 const resolvePollingRefetchInterval = (
@@ -73,13 +96,14 @@ export function useOrdersByLoginQuery(
   const cacheNamespace = getSessionQueryCacheNamespace(session);
   const enabled = Boolean(session) && !!login && (options.enabled ?? true);
   return useQuery({
-    queryKey: getOrdersByLoginQueryKey(cacheNamespace, login),
+    queryKey: [...getOrdersByLoginQueryKey(cacheNamespace, login), options.from, options.to],
     queryFn: () => runSessionBoundQuery(
       cacheNamespace,
       // Contract 6.4: paged /account/orders first, /orders/{login} fallback.
-      () => ordersApi.getOrderHistory(login!),
+      () => ordersApi.getOrderHistory(login!, { from: options.from, to: options.to }),
     ),
     enabled,
+    subscribed: options.subscribed,
     refetchInterval: resolvePollingRefetchInterval(enabled, 10_000, options.refetchInterval),
     refetchOnMount: options.refetchOnMount,
   });
@@ -107,6 +131,7 @@ export function useAccountOrdersQuery(options: PollingQueryOptions = {}) {
       () => ordersApi.getAccountOrders(),
     ),
     enabled,
+    subscribed: options.subscribed,
     refetchInterval: resolvePollingRefetchInterval(enabled, 10_000, options.refetchInterval),
   });
 }
@@ -152,14 +177,7 @@ const handlePlaceOrderSuccess = (
   // The API layer owns captured-owner coalesced reconciliation from before
   // POST until broker convergence. This success path only refreshes
   // query-backed summaries; it must not start a competing positions read.
-  placeOrderCacheRefreshScheduler.schedule(
-    queryClient,
-    cacheNamespace,
-    () => invalidateSessionQueryRoots(queryClient, cacheNamespace, [
-      'accountSummary',
-      'transactions',
-    ]),
-  );
+  scheduleMarketOrderSummaryRefresh(queryClient, cacheNamespace);
 };
 
 type PlaceOrderExecutorOptions = {

@@ -19,7 +19,12 @@ test('trade completions invalidate only their captured broker/account/epoch name
   for (const file of files) {
     const source = readTradeSource(file);
     assert.match(source, /captureActiveBrokerSession(?:Provenance)?\(/, file);
-    assert.match(source, /isActiveBrokerSessionProvenanceCurrent\(/, file);
+    if (file === 'BulkOperationScreen.tsx') {
+      assert.match(source, /isActiveBrokerSessionCurrent\(actionProvenance\.identity\)/, file);
+      assert.match(source, /invalidateSessionQueryRoots\([\s\S]*actionProvenance\.cacheNamespace/, file);
+    } else {
+      assert.match(source, /isActiveBrokerSessionProvenanceCurrent\(/, file);
+    }
     assert.match(source, /invalidateSessionQueryRoots\(/, file);
     assert.doesNotMatch(source, /\.invalidateQueries\(/, file);
   }

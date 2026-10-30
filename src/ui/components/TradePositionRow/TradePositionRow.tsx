@@ -13,9 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import { PositionItem } from '../../../dev/mock/tradingData';
+import { PositionItem } from '../../../domain/tradingModels';
 import { useTheme } from '../../theme/useTheme';
 import { fmt } from '../../../utils/format';
+import { formatBackendPrice } from '../../../utils/backendPrice';
 import { formatBrokerTime } from '../../../utils/brokerTime';
 import { useUserPreferences } from '../../../state/userPreferences';
 import { useIsDarkTheme } from '../../../state/themeMode';
@@ -74,7 +75,7 @@ function formatTradeLeverage(value: number | null | undefined): string {
 
 function formatTradeLimitValue(value: number | null | undefined): string | null {
   const resolved = resolveFiniteTradeDetailNumber(value);
-  return resolved !== undefined ? fmt.price(resolved) : null;
+  return resolved !== undefined ? formatBackendPrice(resolved) : null;
 }
 
 function formatTradeLimits(item: PositionItem): string {
@@ -248,8 +249,6 @@ function TradePositionRowComponent({
   const leverageText = formatTradeLeverage(accountLeverage);
   const limitsText = formatTradeLimits(item);
 
-  const isJpy = item.symbol.includes('JPY');
-  const decimals = isJpy ? 3 : 5; // Standard FX: 5 decimals, JPY pairs: 3 decimals
   const displayPnl = resolveLivePositionPnl(item, liveQuote);
 
   const toggleExpand = () => {
@@ -290,8 +289,8 @@ function TradePositionRowComponent({
     })) {
       return;
     }
+    router.navigate({ pathname: '/trade/order-ticket', params: { symbol: item.symbol, origin: 'trade' } });
     prefetchOrderTicketData(tradingLogin, item.symbol);
-    router.push({ pathname: '/trade/order-ticket', params: { symbol: item.symbol } });
   };
 
   // Reference unused props for parameter destructuring without lint warnings.
@@ -348,11 +347,11 @@ function TradePositionRowComponent({
               </View>
               <View style={styles.priceLeft}>
                 <Text style={[styles.price, { color: T.textSub }]} numberOfLines={1}>
-                  {Number.isFinite(item.openPrice) ? item.openPrice.toFixed(decimals) : '---'}
+                  {Number.isFinite(item.openPrice) ? formatBackendPrice(item.openPrice) : '---'}
                 </Text>
                 <Ionicons name="arrow-forward-outline" size={14} color={T.textSub} style={styles.arrow} />
                 <Text style={[styles.price, { color: T.textSub }]} numberOfLines={1}>
-                  {Number.isFinite(livePrice) ? livePrice.toFixed(decimals) : '---'}
+                  {Number.isFinite(livePrice) ? formatBackendPrice(livePrice) : '---'}
                 </Text>
               </View>
             </View>
@@ -375,12 +374,12 @@ function TradePositionRowComponent({
             <View style={styles.slTpRow}>
               {!!item.sl && (
                 <View style={styles.slTpBadge}>
-                  <Text style={[styles.slTpText, { color: T.accent }]}>SL {fmt.price(item.sl as number)}</Text>
+                  <Text style={[styles.slTpText, { color: T.accent }]}>SL {formatBackendPrice(item.sl)}</Text>
                 </View>
               )}
               {!!item.tp && (
                 <View style={styles.slTpBadge}>
-                  <Text style={[styles.slTpText, { color: '#388E3C' }]}>TP {fmt.price(item.tp as number)}</Text>
+                  <Text style={[styles.slTpText, { color: '#388E3C' }]}>TP {formatBackendPrice(item.tp)}</Text>
                 </View>
               )}
             </View>
@@ -407,7 +406,7 @@ function TradePositionRowComponent({
               <View style={styles.detailCell}>
                 <Text style={[styles.detailLabel, { color: detailLabelColor }]}>OPEN</Text>
                 <Text style={[styles.detailValue, { color: detailColor }]}>
-                  {fmt.price(item.openPrice)}
+                  {formatBackendPrice(item.openPrice)}
                 </Text>
               </View>
               <View style={styles.detailCell}>

@@ -75,7 +75,7 @@ test('journal live trade queries refresh without cancelling each other', () => {
   // Paged /account/deals is primary; /deals/{login} is only the fallback.
   assert.match(
     dealsQuerySource,
-    /await fetchAllAccountDeals\(\{ from, to \}\)[\s\S]*catch \(accountError\)[\s\S]*getLoginDealsWithRangeFallback\(login, from, to\)/,
+    /await fetchAccountDealHistory\(\{ from, to \}\)[\s\S]*catch \(accountError\)[\s\S]*getLoginDealsWithRangeFallback\(login, from, to\)/,
   );
   assert.match(dealsQuerySource, /if \(!shouldRetryDealsWithoutRange\(error\)\) throw error/);
   assert.match(dealsQuerySource, /subscribed: options\.subscribed/);
@@ -95,7 +95,7 @@ test('market orders record one placement_terminal telemetry sample from the tap'
     'src/features/quotes/SymbolDetailsScreen/SymbolDetailsScreen.tsx',
     'src/features/chart/ChartScreen.web.tsx',
   ]) {
-    assert.match(readSource(path), /\{\s*\/\/ Tap time for the Journal's order latency telemetry\.\s*markTradeIntent\(\);/, path);
+    assert.match(readSource(path), /\/\/ Tap time for the Journal's order latency telemetry\.\s*markTradeIntent\(\);/, path);
   }
 });
 

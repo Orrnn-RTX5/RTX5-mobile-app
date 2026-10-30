@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalizeSymbol } from '../../domain/symbols';
 import { FastPressable } from '../../ui/components/FastPressable';
 import { useTheme, type ThemeColors } from '../../ui/theme/useTheme';
 import { useIsDarkTheme } from '../../state/themeMode';
+import { useUserPreferences } from '../../state/userPreferences';
 import { useTranslation } from '../../i18n/useTranslation';
-import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
 import { hasDisplayableLiveQuotePrice } from '../quotes/liveQuoteSnapshot';
 import { useLiveQuoteSnapshot } from '../quotes/useLiveQuotes';
 
@@ -35,23 +36,25 @@ export const OrderTicketLaunchShell = memo(function OrderTicketLaunchShell({
   const T = useTheme({ active });
   const { t } = useTranslation();
   const isDark = useIsDarkTheme({ active });
-  const styles = makeStyles(T, isDark);
+  const tradeVolume = useUserPreferences((s) => s.tradeVolume);
+  const resolvedVolume = tradeVolume > 0 ? tradeVolume : 0.01;
+  const volumeLabel = resolvedVolume.toFixed(2);
+  const styles = useMemo(() => makeStyles(T, isDark), [T, isDark]);
   const sellColor = T.trading.sell.primary;
   const buyColor = T.trading.buy.primary;
   const sellBackground = isDark ? 'rgba(255,59,48,0.08)' : 'rgba(220,38,38,0.06)';
   const buyBackground = isDark ? 'rgba(52,125,255,0.14)' : 'rgba(37,99,235,0.08)';
   const liveQuote = useLiveQuoteSnapshot(normalizedSymbol, active);
-  const digits = Math.max(0, Math.min(8, Math.floor(liveQuote?.digits ?? 5)));
   const displayable = hasDisplayableLiveQuotePrice(liveQuote);
   const bidText = displayable && typeof liveQuote?.bid === 'number'
-    ? fmt.price(liveQuote.bid, digits)
+    ? formatBackendPrice(liveQuote.bid)
     : '--';
   const askText = displayable && typeof liveQuote?.ask === 'number'
-    ? fmt.price(liveQuote.ask, digits)
+    ? formatBackendPrice(liveQuote.ask)
     : '--';
   const spreadText = displayable && typeof liveQuote?.spread === 'number'
     ? parseFloat(Number(liveQuote.spread).toFixed(1)).toString()
-    : '0';
+    : '--';
 
   return (
     <View
@@ -86,7 +89,7 @@ export const OrderTicketLaunchShell = memo(function OrderTicketLaunchShell({
       <View style={styles.pricePanel}>
         <View style={[styles.priceHalf, { backgroundColor: sellBackground }]}>
           <Text style={[styles.priceTag, { color: sellColor }]}>SELL</Text>
-          <Text style={styles.priceMain}>{bidText}</Text>
+          <Text style={styles.priceMain} numberOfLines={1} adjustsFontSizeToFit>{bidText}</Text>
           <Text style={styles.priceLabel}>BID</Text>
         </View>
         <View style={styles.spreadCenter}>
@@ -96,7 +99,7 @@ export const OrderTicketLaunchShell = memo(function OrderTicketLaunchShell({
         </View>
         <View style={[styles.priceHalf, { backgroundColor: buyBackground }]}>
           <Text style={[styles.priceTag, { color: buyColor }]}>BUY</Text>
-          <Text style={styles.priceMain}>{askText}</Text>
+          <Text style={styles.priceMain} numberOfLines={1} adjustsFontSizeToFit>{askText}</Text>
           <Text style={styles.priceLabel}>ASK</Text>
         </View>
       </View>
@@ -124,7 +127,7 @@ export const OrderTicketLaunchShell = memo(function OrderTicketLaunchShell({
               <Ionicons name="remove" size={18} color={T.textSub} />
             </View>
             <View style={styles.volumeCenter}>
-              <Text style={styles.volumeNumber}>0.02</Text>
+              <Text style={styles.volumeNumber}>{volumeLabel}</Text>
             </View>
             <View style={styles.volumeButton}>
               <Ionicons name="add" size={18} color={T.textSub} />
@@ -159,6 +162,35 @@ export const OrderTicketLaunchShell = memo(function OrderTicketLaunchShell({
           <Text style={styles.rowValue}>{t('Immediate or Cancel')}</Text>
         </View>
         <View style={styles.hairline} />
+
+        <View style={styles.executionGraphPlaceholder} />
+
+        <View style={styles.infoRow}>
+          <Text style={styles.rowLabel}>{t('Spread')}</Text>
+          <Text style={styles.rowValue}>{spreadText !== '--' ? `${spreadText} ${t('pts')}` : '--'}</Text>
+        </View>
+        <View style={styles.hairline} />
+        <View style={styles.infoRow}>
+          <Text style={styles.rowLabel}>{t('Margin')}</Text>
+          <Text style={styles.rowValue}>--</Text>
+        </View>
+        <View style={styles.hairline} />
+        <View style={styles.infoRow}>
+          <Text style={styles.rowLabel}>{t('Acc. Leverage')}</Text>
+          <Text style={styles.rowValue}>--</Text>
+        </View>
+        <View style={styles.hairline} />
+
+        <View style={styles.execRow}>
+          <View style={[styles.execBtn, { backgroundColor: sellColor }]}>
+            <Text style={styles.execCta}>SELL</Text>
+            <Text style={styles.execLots}>{volumeLabel} Lots</Text>
+          </View>
+          <View style={[styles.execBtn, { backgroundColor: buyColor }]}>
+            <Text style={styles.execCta}>BUY</Text>
+            <Text style={styles.execLots}>{volumeLabel} Lots</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -412,6 +444,40 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       color: T.text,
       fontSize: 14,
       fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+    },
+    executionGraphPlaceholder: {
+      height: 180,
+      width: '100%',
+      marginTop: 12,
+      borderRadius: 12,
+      backgroundColor: T.bg,
+    },
+    execRow: {
+      flexDirection: 'row',
+      direction: 'ltr',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      gap: 8,
+    },
+    execBtn: {
+      flex: 1,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+    },
+    execCta: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '600',
+      letterSpacing: 0.5,
+    },
+    execLots: {
+      color: 'rgba(255,255,255,0.8)',
+      fontSize: 11,
+      fontWeight: '600',
+      marginTop: 2,
       fontVariant: ['tabular-nums'],
     },
   });

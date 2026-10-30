@@ -14,11 +14,11 @@ test('broker realtime never owns executable quote or tick-derived PnL state', ()
   assert.match(legacySocketSource, /Quote channels are disabled; executable quotes use \/ws\/feed only/);
 });
 
-test('broker realtime subscribes to positions and metrics (no deals) with singular channel messages', () => {
+test('broker realtime subscribes to positions, metrics and orders (no deals) with singular channel messages', () => {
   const brokerRealtimeSource = source();
   const protocolSource = readFileSync(resolve(process.cwd(), 'src/api/ws/tradeSocketProtocol.ts'), 'utf8');
 
-  assert.match(protocolSource, /TRADE_SOCKET_CHANNEL_PREFIXES = \['positions', 'metrics'\] as const/);
+  assert.match(protocolSource, /TRADE_SOCKET_CHANNEL_PREFIXES = \['positions', 'metrics', 'orders'\] as const/);
   assert.match(protocolSource, /channel: `\$\{prefix\}\.\$\{login\}`/);
   assert.doesNotMatch(protocolSource, /'deals'\]/);
   assert.match(brokerRealtimeSource, /buildTradeSocketSubscriptionMessages\(accountLogin\)/);

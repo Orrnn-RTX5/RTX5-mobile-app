@@ -20,6 +20,7 @@ import { spacing } from '../../ui/theme/index';
 import { useTheme } from '../../ui/theme/useTheme';
 import { ThemeColors } from '../../ui/theme/glass';
 import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
 import { safeRouterBack } from '../../utils/navigation';
 import { useTranslation } from '../../i18n/useTranslation';
 import { findPositionById, positionPairCandidates } from './tradeFlow';
@@ -133,7 +134,7 @@ export function CloseByScreen({
     safeRouterBack(router, '/(tabs)/trade');
   }, [hosted, onHostedBack]);
 
-  if (!isScreenFocused) {
+  if (hosted && !isScreenFocused) {
     return <View style={[styles.root, { backgroundColor: screenBg }]} />;
   }
 
@@ -205,7 +206,7 @@ export function CloseByScreen({
             </View>
           </View>
           <Text style={styles.priceLine}>
-            {t('Price')} · {fmt.price(getLivePrice(sourcePosition))}
+            {t('Price')} · {formatBackendPrice(getLivePrice(sourcePosition))}
           </Text>
         </View>
 
@@ -242,7 +243,7 @@ export function CloseByScreen({
                     </View>
                   </View>
                   <Text style={styles.priceLine}>
-                    {t('Price')} · {fmt.price(getLivePrice(candidate))}
+                    {t('Price')} · {formatBackendPrice(getLivePrice(candidate))}
                   </Text>
                 </View>
                 <Text style={[styles.pnl, candPnl < 0 ? styles.negative : candPnl > 0 ? styles.positive : null]}>

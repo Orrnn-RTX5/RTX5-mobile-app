@@ -1,5 +1,5 @@
 export type BrokerExecutionEvidence = Readonly<{
-  ticket?: number;
+  ticket?: number | string;
   executionPrice?: number;
   confirmed: boolean;
 }>;
@@ -18,16 +18,17 @@ export function resolveBrokerExecutionEvidence(response: unknown): BrokerExecuti
   const data = response && typeof response === 'object' && !Array.isArray(response)
     ? response as Record<string, unknown>
     : {};
-  const ticket = toPositiveFiniteNumber(
-    data.position_ticket ?? data.ticket,
-  );
+  const rawTicket = data.position_ticket ?? data.ticket;
+  const ticket = typeof rawTicket === 'string' && /^\d+$/.test(rawTicket.trim()) && !/^0+$/.test(rawTicket.trim())
+    ? rawTicket.trim() : typeof rawTicket === 'number' && Number.isSafeInteger(rawTicket) && rawTicket > 0 ? rawTicket : undefined;
   const executionPrice = toPositiveFiniteNumber(data.price ?? data.price_open);
   const status = typeof data.status === 'string' ? data.status.trim().toLowerCase() : '';
   const explicitlyRejected = ['rejected', 'failed', 'error'].includes(status);
+  const awaitingExecution = ['accepted', 'pending', 'queued', 'submitted', 'new', 'placed'].includes(status);
 
   return {
     ...(ticket !== undefined ? { ticket } : {}),
     ...(executionPrice !== undefined ? { executionPrice } : {}),
-    confirmed: !explicitlyRejected && ticket !== undefined && executionPrice !== undefined,
+    confirmed: !explicitlyRejected && !awaitingExecution && ticket !== undefined && executionPrice !== undefined,
   };
 }

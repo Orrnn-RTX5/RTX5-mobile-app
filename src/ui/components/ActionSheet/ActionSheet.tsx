@@ -56,7 +56,7 @@ import {
   resolveActionSheetVisibilityBarrierOpen,
 } from './layout';
 import { ACTION_SHEET_SUBTITLE_ROW_MIN_HEIGHT, makeActionSheetStyles } from './styles';
-import { filterActionSheetActions } from './search';
+import { actionSheetActionKey, filterActionSheetActions, searchableActionListKey, type FilterableActionSheetAction } from './search';
 import {
   acknowledgeRetainedActionSheetVisible,
   cancelRetainedActionSheetPreview,
@@ -67,7 +67,7 @@ import {
   type RetainedActionSheetVisualSnapshot,
 } from './retainedActionSheetVisualController';
 
-type ActionSheetAction = {
+type ActionSheetAction = FilterableActionSheetAction & {
   label: string;
   subtitle?: string;
   selected?: boolean;
@@ -89,6 +89,8 @@ type ActionSheetMt5SlideMotionProfile = 'default' | 'fast';
 
 type ActionSheetProps = {
   visible: boolean;
+  /** Forces a fresh opening even when React batches a close/reopen of identical content. */
+  openRevision?: number;
   title?: string;
   titleAlign?: 'left' | 'center';
   compactText?: boolean;
@@ -360,6 +362,7 @@ const actionSheetHostStyles = StyleSheet.create({
 
 export function ActionSheet({
   visible,
+  openRevision = 0,
   title,
   titleAlign,
   compactText = false,
@@ -477,9 +480,11 @@ export function ActionSheet({
     Boolean(searchPlaceholder) ||
     minimumTopInset !== undefined;
   const prevVisibleRef = useRef(visible);
+  const prevOpenRevisionRef = useRef(openRevision);
   const closeAnimationRunningRef = useRef(false);
   const [, refreshHiddenConfig] = useState(0);
-  const visibilityChanged = visible !== prevVisibleRef.current;
+  const visibilityChanged = visible !== prevVisibleRef.current
+    || (visible && openRevision !== prevOpenRevisionRef.current);
   const isStartingClose = visibilityChanged && !visible;
 
   // Keep the outgoing rows mounted until their close animation is fully
@@ -544,6 +549,13 @@ export function ActionSheet({
     }
     setQuery(nextQuery);
   }, [activeDeferOffscreenActions]);
+  useLayoutEffect(() => {
+    // Reset again after the new data commits; native scroll and data updates
+    // can otherwise arrive in the opposite order while typing quickly.
+    if (visible && activeSearchable && activeDeferOffscreenActions) {
+      actionListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [query, visible, activeSearchable, activeDeferOffscreenActions]);
   const overlayLayerRef = useRef<View>(null);
   const visibilityBarrierRef = useRef<View>(null);
   const sheetBodyRef = useRef<View>(null);
@@ -650,10 +662,9 @@ export function ActionSheet({
   );
 
   useLayoutEffect(() => {
+    const shouldRestoreHiddenOpen = visible && hostHiddenImperativelyRef.current;
     const shouldPrepareParkedMt5Open =
-      visible &&
-      activeEntryMotion === 'mt5Slide' &&
-      hostHiddenImperativelyRef.current;
+      shouldRestoreHiddenOpen && activeEntryMotion === 'mt5Slide';
     const shouldReleaseParkedMt5Open =
       visible &&
       activeEntryMotion === 'mt5Slide' &&
@@ -661,7 +672,7 @@ export function ActionSheet({
       !mt5ConfigSwapHostParkedRef.current;
     if (
       !visibilityChanged &&
-      !shouldPrepareParkedMt5Open &&
+      !shouldRestoreHiddenOpen &&
       !shouldReleaseParkedMt5Open
     ) {
       return;
@@ -849,6 +860,7 @@ export function ActionSheet({
       refreshHiddenConfig((revision) => revision + 1);
     }
     prevVisibleRef.current = visible;
+    prevOpenRevisionRef.current = openRevision;
   }, [
     activeEntryMotion,
     activeMt5SlideMotionProfile,
@@ -863,6 +875,7 @@ export function ActionSheet({
     mt5HostOpacity,
     mt5OverlayOpacity,
     mt5SheetTranslateY,
+    openRevision,
     visibilityChanged,
     visible,
   ]);
@@ -1019,12 +1032,10 @@ export function ActionSheet({
     sheetBodyRef.current?.setNativeProps({
       pointerEvents: interactive ? 'auto' : 'none',
     });
-    if (activeEntryMotion === 'mt5Slide') {
-      // MT5 closes now hide the whole native parent. A retained commit seeds
-      // the child above before exposing that parent, so it is safe to hand
-      // visibility back to the already-running UI-thread entry animation.
-      hostHiddenImperativelyRef.current = !interactive;
-    }
+    // Every retained reveal owns the native parent, including instant Drawing
+    // Tools. Leaving a previous close flag set lets the next React render hide
+    // the accepted menu again before its visibility is adopted.
+    hostHiddenImperativelyRef.current = !interactive;
     if (wantsVisible && activeEntryMotion === 'mt5Slide') {
       // The parent is now ready while the child is still guarded. Release the
       // guard and start both animations atomically on the UI runtime.
@@ -1306,7 +1317,9 @@ export function ActionSheet({
     ? Math.max(12, initialActionRowsToRender)
     : Math.max(4, Math.min(8, initialActionRowsToRender));
   const deferredActionListKey = activeDeferOffscreenActions
-    ? activeVisualKey ?? 'deferred-action-list'
+    // In very short windows the search input lives in the list header. Keep
+    // that host mounted so a search cannot blur the input with every letter.
+    ? searchableActionListKey(activeVisualKey, activeSearchable && !scrollSheetChrome, query)
     : undefined;
   const shouldRenderInlineActions =
     !isTimeframeGridPresentation &&
@@ -1688,6 +1701,7 @@ export function ActionSheet({
     applyRetainedVisualSnapshot,
     hideMt5ActionSheetNow,
     mounted,
+    openRevision,
     overlayOpacity,
     resolveMt5EntryTranslateY,
     runEntryAnimation,
@@ -1802,7 +1816,7 @@ export function ActionSheet({
   }, [dismissActionSheet]);
 
   const keyAction = useCallback(
-    (action: ActionSheetAction, index: number) => `${action.label}-${index}`,
+    actionSheetActionKey,
     [],
   );
 
@@ -2118,6 +2132,7 @@ export function ActionSheet({
               actionListSizeStyle,
             ]}
             data={filteredActions}
+            extraData={query}
             ListHeaderComponent={scrollSheetChrome ? sheetChrome : null}
             keyExtractor={keyAction}
             renderItem={renderAction}

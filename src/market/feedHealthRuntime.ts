@@ -26,6 +26,8 @@ type FeedHealthListener = () => void;
 let snapshot: FeedHealthState = initialFeedHealthState;
 let latestState: FeedHealthState = initialFeedHealthState;
 let evaluationTimer: ReturnType<typeof setTimeout> | null = null;
+let evaluationDeadline = 0;
+let evaluationIdentity: FeedHealthIdentity | null = null;
 const listeners = new Set<FeedHealthListener>();
 
 const clearEvaluationTimer = (): void => {
@@ -33,10 +35,11 @@ const clearEvaluationTimer = (): void => {
     clearTimeout(evaluationTimer);
     evaluationTimer = null;
   }
+  evaluationDeadline = 0;
+  evaluationIdentity = null;
 };
 
 const scheduleFreshnessEvaluation = (): void => {
-  clearEvaluationTimer();
   // Only a healthy (fresh-tick) state can age out on its own: 8 s after the
   // last accepted tick it turns stale so prices are greyed. The socket is not
   // touched; the quote service owns reconnect decisions.
@@ -45,21 +48,31 @@ const scheduleFreshnessEvaluation = (): void => {
     latestState.status !== 'healthy' ||
     !latestState.lastLocalTickAt
   ) {
+    clearEvaluationTimer();
     return;
   }
 
-  const deadlines = [
-    latestState.lastLocalTickAt + resolveLocalTickStaleAfterMs(latestState),
-  ];
+  const nextDeadline = latestState.lastLocalTickAt + resolveLocalTickStaleAfterMs(latestState);
   const now = Date.now();
-  const nextDeadline = Math.min(...deadlines.filter((deadline) => deadline > now));
-  if (!Number.isFinite(nextDeadline)) {
+  if (!Number.isFinite(nextDeadline) || nextDeadline <= now) {
+    clearEvaluationTimer();
     return;
   }
 
+  // A newer tick only moves the deadline later. Keep the existing wake-up
+  // instead of crossing the native timer bridge on every tick; that wake-up
+  // rechecks the newest state and schedules its remaining freshness window.
+  // Earlier deadlines (policy changes) and session switches still rearm now.
+  if (evaluationTimer && evaluationDeadline <= nextDeadline &&
+      sameFeedHealthIdentity(evaluationIdentity, latestState.identity)) return;
+  clearEvaluationTimer();
   const expectedIdentity = latestState.identity;
+  evaluationDeadline = nextDeadline;
+  evaluationIdentity = expectedIdentity;
   evaluationTimer = setTimeout(() => {
     evaluationTimer = null;
+    evaluationDeadline = 0;
+    evaluationIdentity = null;
     dispatchFeedHealthEvent({
       type: 'EVALUATE',
       identity: expectedIdentity,

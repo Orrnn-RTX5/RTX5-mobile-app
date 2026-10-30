@@ -55,7 +55,20 @@ When starting a server, the launcher opens the project on the connected phone
 and restores USB forwarding after a reconnect while the launcher remains open.
 Plain `npx expo start` from this directory also uses the project launcher. The
 project's postinstall hook applies a local Expo CLI entry patch for this command;
-it defaults to an Expo Go tunnel, uses the SDK runtime, and reuses an existing server.
+it defaults to an Expo Go LAN connection, uses the SDK runtime, and reuses an existing server.
+Keep the phone and laptop on the same Wi-Fi for this command. Use
+`npx expo start --tunnel` explicitly for different networks; if ngrok fails,
+use `npx expo start --lan` on the same network or `npm run start:android:usb` over USB.
+If Expo Go cannot download the project on Windows, check whether Windows blocks
+Node on a Public Wi-Fi network. From this directory, run the following once in
+PowerShell as administrator, then scan the LAN QR again:
+
+```powershell
+.\scripts\android\fix-expo-lan-firewall.ps1
+```
+
+This allows only Node's TCP port 8081 on the WiFi adapter from the local subnet.
+Use `-Port` or `-InterfaceAlias` if your startup port or adapter name differs.
 Explicit `--go`, `--dev-client`, iOS, web, and help commands keep Expo's original
 CLI behavior. For a native development build use `npm run start:dev-client:usb`.
 

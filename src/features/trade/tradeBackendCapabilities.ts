@@ -4,6 +4,10 @@ import {
 } from '../chart/chartTradeOrderUtils';
 import { captureActiveBrokerSession } from '../../state/activeBrokerSession';
 import {
+  PENDING_ORDER_PLACEMENT_AVAILABLE,
+  PENDING_ORDER_PREVIEW_AVAILABLE,
+} from '../../config/pendingOrderAvailability';
+import {
   getSltpUnavailableMessage,
   isExistingPositionSltpEnabled,
   resolveBrokerSltpCapabilities as resolveConfiguredBrokerSltpCapabilities,
@@ -23,11 +27,14 @@ export {
 } from '../../config/brokerSltpCapabilities';
 
 export type TradeBackendCapabilities = Readonly<{
+  pendingOrderPreview: boolean;
+  /** Backend pending-order placement, separate from editing a local draft. */
   pendingOrders: boolean;
   sltp: BrokerSltpCapabilities;
 }>;
 
 export type TradeBackendCapabilityEnvironment = Readonly<{
+  /** Legacy build flag; ignored while pending orders support previews only. */
   EXPO_PUBLIC_PENDING_ORDERS_API_READY?: string;
   /**
    * Retained only so an older build environment remains type-compatible.
@@ -36,9 +43,6 @@ export type TradeBackendCapabilityEnvironment = Readonly<{
    */
   EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES?: string;
 }>;
-
-const isExplicitlyEnabled = (value: string | undefined): boolean =>
-  value?.trim().toLowerCase() === 'true';
 
 export const resolveBrokerSltpCapabilities = (
   _environment: TradeBackendCapabilityEnvironment,
@@ -49,8 +53,12 @@ export const resolveTradeBackendCapabilities = (
   environment: TradeBackendCapabilityEnvironment,
   brokerId?: string | null,
 ): TradeBackendCapabilities => Object.freeze({
-  pendingOrders: isExplicitlyEnabled(environment.EXPO_PUBLIC_PENDING_ORDERS_API_READY),
-  sltp: resolveBrokerSltpCapabilities(environment, brokerId),
+  pendingOrderPreview: PENDING_ORDER_PREVIEW_AVAILABLE,
+  pendingOrders: PENDING_ORDER_PLACEMENT_AVAILABLE,
+  sltp: Object.freeze({
+    ...resolveBrokerSltpCapabilities(environment, brokerId),
+    pendingOrderProtection: PENDING_ORDER_PLACEMENT_AVAILABLE,
+  }),
 });
 
 const ACTIVE_CAPABILITY_ENVIRONMENT: TradeBackendCapabilityEnvironment = Object.freeze({
@@ -64,10 +72,16 @@ export const getActiveTradeBackendCapabilities = (): TradeBackendCapabilities =>
     captureActiveBrokerSession()?.session.brokerId,
   );
 
+/** Selection only; placement must use isPendingOrderPlacementBackendLocked. */
 export const isPendingOrderTypeBackendLocked = (
   orderType: ChartOrderType,
-  _capabilities: TradeBackendCapabilities = getActiveTradeBackendCapabilities(),
-): boolean => isPendingChartOrderType(orderType);
+  capabilities: TradeBackendCapabilities = getActiveTradeBackendCapabilities(),
+): boolean => isPendingChartOrderType(orderType) && !capabilities.pendingOrderPreview;
+
+export const isPendingOrderPlacementBackendLocked = (
+  orderType: ChartOrderType,
+  capabilities: TradeBackendCapabilities = getActiveTradeBackendCapabilities(),
+): boolean => isPendingChartOrderType(orderType) && !capabilities.pendingOrders;
 
 export const isExistingPositionModifyBackendLocked = (
   capabilities: TradeBackendCapabilities = getActiveTradeBackendCapabilities(),
@@ -76,6 +90,10 @@ export const isExistingPositionModifyBackendLocked = (
 export const isNewMarketOrderProtectionBackendLocked = (
   capabilities: TradeBackendCapabilities = getActiveTradeBackendCapabilities(),
 ): boolean => !capabilities.sltp.newMarketOrderProtection;
+
+export const isChartTradePanelBackendLocked = (
+  capabilities: TradeBackendCapabilities = getActiveTradeBackendCapabilities(),
+): boolean => !capabilities.pendingOrderPreview && !capabilities.sltp.newMarketOrderProtection;
 
 export const isPendingOrderProtectionBackendLocked = (
   capabilities: TradeBackendCapabilities = getActiveTradeBackendCapabilities(),

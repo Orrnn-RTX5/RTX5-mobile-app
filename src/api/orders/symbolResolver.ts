@@ -6,7 +6,8 @@
  * Broker suffixes are instrument identity, so catalog lookup may correct only
  * equivalent spelling/casing. It must never substitute a base or alias symbol.
  */
-import { apiJsonClient, commitApiJson } from '../apiClient';
+import { commitApiJson } from '../apiClient';
+import { fetchInstrumentCatalogResponse } from '../instruments';
 import { StaleBrokerSessionError } from '../brokerApi';
 import { normalizeSymbol } from '../../domain/symbols';
 import { captureActiveBrokerSession } from '../../state/activeBrokerSession';
@@ -26,7 +27,8 @@ function getCurrentCacheEntry(cacheNamespace: string, now = Date.now()) {
     throw new StaleBrokerSessionError();
   }
   const entry = instrumentCaches.get(cacheNamespace);
-  return entry && now - entry.cachedAt < INSTRUMENT_CACHE_TTL_MS ? entry : null;
+  const age = entry ? now - entry.cachedAt : Infinity;
+  return entry && age >= 0 && age < INSTRUMENT_CACHE_TTL_MS ? entry : null;
 }
 
 async function fetchInstrumentsCached(cacheNamespace: string): Promise<readonly string[]> {
@@ -35,7 +37,7 @@ async function fetchInstrumentsCached(cacheNamespace: string): Promise<readonly 
   if (currentEntry) return currentEntry.symbols;
 
   try {
-    const result = await apiJsonClient<unknown>('/instruments');
+    const result = await fetchInstrumentCatalogResponse(cacheNamespace);
     if (result.ok) {
       return commitApiJson(result, cacheNamespace, (data) => {
       const record = data && typeof data === 'object' && !Array.isArray(data)

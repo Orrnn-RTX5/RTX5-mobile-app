@@ -1,4 +1,7 @@
+import { PendingExpirationPicker } from '../../trade/PendingOrderFields';
+import { PriceDragControl } from '../../trade/PriceDragControl';
 import { FastPressable as Pressable } from '../../../ui/components/FastPressable';
+import { formatBackendPrice } from '../../../utils/backendPrice';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { useTheme } from '../../../ui/theme/useTheme';
@@ -6,7 +9,7 @@ import {
   type LayoutChangeEvent, Platform, ScrollView, Text, TextInput, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
-import { CHART_ORDER_TYPES, type ChartOrderType, isPendingChartOrderType } from '../chartTradeOrderUtils';
+import { CHART_ORDER_TYPES, getChartOrderSide, isPendingChartOrderType } from '../chartTradeOrderUtils';
 import { COMPACT_TRADE_FOOTER_ROW_HEIGHT } from './ChartTradeButtonsFeature/styles';
 import {
   resolveChartTradeSheetFrameHeight,
@@ -16,16 +19,15 @@ import {
   shouldShowChartTradeSheetMarketExecutionButtons,
 } from '../chartTradeInteractionUtils';
 import { LiveOrderTickExecutionGraph } from '../../trade/OrderTickExecutionGraph';
-import { isPendingOrderTypeBackendLocked } from '../../trade/tradeBackendCapabilities';
+import { isPendingOrderPlacementBackendLocked, isPendingOrderTypeBackendLocked } from '../../trade/tradeBackendCapabilities';
 import { getActiveSltpUnavailableMessage } from '../../trade/tradeBackendCapabilities';
+import { PENDING_ORDER_PREVIEW_MESSAGE } from '../../../config/pendingOrderAvailability';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { ChartTradeSheetPortal } from '../../../ui/navigation/ChartTradeSheetPortal';
 
 const FOOTER_LOT_PICKER_BASE_OFFSET = 54;
 const FOOTER_TRADE_DOCK_ANDROID_BOTTOM_SAFE_GAP = 12;
 const INLINE_FOOTER_TRADE_ROW_RESERVE_STYLE = { height: COMPACT_TRADE_FOOTER_ROW_HEIGHT };
-
-type ChartTradeTypeTabLayout = { x: number; width: number };
 
 type TradeFeatureComponents = {
   LiveQuotePairHeader: React.ComponentType<any>;
@@ -141,8 +143,6 @@ type ChartTradeSheetContentProps = {
   handlers: any;
   tabs: {
     scrollRef?: React.RefObject<ScrollView | null>;
-    onViewportLayout: (width: number) => void;
-    onTabLayout: (orderType: ChartOrderType, layout: ChartTradeTypeTabLayout) => void;
   };
   sheetScrollRef?: React.RefObject<ScrollView | null>;
 };
@@ -390,7 +390,7 @@ function ChartTradeStopLevelsSection({
                     #{ticket} {String(position.side ?? '').toUpperCase()}
                   </Text>
                   <Text style={styles.chartTradePositionSelectorMeta} numberOfLines={1}>
-                    {Number(position.volume ?? 0).toFixed(2)} @ {String(position.openPrice ?? 0)}
+                    {Number(position.volume ?? 0).toFixed(2)} @ {formatBackendPrice(position.openPrice ?? 0)}
                   </Text>
                 </Pressable>
               );
@@ -530,7 +530,7 @@ function ChartTradeStopLevelsSection({
                 numberOfLines={1}
                 adjustsFontSizeToFit
               >
-                {slEnabled ? sheet.chartTradeSlPrice.toFixed(symbolHeader.displayDecimals) : '--'}
+                {slEnabled ? formatBackendPrice(sheet.chartTradeSlPrice) : '--'}
               </Text>
             </Pressable>
 
@@ -580,7 +580,7 @@ function ChartTradeStopLevelsSection({
                 numberOfLines={1}
                 adjustsFontSizeToFit
               >
-                {tpEnabled ? sheet.chartTradeTpPrice.toFixed(symbolHeader.displayDecimals) : '--'}
+                {tpEnabled ? formatBackendPrice(sheet.chartTradeTpPrice) : '--'}
               </Text>
             </Pressable>
           </View>
@@ -612,6 +612,8 @@ function ChartTradeSheetContent({
     showInlineFooterWhileSheetOpen: !!sheet.showInlineFooterWhileSheetOpen,
   });
   const stopsTargetExistingPosition = !!sheet.chartStopsTargetExistingPosition;
+  const disablePendingTradePlaceButton =
+    isPendingOrderPlacementBackendLocked(sheet.chartTradeOrderType) || sheet.disablePendingTradePlaceButton;
 
   return (
     <>
@@ -666,9 +668,6 @@ function ChartTradeSheetContent({
           styles.chartTradeTypeTabsScroll,
           useMtPendingTradeSheetLayout && styles.chartTradeTypeTabsScrollPending,
         ]}
-        onLayout={(event) => {
-          tabs.onViewportLayout(event.nativeEvent.layout.width);
-        }}
         contentContainerStyle={[
           styles.chartTradeTypeTabs,
           useMtPendingTradeSheetLayout && styles.chartTradeTypeTabsPending,
@@ -681,12 +680,7 @@ function ChartTradeSheetContent({
           return (
             <Pressable
               key={option}
-              onLayout={(event) => {
-                tabs.onTabLayout(option, {
-                  x: event.nativeEvent.layout.x,
-                  width: event.nativeEvent.layout.width,
-                });
-              }}
+              hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
               style={[
                 styles.chartTradeTypeTab,
                 useMtPendingTradeSheetLayout && styles.chartTradeTypeTabPending,
@@ -711,6 +705,9 @@ function ChartTradeSheetContent({
                   && styles.chartTradeTypeTabTextPendingMarketExecution,
                   active && styles.chartTradeTypeTabTextActive,
                   useMtPendingTradeSheetLayout && active && styles.chartTradeTypeTabTextPendingActive,
+                  active && !isMarketExecution && {
+                    color: getChartOrderSide(option) === 'sell' ? colors.sellPrimary : colors.blue,
+                  },
                   isBackendLocked && styles.chartTradeTypeTabTextLocked,
                 ]}
                 numberOfLines={1}
@@ -748,7 +745,9 @@ function ChartTradeSheetContent({
             accessibilityLabel={t('Price')}
           >
             <Text style={[styles.chartTradeCardLabel, useMtPendingTradeSheetLayout && styles.chartTradeCardLabelPending]}>{t('Price')}</Text>
-            <View style={styles.chartTradeVolumeValueGroup}>
+            <PriceDragControl style={styles.chartTradeVolumeValueGroup} label={t('Price')}
+              value={sheet.chartTradePrice} step={sheet.chartProtectionTickSize ?? sheet.chartPointSize * 10} decimals={symbolHeader.displayDecimals} enabled={!sheet.chartPendingOrderSubmitting}
+              onChange={handlers.onDragPrice}>
               <Text
                 style={[
                   styles.chartTradePriceInput,
@@ -757,8 +756,8 @@ function ChartTradeSheetContent({
                 ]}
               >
                 {sheet.chartTradePrice > 0
-                  ? sheet.chartTradePrice.toFixed(symbolHeader.displayDecimals)
-                  : (sheet.chartBid > 0 ? sheet.chartBid.toFixed(symbolHeader.displayDecimals) : '--')}
+                  ? formatBackendPrice(sheet.chartTradePrice)
+                  : (sheet.chartBid > 0 ? formatBackendPrice(sheet.chartBid) : '--')}
               </Text>
               <Pressable
                 style={[
@@ -777,7 +776,7 @@ function ChartTradeSheetContent({
                   <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
                 </View>
               </Pressable>
-            </View>
+            </PriceDragControl>
           </Pressable>
         ) : null}
 
@@ -796,7 +795,9 @@ function ChartTradeSheetContent({
             <Text style={[styles.chartTradeCardLabel, useMtPendingTradeSheetLayout && styles.chartTradeCardLabelPending]}>
               {t('Stop Limit Price')}
             </Text>
-            <View style={styles.chartTradeVolumeValueGroup}>
+            <PriceDragControl style={styles.chartTradeVolumeValueGroup} label={t('Stop Limit Price')}
+              value={sheet.chartTradeStopLimitPrice} step={sheet.chartProtectionTickSize ?? sheet.chartPointSize * 10} decimals={symbolHeader.displayDecimals} enabled={!sheet.chartPendingOrderSubmitting}
+              onChange={handlers.onDragStopLimitPrice}>
               <Text
                 style={[
                   styles.chartTradePriceInput,
@@ -804,7 +805,7 @@ function ChartTradeSheetContent({
                   useMtPendingTradeSheetLayout && styles.chartTradePriceInputPendingMt,
                 ]}
               >
-                {sheet.chartTradeStopLimitPrice > 0 ? sheet.chartTradeStopLimitPrice.toFixed(symbolHeader.displayDecimals) : '--'}
+                {sheet.chartTradeStopLimitPrice > 0 ? formatBackendPrice(sheet.chartTradeStopLimitPrice) : '--'}
               </Text>
               <Pressable
                 style={[
@@ -823,7 +824,7 @@ function ChartTradeSheetContent({
                   <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
                 </View>
               </Pressable>
-            </View>
+            </PriceDragControl>
           </Pressable>
         ) : null}
 
@@ -836,17 +837,12 @@ function ChartTradeSheetContent({
           useMtPendingTradeSheetLayout={useMtPendingTradeSheetLayout}
         />
 
-        {sheet.showChartTradeExpiration ? (
-          <Pressable
-            style={[styles.chartTradeInfoRow, useMtPendingTradeSheetLayout && styles.chartTradeInfoRowPending]}
-            onPress={handlers.onOpenExpirationMenu}
-            unstable_pressDelay={0}
-          >
-            <Text style={[styles.chartTradeInfoLabel, useMtPendingTradeSheetLayout && styles.chartTradeInfoLabelPending]}>{t('Expiration')}:</Text>
-            <Text style={[styles.chartTradeInfoValue, useMtPendingTradeSheetLayout && styles.chartTradeInfoValuePending]}>{t(sheet.chartTradeExpiration)}</Text>
-            <Ionicons name="swap-vertical" size={12} color={colors.blue} />
-          </Pressable>
-        ) : null}
+        {sheet.showChartTradeExpiration ? (isPendingChartOrderType(sheet.chartTradeOrderType)
+          ? <PendingExpirationPicker value={sheet.chartPendingTimeInForce ?? 'GTC'} expiry={sheet.chartPendingExpiry ?? null} onChange={handlers.onChangePendingExpiration} />
+          : <Pressable style={styles.chartTradeInfoRow} onPress={handlers.onOpenExpirationMenu}>
+            <Text style={styles.chartTradeInfoLabel}>{t('Expiration')}:</Text>
+            <Text style={styles.chartTradeInfoValue}>{t(sheet.chartTradeExpiration)}</Text>
+          </Pressable>) : null}
 
         {sheet.showChartTradeComment ? (
           <View style={[styles.chartTradeCommentBlock, useMtPendingTradeSheetLayout && styles.chartTradeCommentBlockPending]}>
@@ -958,22 +954,25 @@ function ChartTradeSheetContent({
           ) : null
         ) : (
           <>
+            {isPendingOrderPlacementBackendLocked(sheet.chartTradeOrderType) ? (
+              <Text style={styles.chartTradeMetaText}>{t(PENDING_ORDER_PREVIEW_MESSAGE)}</Text>
+            ) : null}
             <Pressable
               style={[
                 styles.chartTradePlaceButton,
-                sheet.disablePendingTradePlaceButton
+                disablePendingTradePlaceButton
                   ? styles.chartTradePlaceButtonDisabled
                   : { backgroundColor: sheet.chartTradeCtaColor },
               ]}
-              onPress={sheet.disablePendingTradePlaceButton ? undefined : handlers.onSubmitPendingTrade}
-              disabled={sheet.disablePendingTradePlaceButton}
+              onPress={disablePendingTradePlaceButton ? undefined : handlers.onSubmitPendingTrade}
+              disabled={disablePendingTradePlaceButton}
               accessibilityRole="button"
-              accessibilityState={{ disabled: sheet.disablePendingTradePlaceButton }}
+              accessibilityState={{ disabled: disablePendingTradePlaceButton }}
             >
               <Text
                 style={[
                   styles.chartTradePlaceButtonText,
-                  sheet.disablePendingTradePlaceButton && styles.chartTradePlaceButtonTextDisabled,
+                  disablePendingTradePlaceButton && styles.chartTradePlaceButtonTextDisabled,
                 ]}
                 numberOfLines={1}
               >
@@ -1028,8 +1027,6 @@ function ChartTradeSheetPinnedHeader({
   handlers: any;
   tabs: {
     scrollRef?: React.RefObject<ScrollView | null>;
-    onViewportLayout: (width: number) => void;
-    onTabLayout: (orderType: ChartOrderType, layout: ChartTradeTypeTabLayout) => void;
   };
   components: TradeFeatureComponents;
   compactForAppMenu?: boolean;
@@ -1099,9 +1096,6 @@ function ChartTradeSheetPinnedHeader({
           styles.chartTradeTypeTabsScroll,
           useMtPendingTradeSheetLayout && styles.chartTradeTypeTabsScrollPending,
         ]}
-        onLayout={(event) => {
-          tabs.onViewportLayout(event.nativeEvent.layout.width);
-        }}
         contentContainerStyle={[
           styles.chartTradeTypeTabs,
           useMtPendingTradeSheetLayout && styles.chartTradeTypeTabsPending,
@@ -1114,12 +1108,7 @@ function ChartTradeSheetPinnedHeader({
           return (
             <Pressable
               key={option}
-              onLayout={(event) => {
-                tabs.onTabLayout(option, {
-                  x: event.nativeEvent.layout.x,
-                  width: event.nativeEvent.layout.width,
-                });
-              }}
+              hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }}
               style={[
                 styles.chartTradeTypeTab,
                 useMtPendingTradeSheetLayout && styles.chartTradeTypeTabPending,
@@ -1144,6 +1133,9 @@ function ChartTradeSheetPinnedHeader({
                   && styles.chartTradeTypeTabTextPendingMarketExecution,
                   active && styles.chartTradeTypeTabTextActive,
                   useMtPendingTradeSheetLayout && active && styles.chartTradeTypeTabTextPendingActive,
+                  active && !isMarketExecution && {
+                    color: getChartOrderSide(option) === 'sell' ? colors.sellPrimary : colors.blue,
+                  },
                   isBackendLocked && styles.chartTradeTypeTabTextLocked,
                 ]}
                 numberOfLines={1}
@@ -1199,6 +1191,8 @@ function ChartTradeSheetBody({
     showInlineFooterWhileSheetOpen: !!sheet.showInlineFooterWhileSheetOpen,
   });
   const stopsTargetExistingPosition = !!sheet.chartStopsTargetExistingPosition;
+  const disablePendingTradePlaceButton =
+    isPendingOrderPlacementBackendLocked(sheet.chartTradeOrderType) || sheet.disablePendingTradePlaceButton;
 
   return (
     <View style={[styles.chartTradeSheetBody, useMtPendingTradeSheetLayout && styles.chartTradeSheetBodyPending]}>
@@ -1224,7 +1218,9 @@ function ChartTradeSheetBody({
           accessibilityLabel={t('Price')}
         >
           <Text style={[styles.chartTradeCardLabel, useMtPendingTradeSheetLayout && styles.chartTradeCardLabelPending]}>{t('Price')}</Text>
-          <View style={styles.chartTradeVolumeValueGroup}>
+          <PriceDragControl style={styles.chartTradeVolumeValueGroup} label={t('Price')}
+            value={sheet.chartTradePrice} step={sheet.chartProtectionTickSize ?? sheet.chartPointSize * 10} decimals={symbolHeader.displayDecimals} enabled={!sheet.chartPendingOrderSubmitting}
+            onChange={handlers.onDragPrice}>
             <Text
               style={[
                 styles.chartTradePriceInput,
@@ -1233,8 +1229,8 @@ function ChartTradeSheetBody({
               ]}
             >
               {sheet.chartTradePrice > 0
-                ? sheet.chartTradePrice.toFixed(symbolHeader.displayDecimals)
-                : (sheet.chartBid > 0 ? sheet.chartBid.toFixed(symbolHeader.displayDecimals) : '--')}
+                ? formatBackendPrice(sheet.chartTradePrice)
+                : (sheet.chartBid > 0 ? formatBackendPrice(sheet.chartBid) : '--')}
             </Text>
             <Pressable
               style={[
@@ -1253,7 +1249,7 @@ function ChartTradeSheetBody({
                 <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
               </View>
             </Pressable>
-          </View>
+          </PriceDragControl>
         </Pressable>
       ) : null}
 
@@ -1272,7 +1268,9 @@ function ChartTradeSheetBody({
           <Text style={[styles.chartTradeCardLabel, useMtPendingTradeSheetLayout && styles.chartTradeCardLabelPending]}>
             {t('Stop Limit Price')}
           </Text>
-          <View style={styles.chartTradeVolumeValueGroup}>
+          <PriceDragControl style={styles.chartTradeVolumeValueGroup} label={t('Stop Limit Price')}
+            value={sheet.chartTradeStopLimitPrice} step={sheet.chartProtectionTickSize ?? sheet.chartPointSize * 10} decimals={symbolHeader.displayDecimals} enabled={!sheet.chartPendingOrderSubmitting}
+            onChange={handlers.onDragStopLimitPrice}>
             <Text
               style={[
                 styles.chartTradePriceInput,
@@ -1280,7 +1278,7 @@ function ChartTradeSheetBody({
                 useMtPendingTradeSheetLayout && styles.chartTradePriceInputPendingMt,
               ]}
             >
-              {sheet.chartTradeStopLimitPrice > 0 ? sheet.chartTradeStopLimitPrice.toFixed(symbolHeader.displayDecimals) : '--'}
+              {sheet.chartTradeStopLimitPrice > 0 ? formatBackendPrice(sheet.chartTradeStopLimitPrice) : '--'}
             </Text>
             <Pressable
               style={[
@@ -1299,7 +1297,7 @@ function ChartTradeSheetBody({
                 <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
               </View>
             </Pressable>
-          </View>
+          </PriceDragControl>
         </Pressable>
       ) : null}
 
@@ -1312,17 +1310,12 @@ function ChartTradeSheetBody({
         useMtPendingTradeSheetLayout={useMtPendingTradeSheetLayout}
       />
 
-      {sheet.showChartTradeExpiration ? (
-        <Pressable
-          style={[styles.chartTradeInfoRow, useMtPendingTradeSheetLayout && styles.chartTradeInfoRowPending]}
-          onPress={handlers.onOpenExpirationMenu}
-          unstable_pressDelay={0}
-        >
-          <Text style={[styles.chartTradeInfoLabel, useMtPendingTradeSheetLayout && styles.chartTradeInfoLabelPending]}>{t('Expiration')}:</Text>
-          <Text style={[styles.chartTradeInfoValue, useMtPendingTradeSheetLayout && styles.chartTradeInfoValuePending]}>{t(sheet.chartTradeExpiration)}</Text>
-          <Ionicons name="swap-vertical" size={12} color={colors.blue} />
-        </Pressable>
-      ) : null}
+      {sheet.showChartTradeExpiration ? (isPendingChartOrderType(sheet.chartTradeOrderType)
+          ? <PendingExpirationPicker value={sheet.chartPendingTimeInForce ?? 'GTC'} expiry={sheet.chartPendingExpiry ?? null} onChange={handlers.onChangePendingExpiration} />
+          : <Pressable style={styles.chartTradeInfoRow} onPress={handlers.onOpenExpirationMenu}>
+            <Text style={styles.chartTradeInfoLabel}>{t('Expiration')}:</Text>
+            <Text style={styles.chartTradeInfoValue}>{t(sheet.chartTradeExpiration)}</Text>
+          </Pressable>) : null}
 
       {sheet.showChartTradeComment ? (
         <View style={[styles.chartTradeCommentBlock, useMtPendingTradeSheetLayout && styles.chartTradeCommentBlockPending]}>
@@ -1434,22 +1427,25 @@ function ChartTradeSheetBody({
         ) : null
       ) : (
         <>
+          {isPendingOrderPlacementBackendLocked(sheet.chartTradeOrderType) ? (
+            <Text style={styles.chartTradeMetaText}>{t(PENDING_ORDER_PREVIEW_MESSAGE)}</Text>
+          ) : null}
           <Pressable
             style={[
               styles.chartTradePlaceButton,
-              sheet.disablePendingTradePlaceButton
+              disablePendingTradePlaceButton
                 ? styles.chartTradePlaceButtonDisabled
                 : { backgroundColor: sheet.chartTradeCtaColor },
             ]}
-            onPress={sheet.disablePendingTradePlaceButton ? undefined : handlers.onSubmitPendingTrade}
-            disabled={sheet.disablePendingTradePlaceButton}
+            onPress={disablePendingTradePlaceButton ? undefined : handlers.onSubmitPendingTrade}
+            disabled={disablePendingTradePlaceButton}
             accessibilityRole="button"
-            accessibilityState={{ disabled: sheet.disablePendingTradePlaceButton }}
+            accessibilityState={{ disabled: disablePendingTradePlaceButton }}
           >
             <Text
               style={[
                 styles.chartTradePlaceButtonText,
-                sheet.disablePendingTradePlaceButton && styles.chartTradePlaceButtonTextDisabled,
+                disablePendingTradePlaceButton && styles.chartTradePlaceButtonTextDisabled,
               ]}
               numberOfLines={1}
             >
@@ -1621,6 +1617,7 @@ export function ChartTradeOverlayLayer({
           importantForAccessibility={sheet.showChartTradeSheet ? 'auto' : 'no-hide-descendants'}
           style={[
             styles.chartTradeSheetLayer,
+            { opacity: sheet.showChartTradeSheet ? 1 : 0 },
             sheet.chartTradeSheetFrozenLayerHeight > 0 && { height: sheet.chartTradeSheetFrozenLayerHeight },
           ]}
         >
@@ -1674,8 +1671,6 @@ export function ChartTradeOverlayLayer({
                   compactForAppMenu={compactForAppMenu}
                   tabs={{
                     scrollRef: sheet.chartTradeTypeTabsOverlayScrollRef,
-                    onViewportLayout: handlers.onOverlayTabsViewportLayout,
-                    onTabLayout: handlers.onOverlayTabLayout,
                   }}
                   components={components}
                 />
@@ -1781,8 +1776,6 @@ export function ChartTradeOverlayLayer({
                 handlers={handlers}
                 tabs={{
                   scrollRef: sheet.chartTradeTypeTabsInlineScrollRef,
-                  onViewportLayout: handlers.onInlineTabsViewportLayout,
-                  onTabLayout: handlers.onInlineTabLayout,
                 }}
               />
             </ScrollView>
@@ -1807,6 +1800,7 @@ export function ChartTradeOverlayLayer({
           >
             <LiveTradeButtons
               key={`chart-trade-footer-dock-${sheet.chartSymbol}`}
+              executionDisabled={sheet.chartPendingPreviewActive}
               symbol={sheet.chartSymbol}
               displayDecimals={symbolHeader.displayDecimals}
               lotSize={sheet.tradeVolume}
@@ -1897,6 +1891,7 @@ type ChartTradeInlineFooterProps = {
   lotInvalid?: boolean;
   invalidLotDisplay?: string;
   active?: boolean;
+  executionDisabled?: boolean;
   fallbackBid?: number | null;
   fallbackAsk?: number | null;
   compactPane?: boolean;
@@ -1939,6 +1934,7 @@ export function ChartTradeInlineFooter({
   lotInvalid = false,
   invalidLotDisplay,
   active = true,
+  executionDisabled = false,
   fallbackBid,
   fallbackAsk,
   compactPane = false,
@@ -1957,6 +1953,7 @@ export function ChartTradeInlineFooter({
       {inlineFooterReceivesTouches ? (
         <LiveTradeButtons
           key={`chart-trade-inline-footer-${chartSymbol}`}
+          executionDisabled={executionDisabled}
           symbol={chartSymbol}
           chartWindowPaneId={chartWindowPaneId}
           displayDecimals={displayDecimals}

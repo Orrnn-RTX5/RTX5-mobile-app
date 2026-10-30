@@ -12,6 +12,7 @@ const SENSITIVE_AUTH_KEY_NAMES = new Set([
   'feedbrokertoken',
   'feedtoken',
   'idtoken',
+  'investorpass',
   'marketdatafeedtoken',
   'marketdatatoken',
   'password',
@@ -28,7 +29,7 @@ const SENSITIVE_AUTH_KEY_NAMES = new Set([
 ]);
 
 const SENSITIVE_STRING_KEY_PATTERN =
-  '(?:access[_-]?token|api[_-]?key|authorization|broker[_-]?feed[_-]?token|client[_-]?secret|cookie|credentials|feed[_-]?broker[_-]?token|feed[_-]?token|id[_-]?token|market[_-]?data[_-]?(?:feed[_-]?)?token|password|passcode|passwd|proxy[_-]?authorization|quote[_-]?feed[_-]?token|refresh[_-]?token|secret|session[_-]?token|set[_-]?cookie|token|ws[_-]?feed[_-]?token)';
+  '(?:access[_-]?token|api[_-]?key|authorization|broker[_-]?feed[_-]?token|client[_-]?secret|cookie|credentials|feed[_-]?broker[_-]?token|feed[_-]?token|id[_-]?token|investor[_-]?pass|market[_-]?data[_-]?(?:feed[_-]?)?token|password|passcode|passwd|proxy[_-]?authorization|quote[_-]?feed[_-]?token|refresh[_-]?token|secret|session[_-]?token|set[_-]?cookie|token|ws[_-]?feed[_-]?token)';
 
 const normalizeSensitiveKey = (key: string): string =>
   key.toLowerCase().replace(/[^a-z0-9]/g, '');

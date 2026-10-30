@@ -31,7 +31,7 @@ test('Economic Calendar opens its retained filter sheet without rebuilding the c
   );
 });
 
-test('Economic Calendar filter sheet reveals its retained layout without animation or dismissal timers', () => {
+test('Economic Calendar filter sheet animates only its retained card and backdrop with the native driver', () => {
   const sheet = readSource(
     'src/features/settings/EconomicCalendarScreen/EconomicEventFiltersSheet.tsx',
   );
@@ -53,15 +53,23 @@ test('Economic Calendar filter sheet reveals its retained layout without animati
   );
   assert.match(sheet, /backdropColor = isDark \? 'rgba\(0,0,0,0\.72\)' : 'rgba\(0,0,0,0\.3\)'/);
   assert.doesNotMatch(sheet, /rgba\(0,0,0,0\.6\)/);
-  assert.doesNotMatch(sheet, /Animated\.timing|Animated\.View|setTimeout|reduceMotionChanged/);
+  assert.doesNotMatch(sheet, /setTimeout|requestAnimationFrame/);
+  assert.match(sheet, /onLayout=\{handleCardLayout\}/);
+  assert.match(sheet, /sheetHeightRef\.current = height/);
+  assert.match(sheet, /Animated\.timing\(translateY,[\s\S]*duration: 210[\s\S]*useNativeDriver: true/);
+  assert.match(sheet, /Animated\.timing\(backdropOpacity,[\s\S]*duration: 150[\s\S]*useNativeDriver: true/);
+  assert.match(sheet, /style=\{\[styles\.modalCard, \{ transform: \[\{ translateY \}\] \}\]\}/);
+  assert.match(sheet, /AccessibilityInfo\.isReduceMotionEnabled/);
+  assert.match(sheet, /reduceMotionChanged/);
+  assert.match(sheet, /generation === motionGenerationRef\.current/);
   assert.match(sheet, /const open = useCallback[\s\S]*if \(visibleRef\.current\) return;[\s\S]*setDraftImpacts\(new Set\(selectedImpactsRef\.current\)\)[\s\S]*setVisible\(true\)/);
   assert.match(sheet, /const hideNow = useCallback[\s\S]*visibleRef\.current = false;[\s\S]*setVisible\(false\)/);
-  assert.match(sheet, /'hardwareBackPress'[\s\S]*hideNow\(\)/);
+  assert.match(sheet, /'hardwareBackPress'[\s\S]*dismiss\(\)/);
   assert.match(sheet, /Date\.now\(\) - openedAtRef\.current < EVENT_FILTER_OPEN_GUARD_MS/);
   assert.doesNotMatch(sheet, /scale:|scaleY:|opacity: sheetOpacity/);
   assert.match(
     sheet,
-    /const handleApply = useCallback[\s\S]*const nextImpacts = new Set\(draftImpacts\);[\s\S]*hideNow\(\);[\s\S]*onApply\(nextImpacts\)/,
+    /const handleApply = useCallback[\s\S]*const nextImpacts = new Set\(draftImpacts\);[\s\S]*if \(dismiss\(\)\) onApply\(nextImpacts\)/,
   );
   assert.match(styles, /filterSheetHost: \{[\s\S]*\.\.\.StyleSheet\.absoluteFillObject[\s\S]*zIndex: 10000/);
   assert.match(styles, /filterSheetHostHidden: \{[\s\S]*opacity: 0/);

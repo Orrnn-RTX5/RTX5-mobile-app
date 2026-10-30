@@ -26,6 +26,7 @@ import {
   fetchAccountOrdersPage,
   fetchAllAccountOrders,
   normalizeOrderHistoryRow,
+  fetchPendingOrderHistory,
 } from './orderHistory';
 
 export {
@@ -97,18 +98,7 @@ export const ordersApi = {
    * /account/orders is preferred; /orders/{login} (no paging, max 500 rows)
    * is used only if the account endpoint fails.
    */
-  getOrderHistory: async (login: number): Promise<LoginOrder[]> => {
-    try {
-      return await fetchAllAccountOrders();
-    } catch (accountError) {
-      try {
-        const rows = await ordersApi.getOrdersByLogin(login);
-        return rows.map(normalizeOrderHistoryRow);
-      } catch {
-        throw accountError;
-      }
-    }
-  },
+  getOrderHistory: fetchPendingOrderHistory,
 
   placeMarketOrder,
   placePendingOrder,

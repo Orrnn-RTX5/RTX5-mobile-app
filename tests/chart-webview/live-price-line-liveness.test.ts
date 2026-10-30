@@ -197,7 +197,7 @@ test('live line keeps the raw Bid coordinate while only badge text is decimal-li
   );
   assertSourceContains(
     badgeFormatterBody,
-    /var decimals = resolveOverlayDisplayDecimals\(\)[\s\S]*Number\(price\)\.toFixed\(decimals\)/,
+    /return formatChartBrokerPrice\(price\)/,
     'only badge text formatting may round the raw live Bid',
   );
 });

@@ -11,7 +11,7 @@
  * - `equity`, `used_margin`, `free_margin`, `margin_level` and `floating_pnl` are
  *   present only when the server calculation succeeds. When one is missing the
  *   last known value is kept and reported in `staleMetrics`.
- * - `margin_level: 0` means no margin is used; show it as "—" (see formatMarginLevel).
+ * - Show the backend margin level when available, otherwise 0% (see formatMarginLevel).
  *
  * High-frequency equivalents of this data are streamed on `metrics.<login>`.
  */

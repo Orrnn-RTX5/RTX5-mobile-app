@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FastPressable as Pressable } from '../../ui/components/FastPressable';
@@ -13,11 +14,12 @@ import { ActionSheet } from '../../ui/components/ActionSheet';
 import type { DemoBrokerOption } from './demoBrokerOptions';
 import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES, phoneCountrySearchDetails } from './phoneCountries';
 
-type Field = 'firstName' | 'lastName' | 'email' | 'phone' | 'password' | 'confirmation';
+type Field = 'firstName' | 'lastName' | 'email' | 'phone' | 'investorPassword' | 'password' | 'confirmation';
 type Props = {
-  name: string; email: string; password: string; confirmation: string;
+  name: string; email: string; investorPassword: string; password: string; confirmation: string;
   onNameChange: (value: string) => void; onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void; onConfirmationChange: (value: string) => void;
+  onInvestorPasswordChange: (value: string) => void;
   brokerName: string; leverage?: number; explanation?: string; error?: string; retryMessage?: string;
   brokerId: string; brokerOptions: readonly DemoBrokerOption[]; onSelectBroker: (brokerId: string) => void;
   busy: boolean; hydrating: boolean; disabled: boolean;
@@ -35,6 +37,13 @@ export function DemoAccountScreen(props: Props) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const styles = useMemo(() => makeDemoAccountStyles(T, isDark, insets, width, fontScale, keyboardVisible), [T, isDark, insets, width, fontScale, keyboardVisible]);
   const [showPassword, setShowPassword] = useState(false);
+  const [showInvestorPassword, setShowInvestorPassword] = useState(false);
+  const investorPasswordValue = useRef(props.investorPassword);
+  const passwordValue = useRef(props.password);
+  const confirmationValue = useRef(props.confirmation);
+  passwordValue.current = props.password;
+  investorPasswordValue.current = props.investorPassword;
+  confirmationValue.current = props.confirmation;
   const [firstName, setFirstName] = useState(() => props.name.split(/\s+/)[0] ?? '');
   const [lastName, setLastName] = useState(() => props.name.split(/\s+/).slice(1).join(' '));
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -71,7 +80,7 @@ export function DemoAccountScreen(props: Props) {
     if (props.busy || props.disabled || !termsAccepted) return;
     // Confirmation is an explicit second step so the initial form retains the
     // reference layout. The authoritative validator still requires a match.
-    const error = validateDemoForm({ name: props.name, email: props.email, password: props.password, confirmation: props.password });
+    const error = validateDemoForm({ name: props.name, email: props.email, investorPassword: investorPasswordValue.current, password: passwordValue.current, confirmation: confirmationRequested ? confirmationValue.current : passwordValue.current });
     if (error) { setFormError(error); return; }
     setFormError('');
     if (!confirmationRequested) { props.onConfirmationChange(''); setConfirmationRequested(true); return; }
@@ -96,47 +105,63 @@ export function DemoAccountScreen(props: Props) {
   // Keep the retained picker populated between opens. Clearing its rows during
   // dismissal makes the next country change rebuild the visible list.
   const countryActions = useMemo(() => PHONE_COUNTRIES.map(country => ({
+    key: country.code,
     label: `${country.flag} ${t(country.name)}`,
     subtitle: phoneCountrySearchDetails(country),
+    countrySearch: { names: [country.name, t(country.name)], isoCode: country.code, callingCodes: country.dialCodes },
     selected: country.code === phoneCountry.code,
     disabled: props.busy || !country.dialCodes.length,
     onPress: () => setPhoneCountry(country),
   })), [phoneCountry.code, props.busy, t]);
-  const strength = props.password ? [props.password.length >= 8, /[A-Za-z]/.test(props.password), /[0-9]/.test(props.password), /[^A-Za-z0-9]/.test(props.password)].filter(Boolean).length : 0;
-  const passwordValid = props.password.length >= 8 && /[A-Za-z]/.test(props.password) && /[0-9]/.test(props.password);
-  const strengthColor = !strength ? '#64748B' : passwordValid ? '#22C55E' : strength >= 2 ? '#F59E0B' : '#EF4444';
   const iconColor = isDark ? T.textSub : T.textMuted;
   const accentColor = isDark ? T.accent : T.trading.buy.primary;
-  const field = (key: Field, label: string, placeholder: string, value: string, change: (value: string) => void, icon: React.ComponentProps<typeof Ionicons>['name'], secure = false) => (
-    <View style={styles.inputRow} onLayout={event => {
-      fieldPositions.current[key] = event.nativeEvent.layout.y;
-      if (keyboardVisible && focusedField.current === key) revealFocusedField();
-    }}>
-      <Text style={styles.inputLabel}>{t(label)}{key === 'lastName' ? <Text style={styles.inputOptionalLabel}> ({t('optional')})</Text> : null}</Text>
-      <View style={styles.inputShell}>
-        <Ionicons name={icon} size={21} color={iconColor} style={styles.inputRowIcon} />
-        <TextInput
-          autoFocus={key === 'confirmation'}
-          accessibilityLabel={t(label)} style={styles.input} value={value} placeholder={t(placeholder)}
-          placeholderTextColor={T.textMuted} onChangeText={change} editable={!props.busy}
-          onFocus={() => focusField(key)} autoCapitalize={key === 'firstName' || key === 'lastName' ? 'words' : 'none'}
-          onBlur={() => { if (focusedField.current === key) focusedField.current = null; }}
-          autoCorrect={false} spellCheck={false} disableFullscreenUI secureTextEntry={secure && !showPassword}
-          keyboardType={key === 'email' ? 'email-address' : 'default'}
-          textContentType={secure ? 'newPassword' : key === 'email' ? 'emailAddress' : 'name'}
-          autoComplete={secure ? 'new-password' : key === 'email' ? 'email' : 'name'}
-          selectionColor={accentColor} cursorColor={accentColor} underlineColorAndroid="transparent"
-        />
-        {secure ? <Pressable accessibilityRole="button" accessibilityLabel={t(showPassword ? 'Hide password' : 'Show password')} onPress={() => setShowPassword(value => !value)} hitSlop={15} style={styles.eyeIconBtn}>
-          <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={21} color={iconColor} />
-        </Pressable> : null}
+  const field = (key: Field, label: string, placeholder: string, value: string, change: (value: string) => void, icon: React.ComponentProps<typeof Ionicons>['name'], secure = false) => {
+    const visible = key === 'investorPassword' ? showInvestorPassword : showPassword;
+    const toggleVisibility = key === 'investorPassword' ? setShowInvestorPassword : setShowPassword;
+    const visibilityLabel = key === 'investorPassword'
+      ? visible ? 'Hide investor password' : 'Show investor password'
+      : visible ? 'Hide password' : 'Show password';
+    const strength = value ? [value.length >= 8, /[A-Za-z]/.test(value), /[0-9]/.test(value), /[^A-Za-z0-9]/.test(value)].filter(Boolean).length : 0;
+    const passwordValid = value.length >= 8 && /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+    const strengthColor = !strength ? '#64748B' : passwordValid ? '#22C55E' : strength >= 2 ? '#F59E0B' : '#EF4444';
+    return (
+      <View style={styles.inputRow} onLayout={event => {
+        fieldPositions.current[key] = event.nativeEvent.layout.y;
+        if (keyboardVisible && focusedField.current === key) revealFocusedField();
+      }}>
+        <Text style={styles.inputLabel}>{t(label)}{key === 'lastName' ? <Text style={styles.inputOptionalLabel}> ({t('optional')})</Text> : null}</Text>
+        <View style={styles.inputShell}>
+          <Ionicons name={icon} size={21} color={iconColor} style={styles.inputRowIcon} />
+          <TextInput
+            autoFocus={key === 'confirmation'}
+            accessibilityLabel={t(label)} style={styles.input} value={value} placeholder={t(placeholder)}
+            placeholderTextColor={T.textMuted} onChangeText={value => {
+              // Match the host's immediate fields: autofill followed by Register
+              // must validate the latest text before React commits a new render.
+              if (key === 'password') passwordValue.current = value;
+              if (key === 'investorPassword') investorPasswordValue.current = value;
+              if (key === 'confirmation') confirmationValue.current = value;
+              change(value);
+            }} editable={!props.busy}
+            onFocus={() => focusField(key)} autoCapitalize={key === 'firstName' || key === 'lastName' ? 'words' : 'none'}
+            onBlur={() => { if (focusedField.current === key) focusedField.current = null; }}
+            autoCorrect={false} spellCheck={false} disableFullscreenUI secureTextEntry={secure && !visible}
+            keyboardType={key === 'email' ? 'email-address' : 'default'}
+            textContentType={secure ? 'newPassword' : key === 'email' ? 'emailAddress' : 'name'}
+            autoComplete={secure ? 'new-password' : key === 'email' ? 'email' : 'name'}
+            selectionColor={accentColor} cursorColor={accentColor} underlineColorAndroid="transparent"
+          />
+          {secure ? <Pressable accessibilityRole="button" accessibilityLabel={t(visibilityLabel)} accessibilityState={{ disabled: props.busy }} disabled={props.busy} onPress={() => toggleVisibility(value => !value)} hitSlop={15} style={styles.eyeIconBtn}>
+            <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={21} color={iconColor} />
+          </Pressable> : null}
+        </View>
+        {key === 'password' || key === 'investorPassword' ? <>
+          <View style={styles.passwordStrengthRow}>{[0, 1, 2, 3].map(level => <View key={level} style={[styles.passwordStrengthBar, level < strength && { backgroundColor: strengthColor }]} />)}</View>
+          <Text style={styles.passwordStrengthText}>{t('Password strength:')} <Text style={{ color: strengthColor }}>{value ? t(passwordValid ? 'Strong' : strength >= 2 ? 'Medium' : 'Weak') : ''}</Text></Text>
+        </> : null}
       </View>
-      {key === 'password' ? <>
-        <View style={styles.passwordStrengthRow}>{[0, 1, 2, 3].map(level => <View key={level} style={[styles.passwordStrengthBar, level < strength && { backgroundColor: strengthColor }]} />)}</View>
-        <Text style={styles.passwordStrengthText}>{t('Password strength:')} <Text style={{ color: strengthColor }}>{props.password ? t(passwordValid ? 'Strong' : strength >= 2 ? 'Medium' : 'Weak') : ''}</Text></Text>
-      </> : null}
-    </View>
-  );
+    );
+  };
   const legalLink = (label: string, url: string) => <Text accessibilityRole={url ? 'link' : undefined} style={styles.linkText} onPress={url ? () => { void Linking.openURL(url); } : undefined}>{t(label)}</Text>;
   const policyField = (label: string, icon: React.ComponentProps<typeof Ionicons>['name'], value = '--', paired = false) => <View style={paired ? styles.halfColumn : styles.inputRow}>
     <Text style={styles.inputLabel}>{t(label)}</Text>
@@ -148,7 +173,10 @@ export function DemoAccountScreen(props: Props) {
   return <View style={styles.bg}>
     <View style={styles.headerRow}>
       <Pressable accessibilityRole="button" accessibilityLabel={t('Back')} onPress={props.onBack} hitSlop={10} activateOnTouchStart latencyLabel="register.back" latencyBudgetMs={50} style={styles.headerBackButton}>
-        <Ionicons name="arrow-back" size={22} color={T.text} />
+        <Svg width={24} height={24} viewBox="0 0 24 24" pointerEvents="none">
+          <Path d="M19 12H5M12 5l-7 7 7 7" fill="none" stroke={T.text}
+            strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </Svg>
       </Pressable>
       <Text accessibilityRole="header" style={styles.headerTitle} numberOfLines={1}>Demo Account</Text>
       <View style={styles.headerRightSpacer} />
@@ -178,6 +206,7 @@ export function DemoAccountScreen(props: Props) {
                 selectionColor={accentColor} cursorColor={accentColor} underlineColorAndroid="transparent" />
             </View>
           </View>
+          {field('investorPassword', 'Investor password', '', props.investorPassword, props.onInvestorPasswordChange, 'lock-closed-outline', true)}
           {field('password', 'Master password', '', props.password, props.onPasswordChange, 'lock-closed-outline', true)}
           <View style={styles.twoColumnRow}>
             {policyField('Currency', 'cash-outline', 'USD', true)}

@@ -196,9 +196,17 @@ function createEntryId(source: TerminalJournalSource): string {
   return `terminal-${source.toLowerCase()}-${Date.now()}-${journalEntrySequence}`;
 }
 
+const parsedEntryTimeCache = new WeakMap<Pick<TerminalJournalEntry, 'createdAt'>, number>();
+
 function parseEntryTimeMs(entry: Pick<TerminalJournalEntry, 'createdAt'>): number {
+  const cached = parsedEntryTimeCache.get(entry);
+  if (cached !== undefined) {
+    return cached;
+  }
   const time = Date.parse(entry.createdAt);
-  return Number.isFinite(time) ? time : 0;
+  const resolved = Number.isFinite(time) ? time : 0;
+  parsedEntryTimeCache.set(entry, resolved);
+  return resolved;
 }
 
 function getLocalDayStartMs(nowMs: number): number {

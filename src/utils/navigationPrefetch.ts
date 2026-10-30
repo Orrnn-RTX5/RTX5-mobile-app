@@ -31,6 +31,9 @@ import { liveCandlesEngine } from '../api/ws/liveCandlesEngine';
 import { resolveChartSelectionHistoryWarmLimit } from '../market/chartHistoryWarmupPolicy';
 import { isOrrnnDemoPublicMarketSelection } from '../api/orrnnDemoPublicMarket';
 import { useUserPreferences } from '../state/userPreferences';
+import { calculatorsApi, type MarginCalcPayload } from '../api/calculators';
+import { getMarginCalculationQueryKey } from '../query/calculators';
+import { normalizeTradeVolume } from './tradeVolume';
 
 export function prefetchAccountSummary(login?: string) {
   const capture = captureActiveBrokerSession();
@@ -224,9 +227,47 @@ export function prefetchQuoteDetails(symbol: string) {
   prefetchDailyCandles(symbol);
 }
 
+export function prefetchOrderTicketMargin(login?: string, symbol?: string) {
+  const normalizedSymbol = symbol ? normalizeSymbol(symbol) : '';
+  const loginNum = Number(login);
+  const capture = captureActiveBrokerSession();
+  if (!normalizedSymbol || !Number.isFinite(loginNum) || loginNum <= 0 || !capture) {
+    return;
+  }
+  const cacheNamespace = capture.session.cacheNamespace;
+  const cachedMeta = appQueryClient.getQueryData<{
+    minVolume?: number;
+    maxVolume?: number;
+    stepVolume?: number;
+  }>(['instrument', cacheNamespace, INSTRUMENT_META_QUERY_VERSION, normalizedSymbol]);
+  const volume = normalizeTradeVolume(useUserPreferences.getState().tradeVolume, {
+    minVolume: cachedMeta?.minVolume,
+    maxVolume: cachedMeta?.maxVolume,
+    stepVolume: cachedMeta?.stepVolume,
+  });
+  if (!(volume > 0)) {
+    return;
+  }
+  const payload: MarginCalcPayload = {
+    account_login: loginNum,
+    symbol: normalizedSymbol,
+    side: 'buy',
+    volume,
+  };
+  void appQueryClient.prefetchQuery({
+    queryKey: getMarginCalculationQueryKey(cacheNamespace, payload),
+    queryFn: () => runSessionBoundQuery(
+      cacheNamespace,
+      () => calculatorsApi.calculateMargin(payload),
+    ),
+    staleTime: 30_000,
+  }).catch(() => {});
+}
+
 export function prefetchOrderTicketData(login?: string, symbol?: string) {
   prefetchAccountSummary(login);
   if (symbol) {
     prefetchInstrument(symbol);
+    prefetchOrderTicketMargin(login, symbol);
   }
 }

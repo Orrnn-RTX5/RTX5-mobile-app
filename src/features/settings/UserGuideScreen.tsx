@@ -60,7 +60,7 @@ export const UserGuideScreenInner = memo(function UserGuideScreenInner({ isScree
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 8 }]}>
         <FastPressable
           onPress={handleOpenMenu}
-          activateOnTouchStart
+          activateOnTouchStart={Platform.OS !== 'ios'}
           latencyLabel="userGuide.menu"
           hitSlop={12}
           style={styles.menuButton}

@@ -5,23 +5,28 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { Alert, ScrollView, Share, StyleSheet, Text, View, Platform } from 'react-native';
-import type { QuoteItem } from '../../../dev/mock/tradingData';
+import type { QuoteItem } from '../../../domain/tradingModels';
 import { useMarketData } from '../../../query/websocket';
 import { useIsDarkTheme } from '../../../state/themeMode';
 import { useUserPreferences } from '../../../state/userPreferences';
 import {
   captureActiveBrokerSessionProvenance,
-  isActiveBrokerSessionProvenanceCurrent,
 } from '../../../state/activeBrokerSession';
 import { useTheme } from '../../../ui/theme/useTheme';
-import { usePlaceOrderMutation } from '../../../query/orders';
+import { usePlaceOrderExecutor } from '../../../query/orders';
+import { createMarketOrderIntentId } from '../../../api/orders/marketOrderInFlight';
+import { ChartTradeReceiptStack } from '../../chart/components/ChartTradeReceiptStack';
+import { useMarketTradeReceipts } from '../../trade/useMarketTradeReceipts';
 import { useInstrumentMeta } from '../../../query/instruments';
 import { useAccountSummary } from '../../../query/account';
+import { useAlertsQuery } from '../../../query/alerts';
 import { useLatestDailyCandle } from '../../../domain/candles/query/candles';
 import { resolveTradingLogin, resolveTradingLoginString, useResolvedTradingLogin } from '../../../state/tradingLogin';
-import { fmt } from '../../../utils/format';
+import { formatBackendPrice } from '../../../utils/backendPrice';
+import { formatBackendDailyChange } from '../../../utils/backendDailyChange';
+import { splitFormattedChartTradePrice } from '../../chart/components/ChartTradeButtonsFeature/pricePresentation';
 import { calculateMarketSentiment } from '../../../domain/marketSentiment';
 import { normalizeSymbol } from '../../../domain/symbols';
 import {
@@ -29,8 +34,7 @@ import {
   recordBlockedPriceAction,
   resolveSessionQuoteActionAvailability,
 } from '../../../market/quoteIntegrity';
-import { classifyTradingError, createFrontendTradingError } from '../../../api/tradingErrors';
-import { resolveBrokerExecutionEvidence } from '../../../api/orders/executionEvidence';
+import { createFrontendTradingError } from '../../../api/tradingErrors';
 import {
   safeRouterBack,
   scheduleBackNavigationAfterVisualFrame,
@@ -41,7 +45,7 @@ import {
   prefetchOrderTicketData,
 } from '../../../utils/navigationPrefetch';
 import { useTranslation } from '../../../i18n/useTranslation';
-import { dCol, getMeta, normalizeTradingSessions, sgn } from './instrumentMeta';
+import { dCol, getMeta, normalizeTradingSessions } from './instrumentMeta';
 import { MetricPill, MomentumBar, RangeBar, Row, Section } from './SubComponents';
 import { makeSymbolDetailsStyles } from './styles';
 import { QuoteInfoLaunchShell } from '../QuoteInfoLaunchShell';
@@ -52,7 +56,14 @@ import {
   quoteInfoLaunchController,
   scheduleQuoteInfoBackCoverRemoval,
 } from '../quoteInfoLaunchController';
-import { useDeferredRouteContentReady } from '../../../ui/components/DeferredRouteMount';
+import {
+  preloadDeferredRouteModule,
+  useDeferredRouteContentReady,
+} from '../../../ui/components/DeferredRouteMount';
+import {
+  ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+  loadOrderTicketScreenRoute,
+} from '../../trade/orderTicketScreenPreload';
 import { BrokerFeedHealthBanner } from '../../../market/BrokerFeedHealthBanner';
 import { requestOrrnnDemoTradeAuth } from '../../trade/tradeAuthPrompt';
 import { markTradeIntent } from '../../../utils/tradeIntent';
@@ -82,9 +93,9 @@ const formatSwapValue = (value: number | null | undefined) => {
   return formatted === '--' ? formatted : `${formatted} pts`;
 };
 
-const formatDetailPrice = (value: number | null | undefined, digits: number) =>
+const formatDetailPrice = (value: number | null | undefined) =>
   typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? fmt.price(value, digits)
+    ? formatBackendPrice(value)
     : '--';
 
 export function SymbolDetailsScreen() {
@@ -128,7 +139,9 @@ export function SymbolDetailsScreen() {
 
     if (wasFocusedRef.current) {
       wasFocusedRef.current = false;
-      completeQuoteInfoLaunch('properties');
+      if (!backNavigationStartedRef.current) {
+        completeQuoteInfoLaunch('properties');
+      }
     }
   }, [contentReady, isScreenFocused]);
 
@@ -193,16 +206,17 @@ export function SymbolDetailsInteractiveContent({
   const isPublicDemoTradePrompt = useUserPreferences(
     (state) => !state.isLoggedIn,
   );
-  const { mutate: placeOrder, isPending } = usePlaceOrderMutation();
-  const [activeSide, setActiveSide] = useState<'buy' | 'sell' | null>(null);
-  const tradeTapLockRef = useRef(false);
-  const tradeTapLockReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeSideResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [alertOn, setAlertOn] = useState(false);
+  const placeOrder = usePlaceOrderExecutor();
+  const { controller: tradeReceiptController, createTradeReceipt } = useMarketTradeReceipts();
   const isScreenFocused = useIsFocused();
   const active = activeOverride ?? isScreenFocused;
+  const { data: alerts = [] } = useAlertsQuery({ enabled: active });
+  const alertOn = alerts.some((alert) => !alert.triggered && normalizeSymbol(alert.symbol) === symbol);
   const resolvedLogin = useResolvedTradingLogin();
   const accountLoginString = resolvedLogin !== undefined ? String(resolvedLogin) : undefined;
+  const handleOpenPriceAlerts = useCallback(() => {
+    router.push({ pathname: '/chart/alerts', params: { symbol } });
+  }, [symbol]);
 
   const handleOpenFullChart = useCallback(() => {
     // Dispatch the exact public/authenticated history warm-up before changing
@@ -227,13 +241,22 @@ export function SymbolDetailsInteractiveContent({
     enabled: active && !!accountLoginString,
   });
 
+  useEffect(() => {
+    if (!active) return;
+    preloadDeferredRouteModule(
+      ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+      loadOrderTicketScreenRoute,
+    );
+    prefetchOrderTicketData(accountLoginString, symbol);
+  }, [accountLoginString, active, symbol]);
+
   const q = useMemo<QuoteItem>(() => {
     const base = {
       ...(liveQuote || {}),
       symbol,
       bid: resolveDetailNumber(liveQuote?.bid) ?? Number.NaN,
       ask: resolveDetailNumber(liveQuote?.ask) ?? Number.NaN,
-      changePct: resolveDetailNumber(liveQuote?.changePct) ?? 0,
+      changePct: resolveDetailNumber(liveQuote?.changePct) ?? Number.NaN,
       high: resolveDetailNumber(liveQuote?.high) ?? Number.NaN,
       low: resolveDetailNumber(liveQuote?.low) ?? Number.NaN,
       contractSize: resolveDetailNumber(remoteMeta?.contractSize, liveQuote?.contractSize) ?? 0,
@@ -276,10 +299,13 @@ export function SymbolDetailsInteractiveContent({
   const { data: dailyRangeCandle = null } = useLatestDailyCandle(symbol, active);
 
   const d = q.digits ?? 2;
-  const col = dCol(q.changePct, T);
+  const hasDailyChange = Number.isFinite(q.changePct);
+  const col = hasDailyChange ? dCol(q.changePct, T) : T.textMuted;
   const mid = ((q.bid || 0) + (q.ask || 0)) / 2;
-  const bidPriceText = formatDetailPrice(q.bid, d);
-  const askPriceText = formatDetailPrice(q.ask, d);
+  const bidPriceText = formatDetailPrice(q.bid);
+  const askPriceText = formatDetailPrice(q.ask);
+  const bidPriceParts = splitFormattedChartTradePrice(bidPriceText);
+  const askPriceParts = splitFormattedChartTradePrice(askPriceText);
 
   const marketSentiment = useMemo(
     () => calculateMarketSentiment(q, dailyRangeCandle),
@@ -319,7 +345,12 @@ export function SymbolDetailsInteractiveContent({
   const swapShort = resolveDetailNumber(remoteMeta?.swapShort, q.swapShort);
   const hasSwapRates = (swapLong !== undefined && Number.isFinite(swapLong))
     || (swapShort !== undefined && Number.isFinite(swapShort));
-  const spp = ((q.spread || 0) * (pip || 1)).toFixed(1);
+  const rawSpreadPoints = q.spread && q.spread > 0
+    ? q.spread
+    : Number.isFinite(q.bid) && Number.isFinite(q.ask) && point > 0
+      ? Math.abs(q.ask - q.bid) / point
+      : 0;
+  const spp = (rawSpreadPoints / (d === 5 || d === 3 ? 10 : 1)).toFixed(1);
   const ctk = q.tickValue ?? (Number.isFinite(mid) && mid > 0 ? 10 / mid : undefined);
 
   const ptsRaw = Number.isFinite(q.bid) && Number.isFinite(dynOpen)
@@ -329,31 +360,20 @@ export function SymbolDetailsInteractiveContent({
   const isUp = q.changePct >= 0;
   const isMarketOpen = quoteActionAvailability.allowed && q.tradeAllowed !== false;
 
-  useEffect(() => () => {
-    if (tradeTapLockReleaseTimerRef.current) {
-      clearTimeout(tradeTapLockReleaseTimerRef.current);
-      tradeTapLockReleaseTimerRef.current = null;
-    }
-    if (activeSideResetTimerRef.current) {
-      clearTimeout(activeSideResetTimerRef.current);
-      activeSideResetTimerRef.current = null;
-    }
-  }, []);
 
   const handleShare = async () => {
     try {
       const displayName = symbol.replace(/m$/i, '').replace(/\//g, '');
       const bidPrice = bidPriceText;
       const askPrice = askPriceText;
-      const changePct = (q.changePct || 0).toFixed(2);
-      const changeSign = q.changePct >= 0 ? '+' : '';
-      const spreadVal = parseFloat(Number(q.spread || 0).toFixed(2)).toString();
+      const changePct = formatBackendDailyChange(q.changePct);
+      const spreadVal = parseFloat(Number(rawSpreadPoints || 0).toFixed(2)).toString();
 
       const message = [
         `📊 ${displayName}`,
         ``,
         `💰 Bid: ${bidPrice}  |  Ask: ${askPrice}`,
-        `📈 Change: ${changeSign}${changePct}%`,
+        `📈 Change: ${changePct}`,
         `📉 Spread: ${spreadVal}`,
         ``,
         `Shared from RTX5 Trading App`,
@@ -369,121 +389,68 @@ export function SymbolDetailsInteractiveContent({
     // Tap time for the Journal's order latency telemetry.
     markTradeIntent();
     if (requestOrrnnDemoTradeAuth({
-      kind: oneClickAccepted ? 'market-order' : 'order-ticket',
+      kind: useUserPreferences.getState().oneClickAccepted ? 'market-order' : 'order-ticket',
       symbol,
       side,
       origin: 'quotes',
     })) {
       return;
     }
-    if (tradeTapLockRef.current || isPending) {
+    if (!useUserPreferences.getState().oneClickAccepted) {
+      // Navigate before prefetching; opening the ticket never submits an order.
+      router.navigate({ pathname: '/trade/order-ticket', params: { symbol, side, origin: 'quotes' } });
+      prefetchOrderTicketData(resolveTradingLoginString(), symbol);
       return;
     }
 
-    tradeTapLockRef.current = true;
-    const releaseTradeTapLock = () => {
-      if (tradeTapLockReleaseTimerRef.current) {
-        clearTimeout(tradeTapLockReleaseTimerRef.current);
-        tradeTapLockReleaseTimerRef.current = null;
-      }
-      tradeTapLockRef.current = false;
-    };
-    const releaseTradeTapLockAfter = (delayMs: number) => {
-      if (tradeTapLockReleaseTimerRef.current) {
-        clearTimeout(tradeTapLockReleaseTimerRef.current);
-      }
-      tradeTapLockReleaseTimerRef.current = setTimeout(() => {
-        tradeTapLockReleaseTimerRef.current = null;
-        tradeTapLockRef.current = false;
-      }, delayMs);
-    };
-
-    if (activeSideResetTimerRef.current) {
-      clearTimeout(activeSideResetTimerRef.current);
-      activeSideResetTimerRef.current = null;
+    const currentQuoteAvailability = resolveSessionQuoteActionAvailability(liveQuote);
+    if (!currentQuoteAvailability.allowed) {
+      recordBlockedPriceAction('symbol_details_market_order', currentQuoteAvailability);
+      Alert.alert(t('Market Data Unavailable'), t(quoteActionBlockMessage(currentQuoteAvailability)));
+      return;
     }
-    setActiveSide(side);
-    activeSideResetTimerRef.current = setTimeout(() => {
-      setActiveSide((currentSide) => (currentSide === side ? null : currentSide));
-      activeSideResetTimerRef.current = null;
-    }, 800);
 
-    if (oneClickAccepted) {
-      const currentQuoteAvailability = resolveSessionQuoteActionAvailability(liveQuote);
-      if (!currentQuoteAvailability.allowed) {
-        recordBlockedPriceAction('symbol_details_market_order', currentQuoteAvailability);
-        Alert.alert(t('Market Data Unavailable'), t(quoteActionBlockMessage(currentQuoteAvailability)));
-        releaseTradeTapLock();
-        return;
-      }
-
-      const actionProvenance = captureActiveBrokerSessionProvenance();
-      if (!actionProvenance) {
-        const feedback = createFrontendTradingError(
-          t('Authentication Error'),
-          t('The active broker session is unavailable. Log in again before placing an order.'),
-        );
-        Alert.alert(feedback.title, feedback.message);
-        releaseTradeTapLock();
-        return;
-      }
-
-      const tradingLogin = resolveTradingLogin();
-      if (!tradingLogin || String(tradingLogin) !== actionProvenance.identity.accountLogin) {
-        const feedback = createFrontendTradingError(
-          t('Account Error'),
-          t('The app could not resolve the active trading account from local state. Select an account and try again.'),
-        );
-        Alert.alert(feedback.title, feedback.message);
-        releaseTradeTapLock();
-        return;
-      }
-
-      placeOrder(
-        {
-          account_login: tradingLogin,
-          symbol,
-          side,
-          volume: 0.01,
-          price_sl: 0,
-          price_tp: 0,
-          comment: '',
-          trailing_stop: 0,
-          trailing_step: 0,
-          magic: 0
-        },
-        {
-          onSuccess: (data) => {
-            if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) {
-              releaseTradeTapLock();
-              return;
-            }
-            const executionEvidence = resolveBrokerExecutionEvidence(data);
-            Alert.alert(
-              t(executionEvidence.confirmed ? 'Order Executed' : 'Order Submitted — Confirmation Pending'),
-              t(
-                executionEvidence.confirmed
-                  ? 'The broker confirmed the order ticket and execution price.'
-                  : 'The broker accepted the request without complete execution evidence. Verify it in Positions or Orders before acting on it.',
-              ),
-            );
-          },
-          onError: (err: any) => {
-            if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) {
-              releaseTradeTapLock();
-              return;
-            }
-            const feedback = classifyTradingError(err, { action: 'place-order' });
-            Alert.alert(feedback.title, feedback.message);
-          },
-          onSettled: releaseTradeTapLock,
-        }
+    const actionProvenance = captureActiveBrokerSessionProvenance();
+    if (!actionProvenance) {
+      const feedback = createFrontendTradingError(
+        t('Authentication Error'),
+        t('The active broker session is unavailable. Log in again before placing an order.'),
       );
-    } else {
-      prefetchOrderTicketData(resolveTradingLoginString(), symbol);
-      router.push({ pathname: '/trade/order-ticket', params: { symbol, side } });
-      releaseTradeTapLockAfter(800);
+      Alert.alert(feedback.title, feedback.message);
+      return;
     }
+
+    const tradingLogin = resolveTradingLogin();
+    if (!tradingLogin || String(tradingLogin) !== actionProvenance.identity.accountLogin) {
+      const feedback = createFrontendTradingError(
+        t('Account Error'),
+        t('The app could not resolve the active trading account from local state. Select an account and try again.'),
+      );
+      Alert.alert(feedback.title, feedback.message);
+      return;
+    }
+
+    const savedVolume = useUserPreferences.getState().tradeVolume || 0.01;
+    const minVol = q.minVolume && q.minVolume > 0 ? q.minVolume : 0.01;
+    const maxVol = q.maxVolume && q.maxVolume > 0 ? q.maxVolume : 500;
+    const resolvedVolume = Math.min(maxVol, Math.max(minVol, savedVolume));
+
+    placeOrder(
+      {
+        frontendIntentId: createMarketOrderIntentId(),
+        account_login: tradingLogin,
+        symbol,
+        side,
+        volume: resolvedVolume,
+        price_sl: 0,
+        price_tp: 0,
+        comment: '',
+        trailing_stop: 0,
+        trailing_step: 0,
+        magic: 0
+      },
+      createTradeReceipt({ symbol, side, volume: resolvedVolume }, actionProvenance.cacheNamespace),
+    );
   };
 
   const handleTradeNow = useCallback(() => {
@@ -494,8 +461,8 @@ export function SymbolDetailsInteractiveContent({
     })) {
       return;
     }
+    router.navigate({ pathname: '/trade/order-ticket', params: { symbol, origin: 'quotes' } });
     prefetchOrderTicketData(resolveTradingLoginString(), symbol);
-    router.push({ pathname: '/trade/order-ticket', params: { symbol } });
   }, [symbol]);
 
   return (
@@ -551,7 +518,9 @@ export function SymbolDetailsInteractiveContent({
               <Text style={s.hero.name}>{meta.name}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 6, marginRight: -8 }}>
-              <Pressable style={{ paddingHorizontal: 6, paddingVertical: 4 }} onPress={() => setAlertOn(v => !v)}>
+              <Pressable style={{ paddingHorizontal: 6, paddingVertical: 4 }}
+                accessibilityRole="button" accessibilityLabel={t('Price Alerts')}
+                onPress={handleOpenPriceAlerts}>
                 <Ionicons name={alertOn ? 'notifications' : 'notifications-outline'} size={22} color={alertOn ? '#FACC15' : T.textSub} />
               </Pressable>
               <Pressable style={{ paddingHorizontal: 6, paddingVertical: 4 }} onPress={handleShare}>
@@ -564,8 +533,8 @@ export function SymbolDetailsInteractiveContent({
             <Text style={[s.glassHero.bigPrice, { color: col }]}>{bidPriceText}</Text>
             <View style={{ alignItems: 'flex-start', justifyContent: 'center' }}>
               <View style={s.hero.changePill}>
-                <Ionicons name={isUp ? 'caret-up' : 'caret-down'} size={14} color={col} />
-                <Text style={[s.hero.changeTxt, { color: col }]}>{sgn(q.changePct)}{(q.changePct || 0).toFixed(2)}%</Text>
+                <Ionicons name={hasDailyChange ? (isUp ? 'caret-up' : 'caret-down') : 'remove'} size={14} color={col} />
+                <Text style={[s.hero.changeTxt, { color: col }]}>{formatBackendDailyChange(q.changePct)}</Text>
               </View>
               <Text style={s.glassHero.ptsTxt}>{pts} {t('pts today')}</Text>
             </View>
@@ -575,15 +544,18 @@ export function SymbolDetailsInteractiveContent({
             {isDark && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFillObject} />}
             {isDark && <LinearGradient colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.2)']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />}
             <View style={s.ticker.spreadBadge}>
-              <Text style={s.ticker.spreadVal}>{parseFloat(Number(q.spread || 0).toFixed(2)).toString()}</Text>
+              <Text style={s.ticker.spreadVal}>{parseFloat(Number(rawSpreadPoints || 0).toFixed(2)).toString()}</Text>
               <Text style={s.ticker.spreadLbl}>{t('Spread').toUpperCase()}</Text>
             </View>
 
             <View style={[s.ticker.inner]}>
               <Pressable
-                style={[s.ticker.side, (activeSide === 'sell' || (isPending && !activeSide) || (!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed)) && { opacity: 0.5 }]}
-                disabled={isPending || (!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed)}
+                style={[s.ticker.side, (!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed) && { opacity: 0.5 }]}
+                disabled={!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed}
                 onPress={() => handleTrade('sell')}
+                activateOnPressIn
+                activateOnTouchStart
+                unstable_pressDelay={0}
                 latencyLabel="symbolDetails.trade.sell"
                 latencyBudgetMs={CRITICAL_TRADE_ACTION_MAX_LATENCY_MS}
               >
@@ -595,8 +567,9 @@ export function SymbolDetailsInteractiveContent({
                   </View>
                 </View>
                 <View style={s.ticker.priceWrap}>
-                  <Text style={s.ticker.priceBase}>{bidPriceText.slice(0, -2)}</Text>
-                  <Text style={[s.ticker.pipHighlight, { color: T.down }]}>{bidPriceText.slice(-2)}</Text>
+                  <Text style={s.ticker.priceBase} numberOfLines={1} adjustsFontSizeToFit>
+                    {bidPriceParts.leading}<Text style={[s.ticker.pipHighlight, { color: T.down }]}>{bidPriceParts.trailing}</Text>
+                  </Text>
                 </View>
               </Pressable>
 
@@ -609,9 +582,12 @@ export function SymbolDetailsInteractiveContent({
               </View>
 
               <Pressable
-                style={[s.ticker.side, (activeSide === 'buy' || (isPending && !activeSide) || (!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed)) && { opacity: 0.5 }]}
-                disabled={isPending || (!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed)}
+                style={[s.ticker.side, (!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed) && { opacity: 0.5 }]}
+                disabled={!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability.allowed}
                 onPress={() => handleTrade('buy')}
+                activateOnPressIn
+                activateOnTouchStart
+                unstable_pressDelay={0}
                 latencyLabel="symbolDetails.trade.buy"
                 latencyBudgetMs={CRITICAL_TRADE_ACTION_MAX_LATENCY_MS}
               >
@@ -623,8 +599,9 @@ export function SymbolDetailsInteractiveContent({
                   </View>
                 </View>
                 <View style={s.ticker.priceWrap}>
-                  <Text style={s.ticker.priceBase}>{askPriceText.slice(0, -2)}</Text>
-                  <Text style={[s.ticker.pipHighlight, { color: T.up }]}>{askPriceText.slice(-2)}</Text>
+                  <Text style={s.ticker.priceBase} numberOfLines={1} adjustsFontSizeToFit>
+                    {askPriceParts.leading}<Text style={[s.ticker.pipHighlight, { color: T.up }]}>{askPriceParts.trailing}</Text>
+                  </Text>
                 </View>
               </Pressable>
             </View>
@@ -643,9 +620,9 @@ export function SymbolDetailsInteractiveContent({
           </View>
 
           <View style={s.glassHero.metricsRow}>
-            <MetricPill label={t('Mid').toUpperCase()} value={formatDetailPrice(mid, d)} icon="analytics-outline" />
-            <MetricPill label={t('Open').toUpperCase()} value={formatDetailPrice(dynOpen, d)} icon="time-outline" />
-            <MetricPill label={t('PREV')} value={formatDetailPrice(q.close ?? q.ask, d)} icon="calendar-outline" />
+            <MetricPill label={t('Mid').toUpperCase()} value={formatDetailPrice(mid)} icon="analytics-outline" />
+            <MetricPill label={t('Open').toUpperCase()} value={formatDetailPrice(dynOpen)} icon="time-outline" />
+            <MetricPill label={t('PREV')} value={formatDetailPrice(q.close ?? q.ask)} icon="calendar-outline" />
             <MetricPill label={t('Vol').toUpperCase()} value={dynVol === undefined ? '--' : dynVol.toLocaleString()} icon="bar-chart-outline" />
           </View>
 
@@ -653,7 +630,7 @@ export function SymbolDetailsInteractiveContent({
             <View style={s.glassHero.rangeTop}>
               <View>
                 <Text style={s.glassHero.rangeLbl}>{t('LOW')}</Text>
-                <Text style={s.glassHero.rangeVal}>{formatDetailPrice(dynLow !== Infinity ? dynLow : q.bid, d)}</Text>
+                <Text style={s.glassHero.rangeVal}>{formatDetailPrice(dynLow !== Infinity ? dynLow : q.bid)}</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={s.glassHero.rangeLbl}>{t('Day Range').toUpperCase()}</Text>
@@ -661,7 +638,7 @@ export function SymbolDetailsInteractiveContent({
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={s.glassHero.rangeLbl}>{t('HIGH')}</Text>
-                <Text style={s.glassHero.rangeVal}>{formatDetailPrice(dynHigh, d)}</Text>
+                <Text style={s.glassHero.rangeVal}>{formatDetailPrice(dynHigh)}</Text>
               </View>
             </View>
             <View style={{ paddingHorizontal: 14, paddingTop: 6 }}>
@@ -673,12 +650,26 @@ export function SymbolDetailsInteractiveContent({
         </View>
 
         <View style={s.act.row}>
-          <Pressable style={({ pressed }) => [s.act.btn, s.act.buyBtn, pressed && { opacity: 0.85 }]} onPress={handleTradeNow}>
+          <Pressable
+            style={({ pressed }) => [s.act.btn, s.act.buyBtn, pressed && { opacity: 0.85 }]}
+            activateOnPressIn
+            activateOnTouchStart
+            unstable_pressDelay={0}
+            latencyLabel="quoteInfo.properties.tradeNow"
+            latencyBudgetMs={CRITICAL_TRADE_ACTION_MAX_LATENCY_MS}
+            onPress={handleTradeNow}
+          >
             <LinearGradient colors={['#2563EB', '#1D4ED8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
             <Ionicons name="flash" size={15} color="#fff" />
             <Text style={s.act.buyTxt}>{t('Trade Now')}</Text>
           </Pressable>
-          <Pressable style={({ pressed }) => [s.act.btn, s.act.chartBtn, pressed && { opacity: 0.85 }]} onPress={handleOpenFullChart}>
+          <Pressable
+            style={({ pressed }) => [s.act.btn, s.act.chartBtn, pressed && { opacity: 0.85 }]}
+            activateOnPressIn
+            activateOnTouchStart
+            unstable_pressDelay={0}
+            onPress={handleOpenFullChart}
+          >
             <Ionicons name="stats-chart-outline" size={15} color={isDark ? "#94A3B8" : T.textSub} />
             <Text style={s.act.chartTxt}>{t('Full Chart')}</Text>
           </Pressable>
@@ -697,7 +688,7 @@ export function SymbolDetailsInteractiveContent({
         <Section title={t('Pricing & Fees')} icon="pricetags-outline">
           <Row label={t('Digits')} value={String(d)} />
           <Row label={t('Spread Mode')} value={t(meta.spreadMode)} />
-          <Row label={t('Current Spread')} value={`${parseFloat(Number(q.spread || 0).toFixed(2)).toString()} (${spp} ${t('pips')})`} />
+          <Row label={t('Current Spread')} value={`${parseFloat(Number(rawSpreadPoints || 0).toFixed(2)).toString()} (${spp} ${t('pips')})`} />
           <Row label={t('Stops Level')} value={meta.stopsLevel} />
           <Row label={t('Margin Initial')} value={(q.marginInitial ?? 0).toFixed(2) + '%'} />
           <Row label={t('Margin Maintenance')} value={(q.marginMaintenance ?? 0).toFixed(2) + '%'} />
@@ -722,7 +713,7 @@ export function SymbolDetailsInteractiveContent({
 
         <Section title={t('Trading Sessions')} icon="time-outline">
           {meta.sessions.map(([day, hours], i) => {
-            const isActive = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].includes(day);
+            const isActive = hours !== 'Closed' && hours !== '-' && hours !== '—';
             return (
               <View key={day} style={[s.rw.row, i === meta.sessions.length - 1 && { borderBottomWidth: 0 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -736,6 +727,17 @@ export function SymbolDetailsInteractiveContent({
         </Section>
 
       </ScrollView>
+      <View pointerEvents="box-none" style={[StyleSheet.absoluteFillObject, { zIndex: 24 }]}>
+        <ChartTradeReceiptStack
+          controller={tradeReceiptController}
+          isDark={isDark}
+          buyColor={T.trading.buy.primary}
+          sellColor={T.trading.sell.primary}
+          topOffset={insets.top + 52}
+          bottomOffset={insets.bottom + 16}
+          pendingLabel="sent"
+        />
+      </View>
     </View>
   );
 }

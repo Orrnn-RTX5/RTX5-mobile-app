@@ -15,12 +15,10 @@ import type { PriceAlert } from '../../../api/alerts';
 import type { Deal } from '../../../api/deals';
 import type { LoginOrder } from '../../../api/orders';
 import type { ClosedPosition } from '../../../api/positions';
-import type { PositionItem, QuoteItem } from '../../../dev/mock/tradingData';
+import type { PositionItem, QuoteItem } from '../../../domain/tradingModels';
 import type { ChartColorsConfig } from '../../../state/userPreferences';
-import {
-  formatLivePositionPnl,
-  resolveLivePositionPnl,
-} from '../../trade/livePositionMetrics';
+import { formatLivePositionPnl } from '../../trade/livePositionMetrics';
+import { formatPositionLots, positionProfitDisplay, positionControlKey, type ChartPositionScope } from '../chartPositionControls';
 import type { ChartShowOnChartSettings } from '../chartShowOnChart';
 import {
   addUniqueMarker,
@@ -29,12 +27,8 @@ import {
   sanitizeCandles,
 } from './markerCollections';
 import { buildChartTradeHistoryOverlay } from './tradeHistory';
-import {
-  formatPositionVolumeLabel,
-  formatTpSlOverlayLabel,
-  formatTpSlOverlayValueLabel,
-} from './orderHelpers';
 import { buildChartPositionStopDragKey } from './positionStopDragKeys';
+import { buildPendingOrderLines } from './lineBuilders';
 import { resolveLiveChartPnlColor } from './livePnlColors';
 import { normalizeChartOverlaySymbol } from './symbolUtils';
 import {
@@ -62,6 +56,13 @@ type BuildChartOverlayPayloadInput = {
   liveAsk?: number | null;
   liveQuote?: Partial<QuoteItem>;
   liveAccount?: ChartOverlayLiveAccount | null;
+  accountCurrency?: string;
+  positionControlScope?: ChartPositionScope;
+  positionModifyDisabledReason?: string;
+  positionTradingDisabledReason?: string;
+  fontScale?: number;
+  priceDigits?: number;
+  volumeStep?: number;
   showOnChart: ChartShowOnChartSettings;
   /** Independent from open-position Buy/Sell visibility. */
   showTradeHistory?: boolean;
@@ -152,8 +153,8 @@ export const buildChartOverlayMarkers = ({
   return Array.from(markers.values()).sort((left, right) => left.time - right.time);
 };
 
-// MT5-parity: open-position lines stay as individual dotted lines so the
-// trader can see each entry, even when entries are clustered.
+// Open-position entry lines stay individually anchored to their broker prices.
+// Both sides use the blue entry guide; side and P/L retain their own text colors.
 // Overlay axis labels stay disabled here because the WebView draws custom
 // outlined price boxes for position/order levels.
 //
@@ -178,7 +179,7 @@ export type ChartOpenPositionLabelPatch = Pick<
 
 type BuildChartOpenPositionLabelPatchesInput = Pick<
   BuildChartOverlayPayloadInput,
-  'chartSymbol' | 'positions' | 'colors' | 'sellColor' | 'liveBid' | 'liveAsk' | 'showOnChart'
+  'chartSymbol' | 'positions' | 'colors' | 'sellColor' | 'liveBid' | 'liveAsk' | 'showOnChart' | 'accountCurrency'
 > & {
   liveQuote?: Partial<QuoteItem>;
 };
@@ -188,21 +189,22 @@ const buildOpenPositionLabelPatch = (
   colors: ChartColorsConfig,
   sellColor: string,
   liveQuote?: Partial<QuoteItem>,
+  accountCurrency?: string,
 ): ChartOpenPositionLabelPatch | null => {
   const parsedPrice = Number(position.openPrice);
-  if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+  if (!position.id || !Number.isFinite(position.volume) || position.volume <= 0 || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
     return null;
   }
 
-  const livePnl = resolveLivePositionPnl(position, liveQuote);
-  const labelValueText = `${formatLivePositionPnl(livePnl)} USD`;
-  const sideColor = resolveOpenPositionSideColor(position.side, colors, sellColor);
+  const profit = positionProfitDisplay(position, liveQuote);
+  const livePnl = profit.value ?? NaN;
+  const labelValueText = `${profit.value === null ? '—' : formatLivePositionPnl(livePnl)} ${accountCurrency?.trim() || 'currency unavailable'}`;
 
   return {
     id: `open-${position.id}`,
-    title: `${position.side === 'sell' ? 'SELL' : 'BUY'} ${formatPositionVolumeLabel(Number(position.volume))}, ${labelValueText}`,
+    title: `${position.side === 'sell' ? 'SELL' : 'BUY'} ${formatPositionLots(position.volume, liveQuote?.stepVolume)} ${labelValueText}`,
     labelValueText,
-    labelValueColor: resolveLiveChartPnlColor(livePnl, colors.background, sideColor),
+    labelValueColor: resolveLiveChartPnlColor(livePnl, colors.background, '#808892'),
   };
 };
 
@@ -219,6 +221,7 @@ export const buildChartOpenPositionLabelPatches = ({
   liveAsk,
   liveQuote,
   showOnChart,
+  accountCurrency,
 }: BuildChartOpenPositionLabelPatchesInput): ChartOpenPositionLabelPatch[] => {
   if (!hasEnabledTradeSides(showOnChart)) {
     return [];
@@ -246,6 +249,7 @@ export const buildChartOpenPositionLabelPatches = ({
       colors,
       sellColor,
       resolvedLiveQuote,
+      accountCurrency,
     );
     return patch ? [patch] : [];
   });
@@ -291,6 +295,7 @@ export const buildChartOverlayPayload = ({
   chartSymbol,
   candles,
   positions,
+  orders = [],
   closedPositions = [],
   deals = [],
   colors,
@@ -303,12 +308,19 @@ export const buildChartOverlayPayload = ({
   chartTimeframe = 'M1',
   activeTool,
   allowPositionStopDragging = false,
+  accountCurrency,
+  positionControlScope,
+  positionModifyDisabledReason,
+  positionTradingDisabledReason,
+  fontScale = 1,
+  priceDigits,
+  volumeStep,
 }: BuildChartOverlayPayloadInput): ChartOverlayPayload => {
   const needsPatternMarkers = activeTool === 'patterns';
   const showTradeSides = hasEnabledTradeSides(showOnChart);
   const needsTradeHistory =
     showTradeHistory && (positions.length > 0 || closedPositions.length > 0 || deals.length > 0);
-  if (!showTradeSides && !needsPatternMarkers && !needsTradeHistory) {
+  if (!showTradeSides && !needsPatternMarkers && !needsTradeHistory && orders.length === 0) {
     return EMPTY_CHART_OVERLAY_PAYLOAD;
   }
 
@@ -333,6 +345,10 @@ export const buildChartOverlayPayload = ({
     : [];
 
   const priceLines = new Map<string, ChartOverlayPriceLine>();
+  buildPendingOrderLines(
+    orders.filter(order => normalizeChartOverlaySymbol(order.symbol) === normalizedChartSymbol),
+    colors, sellColor, positionControlScope,
+  ).forEach(line => addUniquePriceLine(priceLines, line));
 
   symbolPositions.forEach((position) => {
     const parsedPrice = Number(position.openPrice);
@@ -343,19 +359,28 @@ export const buildChartOverlayPayload = ({
       colors,
       sellColor,
       resolvedLiveQuote,
+      accountCurrency,
     );
     if (!labelPatch) return;
     const sideColor = resolveOpenPositionSideColor(position.side, colors, sellColor);
-    const sideLabel = `${position.side === 'sell' ? 'SELL' : 'BUY'} ${formatPositionVolumeLabel(
-      Number(position.volume),
-    )}`;
+    const sideLabel = `${position.side === 'sell' ? 'SELL' : 'BUY'} ${formatPositionLots(position.volume, volumeStep ?? resolvedLiveQuote?.stepVolume)}`;
+    const digits = priceDigits ?? resolvedLiveQuote?.digits;
+    const formatLevel = (price: number) => Number.isInteger(digits) && digits! >= 0 && digits! <= 10 ? price.toFixed(digits) : String(price);
+    const positionControl = positionControlScope?.sessionScope ? {
+      ...positionControlScope, symbol: position.symbol, positionId: position.id,
+      positionKey: positionControlKey(positionControlScope.sessionScope, position.id, position.symbol),
+      modifyDisabledReason: positionModifyDisabledReason || (!Number.isSafeInteger(Number(position.id)) || Number(position.id) <= 0
+        ? 'The modification API requires a safe integer ticket; this broker identifier cannot be converted safely.' : undefined),
+      tradingDisabledReason: positionTradingDisabledReason,
+      fontScale,
+    } : undefined;
 
     addUniquePriceLine(priceLines, {
       id: `open-${position.id}`,
       price: parsedPrice,
-      color: sideColor,
+      color: '#2962FF',
       lineWidth: 1,
-      lineStyle: CHART_LINE_STYLE.Dotted,
+      lineStyle: CHART_LINE_STYLE.Solid,
       axisLabelVisible: true,
       title: labelPatch.title,
       labelSideText: sideLabel,
@@ -363,6 +388,7 @@ export const buildChartOverlayPayload = ({
       labelSideColor: sideColor,
       labelValueColor: labelPatch.labelValueColor,
       labelPlacement: 'line',
+      positionControl,
     });
 
     if (showOnChart.slTpLevels) {
@@ -373,29 +399,17 @@ export const buildChartOverlayPayload = ({
           id: `tp-${position.id}`,
           price: tpValue,
           color: tpColor,
-          lineWidth: 2,
+          lineWidth: 1,
           lineStyle: CHART_LINE_STYLE.Dashed,
           axisLabelVisible: false,
-          title: formatTpSlOverlayLabel(
-            'tp',
-            position.symbol,
-            position.side,
-            parsedPrice,
-            tpValue,
-            Number(position.volume),
-          ),
+          title: `TP ${formatLevel(tpValue)}`,
           labelSideText: 'TP',
-          labelValueText: formatTpSlOverlayValueLabel(
-            position.symbol,
-            position.side,
-            parsedPrice,
-            tpValue,
-            Number(position.volume),
-          ),
+          labelValueText: formatLevel(tpValue),
           labelSideColor: tpColor,
           labelValueColor: tpColor,
           labelPlacement: 'line',
-          ...(allowPositionStopDragging
+          positionControl,
+          ...(allowPositionStopDragging && !positionControl?.modifyDisabledReason && !positionControl?.tradingDisabledReason
             ? { dragKey: buildChartPositionStopDragKey(position.id, 'tp') }
             : {}),
         });
@@ -408,29 +422,17 @@ export const buildChartOverlayPayload = ({
           id: `sl-${position.id}`,
           price: slValue,
           color: slColor,
-          lineWidth: 2,
+          lineWidth: 1,
           lineStyle: CHART_LINE_STYLE.Dashed,
           axisLabelVisible: false,
-          title: formatTpSlOverlayLabel(
-            'sl',
-            position.symbol,
-            position.side,
-            parsedPrice,
-            slValue,
-            Number(position.volume),
-          ),
+          title: `SL ${formatLevel(slValue)}`,
           labelSideText: 'SL',
-          labelValueText: formatTpSlOverlayValueLabel(
-            position.symbol,
-            position.side,
-            parsedPrice,
-            slValue,
-            Number(position.volume),
-          ),
+          labelValueText: formatLevel(slValue),
           labelSideColor: slColor,
           labelValueColor: slColor,
           labelPlacement: 'line',
-          ...(allowPositionStopDragging
+          positionControl,
+          ...(allowPositionStopDragging && !positionControl?.modifyDisabledReason && !positionControl?.tradingDisabledReason
             ? { dragKey: buildChartPositionStopDragKey(position.id, 'sl') }
             : {}),
         });

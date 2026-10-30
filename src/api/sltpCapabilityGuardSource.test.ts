@@ -62,7 +62,7 @@ test('one-click immediate trades check protection before dispatch', () => {
     /\(hasStopLossPrice \|\| hasTakeProfitPrice\) &&[\s\S]*isNewMarketOrderProtectionBackendLocked\(\)[\s\S]*getActiveSltpUnavailableMessage\(\)[\s\S]*return;/,
   );
   assertBefore(
-    source.slice(source.indexOf('// ── One-click ON:')),
+    source.slice(source.indexOf('const executeTrade =')),
     'isNewMarketOrderProtectionBackendLocked()',
     'dispatchChartTradeImmediately({',
     'chart one-click order',
@@ -75,7 +75,7 @@ test('capability failures use a stable error code and broker-specific message', 
   assert.match(source, /message: getSltpUnavailableMessage\(brokerId\)/);
   assert.match(source, /isExistingPositionSltpEnabled\(active\.capabilities\)/);
   assert.match(source, /active\.capabilities\.newMarketOrderProtection/);
-  assert.match(source, /active\.capabilities\.pendingOrderProtection/);
+  assert.match(source, /PENDING_ORDER_PLACEMENT_AVAILABLE/);
   assert.match(source, /active\.capabilities\.trailingStop/);
 });
 

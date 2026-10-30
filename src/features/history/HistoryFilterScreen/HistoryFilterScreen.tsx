@@ -32,6 +32,7 @@ import {
   toDateKey,
 } from './dateUtils';
 import { makeHistoryFilterStyles } from './styles';
+import { resolveEffectiveHistoryDateRange } from '../historyDateRange';
 
 export type HistoryFilterScreenProps = Readonly<{
   /** When true, shown from HistoryFilterHost over the History tab. */
@@ -59,26 +60,30 @@ export function HistoryFilterScreen({
   const stackDateFields = contentWidth < 360 || fontScale > 1.2;
   const s = useMemo(() => makeHistoryFilterStyles(T), [T]);
 
+  const initialRange = useMemo(
+    () => resolveEffectiveHistoryDateRange(historyRange, historyFromMs, historyToMs),
+    [historyRange, historyFromMs, historyToMs],
+  );
   const initialCalendarDate = useMemo(
-    () => (historyFromMs == null ? new Date() : new Date(historyFromMs)),
-    [historyFromMs],
+    () => (initialRange.fromMs == null ? new Date() : new Date(initialRange.fromMs)),
+    [initialRange.fromMs],
   );
   const initialStartDate = useMemo(
     () =>
-      historyFromMs == null
+      initialRange.fromMs == null
         ? null
         : toDateKey(
             initialCalendarDate.getFullYear(),
             initialCalendarDate.getMonth(),
             initialCalendarDate.getDate(),
           ),
-    [historyFromMs, initialCalendarDate],
+    [initialRange.fromMs, initialCalendarDate],
   );
   const initialEndDate = useMemo(() => {
-    if (historyToMs == null) return null;
-    const date = new Date(historyToMs);
+    if (initialRange.toMs == null) return null;
+    const date = new Date(initialRange.toMs);
     return toDateKey(date.getFullYear(), date.getMonth(), date.getDate());
-  }, [historyToMs]);
+  }, [initialRange.toMs]);
   const initialCustomMode =
     historyRange === 'Custom' || !PRESETS.includes(historyRange);
   const scrollRef = useRef<ScrollView>(null);
@@ -130,53 +135,7 @@ export function HistoryFilterScreen({
 
     setHistoryRange(preset);
     setIsCustom(false);
-
-    if (preset === 'All time') {
-      setStartDate(null);
-      setEndDate(null);
-      setHistoryDateRange(null, null);
-      return;
-    }
-
-    const now = new Date();
-    const todayKey = toDateKey(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-    const startD = new Date(now);
-
-    if (preset === 'Today') {
-      // no offset
-    } else if (preset === 'Last week') {
-      startD.setDate(startD.getDate() - 7);
-    } else if (preset === 'Last month') {
-      startD.setMonth(startD.getMonth() - 1);
-    } else if (preset === 'Last 3 months') {
-      startD.setMonth(startD.getMonth() - 3);
-    } else if (preset === 'Last 6 months') {
-      startD.setMonth(startD.getMonth() - 6);
-    } else if (preset === 'Last year') {
-      startD.setFullYear(startD.getFullYear() - 1);
-    }
-
-    const start = toDateKey(
-      startD.getFullYear(),
-      startD.getMonth(),
-      startD.getDate(),
-    );
-    const end = todayKey;
-
-    setStartDate(start);
-    setEndDate(end);
-
-    setHistoryDateRange(
-      startD.setHours(0, 0, 0, 0),
-      now.setHours(23, 59, 59, 999),
-    );
-
-    setCalYear(startD.getFullYear());
-    setCalMonth(startD.getMonth());
+    handleBack();
   };
 
   const handleDayPress = useCallback(
@@ -207,7 +166,7 @@ export function HistoryFilterScreen({
   const isEnd = useCallback((key: string) => key === endDate, [endDate]);
 
   const applyCustomRange = () => {
-    if (startDate && endDate) {
+    if (startDate) {
       const sDate = fromDateKey(startDate);
       const eDate = fromDateKey(endDate ?? startDate);
       if (!sDate || !eDate) return;
@@ -216,13 +175,13 @@ export function HistoryFilterScreen({
         startDate === effectiveEndDate
           ? formatLocalizedDate(sDate, language)
           : `${formatLocalizedDate(sDate, language)} – ${formatLocalizedDate(eDate, language)}`;
-      setHistoryRange(label);
       setHistoryDateRange(
         sDate.setHours(0, 0, 0, 0),
         eDate.setHours(23, 59, 59, 999),
+        label,
       );
       setIsCustom(false);
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      handleBack();
     }
   };
 
@@ -282,7 +241,7 @@ export function HistoryFilterScreen({
     return end ? formatLocalizedDate(end, language) : null;
   }, [endDate, language]);
 
-  const customSelectionReady = Boolean(startDate && endDate);
+  const customSelectionReady = Boolean(startDate);
 
   return (
     <Screen style={s.screen} noBottomInset noSideInset>
@@ -538,7 +497,7 @@ export function HistoryFilterScreen({
                       <Text
                         style={s.selectionFieldValue}
                       >
-                        {selectedEndLabel ?? '\u2014'}
+                        {selectedEndLabel ?? selectedStartLabel ?? '\u2014'}
                       </Text>
                     </View>
                   </View>

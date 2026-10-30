@@ -153,9 +153,14 @@ test('symbol switching dispatches selected history before the deferred heavy cha
   );
   assertSourceContains(
     source,
-    /if \(nextSymbol === chartSymbol\) \{[\s\S]*refreshSelectedChartHistory\(nextSymbol, nextTimeframe\)[\s\S]*setChartTimeframe\(nextTimeframe\)/,
-    'timeframe-only changes must keep their existing immediate commit path',
+    /nextTimeframe !== chartTimeframe[\s\S]*requestChartTimeframeTransitionRef\.current\(nextSymbol, nextTimeframe\)/,
+    'timeframe-only changes must prepare and activate the replacement before changing the confirmed context',
   );
+  const sameSymbolStart = switchSource.indexOf('if (nextSymbol === chartSymbol)');
+  const sameSymbolEnd = switchSource.indexOf('const expectedCacheNamespace', sameSymbolStart);
+  assert.match(switchSource.slice(sameSymbolStart, sameSymbolEnd),
+    /if \(nextTimeframe !== chartTimeframe\) \{[\s\S]*prefetchChartTimeframeHistory[\s\S]*setChartTimeframe[\s\S]*\} else \{[\s\S]*refreshSelectedChartHistory/,
+    'fallback timeframe changes may join history; only an explicit same-context refresh forces a new baseline');
   assertSourceContains(
     source,
     /warmChartContextAndCommit\(nextSymbol, chartTimeframe\)/,

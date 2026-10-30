@@ -7,7 +7,8 @@ import { useTranslation } from '../../i18n/useTranslation';
 import { FastPressable } from '../../ui/components/FastPressable';
 import { useTheme, type ThemeColors } from '../../ui/theme/useTheme';
 import { useIsDarkTheme } from '../../state/themeMode';
-import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
+import { formatBackendDailyChange } from '../../utils/backendDailyChange';
 import type { QuoteInfoLaunchDestination } from './quoteInfoLaunchController';
 import {
   hasDisplayableLiveQuotePrice,
@@ -28,14 +29,9 @@ type QuoteInfoLaunchShellProps = Readonly<{
 const finiteOrUndefined = (value: number | undefined | null): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
-const formatPriceOrDash = (value: number | undefined, digits: number) =>
-  value === undefined ? '--' : fmt.price(value, digits);
+const formatPriceOrDash = (value: number | undefined) => formatBackendPrice(value);
 
-const formatPctOrDash = (value: number | undefined) => {
-  if (value === undefined) return '--.--%';
-  const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
-};
+const formatPctOrDash = (value: number | undefined) => formatBackendDailyChange(value);
 
 const formatPointsOrDash = (value: number | undefined) => {
   if (value === undefined) return '--';
@@ -72,14 +68,14 @@ function buildLaunchQuoteReadout(quote: LiveQuoteSnapshot | undefined): LaunchQu
     : undefined;
 
   return {
-    askText: formatPriceOrDash(ask, digits),
-    bidText: formatPriceOrDash(bid, digits),
+    askText: formatPriceOrDash(ask),
+    bidText: formatPriceOrDash(bid),
     changePct,
     changeText: formatPctOrDash(changePct),
-    highText: formatPriceOrDash(high, digits),
+    highText: formatPriceOrDash(high),
     isUp: (changePct ?? 0) >= 0,
-    lowText: formatPriceOrDash(low, digits),
-    openText: formatPriceOrDash(open, digits),
+    lowText: formatPriceOrDash(low),
+    openText: formatPriceOrDash(open),
     pointsText: formatPointsOrDash(points),
     spreadText: spread === undefined
       ? '--'
@@ -173,14 +169,14 @@ export const QuoteInfoLaunchShell = memo(function QuoteInfoLaunchShell({
               <Text style={[styles.quoteLabel, { color: T.down }]}>
                 {isProperties ? t('SELL') : t('BID')}
               </Text>
-              <Text style={styles.quoteValue}>{readout.bidText}</Text>
+              <Text style={styles.quoteValue} numberOfLines={1} adjustsFontSizeToFit>{readout.bidText}</Text>
             </View>
             <View style={styles.quoteDivider} />
             <View style={styles.quoteSide}>
               <Text style={[styles.quoteLabel, { color: T.trading.buy.primary }]}>
                 {isProperties ? t('BUY') : t('ASK')}
               </Text>
-              <Text style={styles.quoteValue}>{readout.askText}</Text>
+              <Text style={styles.quoteValue} numberOfLines={1} adjustsFontSizeToFit>{readout.askText}</Text>
             </View>
           </View>
         </View>

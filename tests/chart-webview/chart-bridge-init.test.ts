@@ -139,7 +139,7 @@ test('historyless CHART_READY and paint acknowledgements stay concealed', () => 
   );
   assertSourceContains(
     source,
-    /opacity: hasUsableRetainedChart \? 1 : 0/,
+    /opacity: hasUsableRetainedChart \|\| retainPreviousChartSurface \? 1 : 0/,
     'the native WebView must remain fully hidden until that history-backed acknowledgement',
   );
 });

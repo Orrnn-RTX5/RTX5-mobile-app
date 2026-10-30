@@ -19,6 +19,8 @@ test('trade and account diagnostics are opt-in and centrally redacted', () => {
   assert.match(ticket, /args\.map\(redactDiagnosticValue\)/);
   assert.equal(ticket.match(/const rawMsg = redactSensitiveString/g)?.length, 2);
   assert.match(nativeChart, /const rawMsg = redactSensitiveString/);
+  assert.doesNotMatch(ticket, /\\n\\nServer:/);
+  assert.doesNotMatch(nativeChart, /\\n\\nServer:/);
   assert.doesNotMatch(ticket, /console\.log\('\[TRADE-(?:BUTTON-PRESS|PAYLOAD|RESPONSE)\]'/);
   for (const source of [chart, market, pending, positions, orderQueries]) {
     assert.match(source, /args\.map\(redactDiagnosticValue\)/);

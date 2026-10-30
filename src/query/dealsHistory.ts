@@ -1,4 +1,5 @@
 import type { Deal } from '../api/deals';
+import { coerceTimestampToMs } from '../features/history/historyDateRange';
 
 const dealIdentity = (deal: Deal) => {
   const ticket = Number(deal.ticket);
@@ -88,9 +89,8 @@ export const shouldRetryDealsWithoutRange = (error: unknown): boolean => {
 };
 
 const normalizeDealTimeSeconds = (time: unknown) => {
-  const value = Number(time);
-  if (!Number.isFinite(value) || value <= 0) return undefined;
-  return value > 1_000_000_000_000 ? Math.floor(value / 1000) : value;
+  const ms = coerceTimestampToMs(time);
+  return ms == null ? undefined : ms / 1000;
 };
 
 export const filterDealsByTimeRange = (

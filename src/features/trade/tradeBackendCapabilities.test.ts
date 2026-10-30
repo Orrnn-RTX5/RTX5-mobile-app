@@ -11,10 +11,12 @@ import {
   NO_BROKER_SLTP_CAPABILITIES,
   canonicalBrokerId,
   getSltpUnavailableMessage,
+  isChartTradePanelBackendLocked,
   isDynamicSltpConstraintsBackendLocked,
   isExistingPositionModifyBackendLocked,
   isNewMarketOrderProtectionBackendLocked,
   isPendingOrderProtectionBackendLocked,
+  isPendingOrderPlacementBackendLocked,
   isPendingOrderTypeBackendLocked,
   isRevisionedModifyBackendLocked,
   isTrailingStopBackendLocked,
@@ -103,7 +105,7 @@ test('only documented broker identifiers canonicalize and the GTA alias is exact
   }
 });
 
-test('public environment values cannot activate any broker SL/TP capability', () => {
+test('public environment values cannot activate capabilities beyond the configured Gateway contract', () => {
   const hostileEnvironment = {
     EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES: JSON.stringify({
       '*': Object.fromEntries(
@@ -125,22 +127,24 @@ test('public environment values cannot activate any broker SL/TP capability', ()
   for (const brokerId of CANONICAL_SLTP_BROKER_IDS) {
     assert.deepEqual(
       resolveTradeBackendCapabilities(hostileEnvironment, brokerId).sltp,
-      MARKET_AND_POSITION_SLTP_CAPABILITIES,
+      { ...MARKET_AND_POSITION_SLTP_CAPABILITIES, pendingOrderProtection: true },
     );
   }
   assert.deepEqual(
     resolveTradeBackendCapabilities(hostileEnvironment, 'unknown').sltp,
-    NO_BROKER_SLTP_CAPABILITIES,
+    { ...NO_BROKER_SLTP_CAPABILITIES, pendingOrderProtection: true },
   );
 });
 
-test('known brokers unlock only market-order and existing-position SL/TP flows', () => {
+test('known brokers support pending placement and pending protection', () => {
   for (const brokerId of CANONICAL_SLTP_BROKER_IDS) {
     const capabilities = resolveTradeBackendCapabilities({}, brokerId);
 
+    assert.equal(capabilities.pendingOrderPreview, true);
+    assert.equal(capabilities.pendingOrders, true);
     assert.equal(isExistingPositionModifyBackendLocked(capabilities), false);
     assert.equal(isNewMarketOrderProtectionBackendLocked(capabilities), false);
-    assert.equal(isPendingOrderProtectionBackendLocked(capabilities), true);
+    assert.equal(isPendingOrderProtectionBackendLocked(capabilities), false);
     assert.equal(isTrailingStopBackendLocked(capabilities), true);
     assert.equal(isDynamicSltpConstraintsBackendLocked(capabilities), true);
     assert.equal(isVenueBrokerConfirmationBackendLocked(capabilities), true);
@@ -149,20 +153,25 @@ test('known brokers unlock only market-order and existing-position SL/TP flows',
     for (const orderType of CHART_ORDER_TYPES) {
       assert.equal(
         isPendingOrderTypeBackendLocked(orderType, capabilities),
-        orderType !== 'Market Execution',
+        false,
         `${brokerId} ${orderType} lock state`,
+      );
+      assert.equal(
+        isPendingOrderPlacementBackendLocked(orderType, capabilities),
+        false,
+        `${brokerId} ${orderType} placement lock state`,
       );
     }
   }
 });
 
-test('contract v3 brokers Trivanta and Orrnn enable market and position SL/TP only', () => {
+test('Gateway brokers Trivanta and Orrnn support pending protection alongside existing position protection', () => {
   for (const brokerId of ['trivanta-markets', 'Orrnn', 'orrnn', 'TRIVANTA-MARKETS']) {
     const capabilities = resolveTradeBackendCapabilities({}, brokerId);
-    assert.deepEqual(capabilities.sltp, MARKET_AND_POSITION_SLTP_CAPABILITIES, brokerId);
+    assert.deepEqual(capabilities.sltp, { ...MARKET_AND_POSITION_SLTP_CAPABILITIES, pendingOrderProtection: true }, brokerId);
     assert.equal(isNewMarketOrderProtectionBackendLocked(capabilities), false, brokerId);
     assert.equal(isExistingPositionModifyBackendLocked(capabilities), false, brokerId);
-    assert.equal(isPendingOrderProtectionBackendLocked(capabilities), true, brokerId);
+    assert.equal(isPendingOrderProtectionBackendLocked(capabilities), false, brokerId);
     assert.equal(isTrailingStopBackendLocked(capabilities), true, brokerId);
   }
 });
@@ -170,6 +179,7 @@ test('contract v3 brokers Trivanta and Orrnn enable market and position SL/TP on
 test('existing-position SL/TP requires persistence and server trigger-close together', () => {
   const base = NO_BROKER_SLTP_CAPABILITIES;
   const capabilities = (sltp: BrokerSltpCapabilities) => ({
+    pendingOrderPreview: true,
     pendingOrders: false,
     sltp,
   });
@@ -203,6 +213,7 @@ test('the remaining SL/TP locks stay independent', () => {
   const withCapability = (
     key: keyof BrokerSltpCapabilities,
   ) => ({
+    pendingOrderPreview: true,
     pendingOrders: false,
     sltp: { ...NO_BROKER_SLTP_CAPABILITIES, [key]: true },
   });
@@ -230,8 +241,9 @@ test('the remaining SL/TP locks stay independent', () => {
   );
 });
 
-test('pending-order creation remains independent from SL/TP protection readiness', () => {
+test('pending-order previews remain editable while creation is unavailable', () => {
   const capabilities = {
+    pendingOrderPreview: true,
     pendingOrders: false,
     sltp: NO_BROKER_SLTP_CAPABILITIES,
   } as const;
@@ -239,24 +251,83 @@ test('pending-order creation remains independent from SL/TP protection readiness
   for (const orderType of CHART_ORDER_TYPES) {
     assert.equal(
       isPendingOrderTypeBackendLocked(orderType, capabilities),
+      false,
+      `${orderType} preview lock state`,
+    );
+    assert.equal(
+      isPendingOrderPlacementBackendLocked(orderType, capabilities),
       orderType !== 'Market Execution',
       `${orderType} lock state`,
     );
   }
 });
 
-test('every pending order type remains locked even if pending creation is enabled', () => {
+test('the chart order panel opens for previews with both placement and market SL/TP unavailable', () => {
+  const capabilities = { pendingOrderPreview: true, pendingOrders: false, sltp: NO_BROKER_SLTP_CAPABILITIES };
+  assert.equal(isChartTradePanelBackendLocked(capabilities), false);
+  assert.equal(isPendingOrderTypeBackendLocked('Buy Limit', capabilities), false);
+  assert.equal(isNewMarketOrderProtectionBackendLocked(capabilities), true);
+  assert.equal(isPendingOrderProtectionBackendLocked(capabilities), true);
+});
+
+test('the chart order panel remains locked when pending entry and market SL/TP are both unavailable', () => {
+  const capabilities = { pendingOrderPreview: false, pendingOrders: false, sltp: NO_BROKER_SLTP_CAPABILITIES };
+  assert.equal(isChartTradePanelBackendLocked(capabilities), true);
+  assert.equal(isPendingOrderTypeBackendLocked('Buy Limit', capabilities), true);
+  assert.equal(isNewMarketOrderProtectionBackendLocked(capabilities), true);
+});
+
+test('the chart order panel stays available for market SL/TP when pending entry is disabled', () => {
+  const capabilities = { pendingOrderPreview: false, pendingOrders: false, sltp: MARKET_AND_POSITION_SLTP_CAPABILITIES };
+  assert.equal(isChartTradePanelBackendLocked(capabilities), false);
+  assert.equal(isPendingOrderTypeBackendLocked('Buy Limit', capabilities), true);
+  assert.equal(isNewMarketOrderProtectionBackendLocked(capabilities), false);
+});
+
+test('pending placement uses the Gateway integration instead of a legacy readiness flag', () => {
   const capabilities = resolveTradeBackendCapabilities(
     { EXPO_PUBLIC_PENDING_ORDERS_API_READY: 'true' },
     'orrnn-demo',
   );
 
+  assert.equal(capabilities.pendingOrderPreview, true);
+  assert.equal(capabilities.pendingOrders, true);
+  assert.equal(isPendingOrderProtectionBackendLocked(capabilities), false);
   for (const orderType of CHART_ORDER_TYPES) {
     assert.equal(
       isPendingOrderTypeBackendLocked(orderType, capabilities),
-      orderType !== 'Market Execution',
+      false,
       `${orderType} lock state`,
     );
+    assert.equal(
+      isPendingOrderPlacementBackendLocked(orderType, capabilities),
+      false,
+      `${orderType} placement lock state`,
+    );
+  }
+});
+
+test('legacy readiness values cannot disable integrated pending placement', () => {
+  for (const value of [undefined, 'true', ' TRUE ', 'false', ' FALSE ', '', 'invalid']) {
+    const capabilities = resolveTradeBackendCapabilities({
+      EXPO_PUBLIC_PENDING_ORDERS_API_READY: value,
+    }, 'orrnn-demo');
+
+    assert.equal(capabilities.pendingOrders, true, value);
+    assert.equal(capabilities.pendingOrderPreview, true, value);
+    assert.equal(isNewMarketOrderProtectionBackendLocked(capabilities), false);
+    for (const orderType of CHART_ORDER_TYPES) {
+      assert.equal(
+        isPendingOrderTypeBackendLocked(orderType, capabilities),
+        false,
+        `${value}: ${orderType} preview lock state`,
+      );
+      assert.equal(
+        isPendingOrderPlacementBackendLocked(orderType, capabilities),
+        false,
+        `${value}: ${orderType} lock state`,
+      );
+    }
   }
 });
 

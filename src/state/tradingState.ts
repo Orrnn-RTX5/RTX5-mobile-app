@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import type { QuoteItem } from '../dev/mock/tradingData';
+import type { QuoteItem } from '../domain/tradingModels';
 import type { Candle } from '../domain/candles/core/candleTypes';
 import {
   MAX_CANDLE_CACHE_ENTRIES,

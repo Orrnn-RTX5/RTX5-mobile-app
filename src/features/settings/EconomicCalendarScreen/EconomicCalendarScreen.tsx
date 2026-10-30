@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppMenuIcon } from '../../../ui/components/AppMenuIcon';
 import { useIsFocused } from '@react-navigation/native';
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../../../ui/components/Screen';
@@ -22,9 +22,10 @@ import { openSidebarDrawerImmediately, scheduleAfterSidebarOpenVisual } from '..
 import {
   fetchEconomicCalendarData,
   getInitialEconomicCalendarData,
+  getEconomicCalendarCacheTime,
   type EconomicEvent,
   type ImpactLevel,
-} from '../../../dev/mock/calendarData';
+} from '../../../api/economicCalendar';
 import {
   CURRENCY_FILTERS,
   DATE_TABS,
@@ -35,6 +36,7 @@ import {
 import { CountryBadge, PulseDot } from './subComponents';
 import { makeEconomicCalendarStyles } from './styles';
 import { useNextFrameValue } from '../../../hooks/useNextFrameValue';
+import { useAppForeground } from '../../../hooks/useAppForeground';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { runImmediateAction } from '../../../utils/actionLatency';
 import {
@@ -51,6 +53,7 @@ const ECON_CALENDAR_BODY_PREWARM_DELAY_MS = 0;
  * Screen displaying a calendar of upcoming global macroeconomic events and their expected market impact.
  */
 export const EconomicCalendarScreenInner = React.memo(function EconomicCalendarScreenInner({ isScreenFocused }: { isScreenFocused: boolean }) {
+  const appForeground = useAppForeground();
   const routeBodyReady = useRetainedRouteContentReady(
     isScreenFocused, ECON_CALENDAR_BODY_PREWARM_DELAY_MS,
   );
@@ -68,56 +71,80 @@ export const EconomicCalendarScreenInner = React.memo(function EconomicCalendarS
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const eventFiltersSheetRef = useRef<EconomicEventFiltersSheetHandle>(null);
 
+  useEffect(() => {
+    if (!isScreenFocused || !appForeground) eventFiltersSheetRef.current?.close();
+  }, [appForeground, isScreenFocused]);
+
   const [dataEvents, setDataEvents] = useState<EconomicEvent[]>(initialEvents);
-  const [fetchError, setFetchError] = useState(initialEvents.length === 0);
+  const [fetchError, setFetchError] = useState(false);
+  const [loading, setLoading] = useState(initialEvents.length === 0);
+  const [cachedAt, setCachedAt] = useState(getEconomicCalendarCacheTime);
   const dataEventsCountRef = useRef(initialEvents.length);
+  const prewarmCompletedRef = useRef(false);
+  const refreshRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     dataEventsCountRef.current = dataEvents.length;
   }, [dataEvents.length]);
 
   useEffect(() => {
-    if (!routeBodyReady) return;
+    if (!routeBodyReady || !appForeground || prewarmCompletedRef.current) return;
+    let disposed = false;
     // MT5-parity prewarm: this shell stays mounted (inactive) in the sidebar
-    // destination host from boot. Replace the generated-fallback cache with
+    // destination host from boot. Load the verified feed with
     // LIVE events once during idle boot time so the FIRST sidebar visit
     // reveals real rows instead of kicking off a ~1s fetch on focus. The
     // fetch itself serves from the fresh cache when live data already exists.
     const prewarmTimer = setTimeout(() => {
       fetchEconomicCalendarData().then((data) => {
-        if (data.length > 0) {
+        if (disposed) return;
+        prewarmCompletedRef.current = true;
+        {
           dataEventsCountRef.current = data.length;
           setDataEvents(data);
           setFetchError(false);
+          setLoading(false);
+          setCachedAt(getEconomicCalendarCacheTime());
         }
       }).catch(() => undefined);
     }, ECON_CALENDAR_IDLE_PREWARM_DELAY_MS);
-    return () => clearTimeout(prewarmTimer);
-  }, [routeBodyReady]);
+    return () => {
+      disposed = true;
+      clearTimeout(prewarmTimer);
+    };
+  }, [appForeground, routeBodyReady]);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback((isCurrent: () => boolean) => {
+    setLoading(true);
     fetchEconomicCalendarData().then((data) => {
-      if (data.length > 0) {
-        dataEventsCountRef.current = data.length;
-        setDataEvents(data);
-        setFetchError(false);
-      } else {
-        setFetchError(dataEventsCountRef.current === 0);
-      }
+      if (!isCurrent()) return;
+      dataEventsCountRef.current = data.length;
+      setDataEvents(data);
+      setFetchError(false);
+      setCachedAt(getEconomicCalendarCacheTime());
     }).catch(() => {
-      setFetchError(dataEventsCountRef.current === 0);
+      if (isCurrent()) setFetchError(true);
+    }).finally(() => {
+      if (isCurrent()) setLoading(false);
     });
   }, []);
 
   useEffect(() => {
-    if (!isScreenFocused) {
+    if (!isScreenFocused || !appForeground) {
       return;
     }
 
-    loadData();
-    const interval = setInterval(loadData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [isScreenFocused, loadData]);
+    let disposed = false;
+    const refresh = () => loadData(() => !disposed);
+    refreshRef.current = refresh;
+    refresh();
+    const interval = setInterval(refresh, 5 * 60 * 1000);
+    return () => {
+      disposed = true;
+      refreshRef.current = () => {};
+      clearInterval(interval);
+    };
+  }, [appForeground, isScreenFocused, loadData]);
 
   const openEventFilters = useCallback(() => {
     runImmediateAction('economicCalendar.filters.open', () => {
@@ -299,7 +326,7 @@ export const EconomicCalendarScreenInner = React.memo(function EconomicCalendarS
         <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 }}>
           <Pressable
             onPress={handleOpenMenu}
-            activateOnTouchStart
+            activateOnTouchStart={Platform.OS !== 'ios'}
             latencyLabel="economicCalendar.menu"
             unstable_pressDelay={0}
             hitSlop={15}
@@ -310,7 +337,7 @@ export const EconomicCalendarScreenInner = React.memo(function EconomicCalendarS
             <AppMenuIcon color={T.text} />
           </Pressable>
           <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '500', color: T.text }}>
-            {t('Economic Calender')}
+            {t('Economic Calendar')}
           </Text>
           <View style={{ width: 46 }} />
         </View>
@@ -324,7 +351,7 @@ export const EconomicCalendarScreenInner = React.memo(function EconomicCalendarS
                 <Ionicons name="calendar-outline" size={30} color={isDark ? T.accent : '#4F46E5'} />
               </View>
               <View style={{ flex: 1, marginLeft: 6 }}>
-                <Text style={styles.heroTitle}>{t('Economic Calender')}</Text>
+                <Text style={styles.heroTitle}>{t('Economic Calendar')}</Text>
                 <Text style={styles.heroSub}>{t('Market events calendar')}</Text>
               </View>
               <Pressable
@@ -393,14 +420,27 @@ export const EconomicCalendarScreenInner = React.memo(function EconomicCalendarS
         keyboardShouldPersistTaps="always"
         canCancelContentTouches={Platform.OS === 'ios'} style={styles.scroll} contentContainerStyle={[styles.content, { paddingTop: 20 }]} showsVerticalScrollIndicator={false}>
 
-        {fetchError && dataEvents.length === 0 ? (
+        {fetchError && dataEvents.length > 0 ? (
+          <View style={{ padding: 12, gap: 8 }} accessibilityLiveRegion="polite">
+            <Text style={{ color: T.textSub }}>{t('Could not refresh events. Showing cached data.')}{cachedAt ? ` ${t('Updated')}: ${new Date(cachedAt).toLocaleString()}` : ''}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('Retry')} onPress={() => refreshRef.current()}>
+              <Text style={{ color: T.accent }}>{t('Retry')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {loading && dataEvents.length === 0 ? (
+          <View style={styles.emptyState} accessibilityLiveRegion="polite">
+            <ActivityIndicator color={T.accent} />
+            <Text style={styles.emptySub}>{t('Loading events...')}</Text>
+          </View>
+        ) : fetchError && dataEvents.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
               <Ionicons name="cloud-offline-outline" size={32} color={isDark ? '#EF4444' : '#DC2626'} />
             </View>
             <Text style={styles.emptyTitle}>{t('Unable to load events')}</Text>
             <Text style={styles.emptySub}>{t('Check your internet connection and try again')}</Text>
-            <Pressable style={[styles.emptyResetBtn, { backgroundColor: isDark ? T.glass3 : 'rgba(79,70,229,0.1)' }]} onPress={loadData}>
+            <Pressable style={[styles.emptyResetBtn, { backgroundColor: isDark ? T.glass3 : 'rgba(79,70,229,0.1)' }]} onPress={() => refreshRef.current()}>
               <Text style={styles.emptyResetText}>{t('Retry')}</Text>
             </Pressable>
           </View>

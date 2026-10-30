@@ -3,14 +3,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, Platform, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Platform, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePositionHistoryQuery } from '../../query/positions';
 import { useAccountDealsQuery } from '../../query/deals';
+import { useAccountSummary } from '../../query/account';
 import { ClosedPosition } from '../../api/positions';
-import { filterClosedRecordsByDateRange, resolveEffectiveHistoryDateRange } from './historyDateRange';
+import { coerceTimestampToMs, filterClosedRecordsByDateRange, resolveEffectiveHistoryDateRange } from './historyDateRange';
 import { deriveClosedPositionsFromDeals, mergeClosedPositionSources } from './derivedClosedPositions';
-import { resolveTradingLogin } from '../../state/tradingLogin';
+import { useResolvedTradingLogin } from '../../state/tradingLogin';
 import { useLiveAccountState } from '../../state/liveAccountState';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { useUserPreferences } from '../../state/userPreferences';
@@ -18,10 +19,12 @@ import { spacing } from '../../ui/theme/index';
 import { ThemeColors } from '../../ui/theme/glass';
 import { useTheme } from '../../ui/theme/useTheme';
 import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
 import { formatBrokerTime } from '../../utils/brokerTime';
 import { useTranslation } from '../../i18n/useTranslation';
 import { safeRouterBack } from '../../utils/navigation';
 import { useDeferredRouteContentReady } from '../../ui/components/DeferredRouteMount';
+import { calculateHistoryMoneySummary } from './historyMoney';
 
 type SnapshotRowProps = {
   label: string;
@@ -112,24 +115,7 @@ function resolveTimestampValue(value: unknown): number | string | undefined {
 }
 
 function resolveTimestampSortMs(value: number | string | undefined): number {
-  if (value === undefined) {
-    return 0;
-  }
-
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (Number.isFinite(numeric) && numeric > 0) {
-    if (numeric > 4.2e16) return Math.floor(numeric / 1_000_000);
-    if (numeric > 4.2e13) return Math.floor(numeric / 1_000);
-    if (numeric > 4.2e10) return Math.floor(numeric);
-    return Math.floor(numeric * 1000);
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  return 0;
+  return coerceTimestampToMs(value) ?? 0;
 }
 
 function pickClosedPositionTimestamp(
@@ -202,12 +188,7 @@ function resolveClosedPositionTicket(position: ClosedPosition, index: number): s
   return String(index + 1);
 }
 
-function getClosedPositionPriceDecimals(position: ClosedPosition): number {
-  return position.symbol?.includes('JPY') ? 3 : 5;
-}
-
 function ClosedTradePnlRow({ position, index, isLast, isDark, styles, T, t }: ClosedTradePnlRowProps) {
-  const decimals = getClosedPositionPriceDecimals(position);
   const openPrice = toFiniteNumber(position.price_open);
   const closePrice = resolveClosedPositionClosePrice(position);
   const closeTime = resolveClosedPositionCloseTime(position);
@@ -250,7 +231,7 @@ function ClosedTradePnlRow({ position, index, isLast, isDark, styles, T, t }: Cl
 
       <View style={styles.closedTradeMetaRow}>
         <Text style={[styles.closedTradePrice, { color: T.textSub }]}>
-          {openPrice.toFixed(decimals)} - {closePrice.toFixed(decimals)}
+          {formatBackendPrice(openPrice)} - {formatBackendPrice(closePrice)}
         </Text>
         <Text style={[styles.closedTradeTime, { color: T.textMuted }]}>
           {closeTime ? formatBrokerTime(closeTime) : '--'}
@@ -297,36 +278,33 @@ export function HistoryNetProfitLossScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(T, isDark), [T, isDark]);
-  const accountLogin = resolveTradingLogin();
-  const balance = useLiveAccountState((state) => state.balance) || 0;
+  const accountLogin = useResolvedTradingLogin();
+  const liveBalance = useLiveAccountState((state) => state.balance);
+  const { data: accountSummary } = useAccountSummary(
+    accountLogin !== undefined ? String(accountLogin) : undefined,
+    { enabled: accountLogin !== undefined },
+  );
+  const balance = (typeof liveBalance === 'number' && Number.isFinite(liveBalance) && liveBalance !== 0
+    ? liveBalance
+    : accountSummary?.balance) || 0;
   // Defer the heavy closed-trade row list past the navigation transition so the
   // screen opens instantly (header + summary cards paint first; the full row
   // list — which renders every closed trade synchronously — fills in ~2 frames
   // later instead of blocking the screen-open animation).
   const heavyContentReady = useDeferredRouteContentReady(0);
   const [visibleRowCount, setVisibleRowCount] = useState(CLOSED_PNL_INITIAL_VISIBLE_ROWS);
-  const handleClosedRowsScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      const distanceFromBottom =
-        contentSize.height - (contentOffset.y + layoutMeasurement.height);
-      if (distanceFromBottom <= CLOSED_PNL_LOAD_MORE_THRESHOLD_PX) {
-        setVisibleRowCount((current) => current + CLOSED_PNL_ROW_BATCH);
-      }
-    },
-    [],
-  );
 
+  const historyDayKey = new Date().toDateString();
   const { fromMs: effectiveHistoryFromMs, toMs: effectiveHistoryToMs } = useMemo(
     () => resolveEffectiveHistoryDateRange(historyRange, historyFromMs, historyToMs),
-    [historyRange, historyFromMs, historyToMs],
+    [historyDayKey, historyRange, historyFromMs, historyToMs],
   );
   // Contract 6.4: closed history is paged by from/to time windows.
-  const { data: rawPositionHistory = [] } = usePositionHistoryQuery(accountLogin, {
+  const { data: rawPositionHistory = [], isPending: positionsPending, isError: positionsError, refetch: refetchPositions } = usePositionHistoryQuery(accountLogin, {
     from: effectiveHistoryFromMs != null ? Math.floor(effectiveHistoryFromMs / 1000) : undefined,
     to: effectiveHistoryToMs != null ? Math.floor(effectiveHistoryToMs / 1000) : undefined,
   });
-  const { data: rawDeals = [] } = useAccountDealsQuery({ login: accountLogin });
+  const { data: rawDeals = [], isPending: dealsPending, isError: dealsError, refetch: refetchDeals, historyComplete } = useAccountDealsQuery({ login: accountLogin });
   // Mirror HistoryScreen's closed-position pipeline: the history endpoint can
   // lag behind freshly-closed trades (especially on demo brokers), so closed
   // positions are also rebuilt from the deals stream and merged. Without this
@@ -347,6 +325,21 @@ export function HistoryNetProfitLossScreen() {
   const closedPositions = useMemo(
     () => positionHistory.map(normalizeClosedHistoryPosition),
     [positionHistory],
+  );
+  const handleClosedRowsScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - (contentOffset.y + layoutMeasurement.height);
+      if (distanceFromBottom <= CLOSED_PNL_LOAD_MORE_THRESHOLD_PX) {
+        setVisibleRowCount((current) =>
+          current >= closedPositions.length
+            ? current
+            : Math.min(closedPositions.length, current + CLOSED_PNL_ROW_BATCH),
+        );
+      }
+    },
+    [closedPositions.length],
   );
 
   const netProfit = useMemo(
@@ -409,20 +402,17 @@ export function HistoryNetProfitLossScreen() {
     [closedPositions],
   );
 
-  const closedSwap = useMemo(
-    () => positionHistory.reduce((sum, position) => sum + toFiniteNumber(position.swap), 0),
-    [positionHistory],
+  const { closedSwap, closedCommission, totalClosedPnl, deposit } = useMemo(
+    () => calculateHistoryMoneySummary({
+      closedPositions: positionHistory,
+      deals: rawDeals,
+      balance,
+    }),
+    [positionHistory, rawDeals, balance],
   );
-  const closedCommission = useMemo(
-    () => positionHistory.reduce((sum, position) => sum + toFiniteNumber(position.commission), 0),
-    [positionHistory],
-  );
-  const totalClosedPnl = useMemo(
-    () => positionHistory.reduce((sum, position) => sum + resolveClosedPositionNetPnl(position), 0),
-    [positionHistory],
-  );
-  const deposit = balance - totalClosedPnl;
   const historyRangeLabel = t(historyRange);
+  const historyLoading = positionsPending || dealsPending;
+  const historyNotice = positionsError || dealsError ? t('Could not refresh history. Please retry.') : historyComplete === false ? t('History is incomplete. Some records and totals may be missing.') : null;
   const screenBg = isDark ? '#121212' : T.bg;
 
   return (
@@ -470,6 +460,13 @@ export function HistoryNetProfitLossScreen() {
         onScroll={handleClosedRowsScroll}
         scrollEventThrottle={16}
       >
+        {historyLoading || historyNotice ? (
+          <View style={{ paddingVertical: 12, gap: 8 }} accessibilityLiveRegion="polite">
+            {historyLoading ? <ActivityIndicator color={T.accent} /> : null}
+            <Text style={{ color: T.textSub }}>{historyLoading ? t('Loading history...') : historyNotice}</Text>
+            {historyNotice ? <Pressable accessibilityRole="button" accessibilityLabel={t('Retry')} onPress={() => { void refetchPositions(); void refetchDeals(); }}><Text style={{ color: T.accent }}>{t('Retry')}</Text></Pressable> : null}
+          </View>
+        ) : null}
         <View style={styles.heroWrap}>
           <LinearGradient
             colors={isDark ? ['#101827', '#0E141F', '#0A0F18'] : ['#F8FBFF', '#FFFFFF', '#F3F7FC']}
@@ -602,7 +599,7 @@ export function HistoryNetProfitLossScreen() {
                   key={`${resolveClosedPositionTicket(position, index)}-${index}`}
                   position={position}
                   index={index}
-                  isLast={index === closedTradePnlRows.length - 1}
+                  isLast={index === Math.min(visibleRowCount, closedTradePnlRows.length) - 1}
                   isDark={isDark}
                   styles={styles}
                   T={T}

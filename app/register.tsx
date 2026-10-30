@@ -20,6 +20,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets, type EdgeInsets } from 'react-native-safe-area-context';
 import { useThemeMode } from '../src/state/themeMode';
@@ -816,6 +817,8 @@ function LegacyRegisterScreen() {
           <Pressable
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             onPress={handleRegisterBack}
+            accessibilityRole="button"
+            accessibilityLabel={t('Back')}
             activateOnPressIn
             activateOnTouchStart
             latencyLabel="register.back"
@@ -823,7 +826,10 @@ function LegacyRegisterScreen() {
             unstable_pressDelay={0}
             style={styles.headerBackButton}
           >
-            <Ionicons name="arrow-back" size={22} color={heroBackIconColor} />
+            <Svg width={24} height={24} viewBox="0 0 24 24" pointerEvents="none">
+              <Path d="M19 12H5M12 5l-7 7 7 7" fill="none" stroke={heroBackIconColor}
+                strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
           </Pressable>
           <Text style={styles.headerTitle} numberOfLines={1}>Demo Account</Text>
           <View style={styles.headerRightSpacer} />
@@ -1211,10 +1217,13 @@ function makeStyles(T: ThemeColors, isDark: boolean, insets: EdgeInsets, width: 
       elevation: 0,
     },
     headerBackButton: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
+      alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
+      padding: 0,
+      flexShrink: 0,
     },
     headerTitle: {
       color: T.text,
@@ -1227,8 +1236,9 @@ function makeStyles(T: ThemeColors, isDark: boolean, insets: EdgeInsets, width: 
       paddingHorizontal: 12,
     },
     headerRightSpacer: {
-      width: 40,
-      height: 40,
+      width: 44,
+      height: 44,
+      flexShrink: 0,
     },
 
     scrollContent: {

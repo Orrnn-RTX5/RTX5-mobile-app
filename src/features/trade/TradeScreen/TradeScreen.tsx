@@ -20,7 +20,7 @@ import { AppHeader } from '../../../ui/components/AppHeader';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { TradePositionRow } from '../../../ui/components/TradePositionRow';
 import { FastPressable } from '../../../ui/components/FastPressable';
-import { PositionItem } from '../../../dev/mock/tradingData';
+import { PositionItem } from '../../../domain/tradingModels';
 import { useUserPreferences } from '../../../state/userPreferences';
 import { useIsDarkTheme } from '../../../state/themeMode';
 import { usePositionsState } from '../../../state/positionsState';
@@ -33,6 +33,11 @@ import { useTheme } from '../../../ui/theme/useTheme';
 import { useUIState } from '../../../state/uiState';
 import { getTradingErrorOriginLabel } from '../../../api/tradingErrors';
 import { prefetchOrderTicketData } from '../../../utils/navigationPrefetch';
+import { preloadDeferredRouteModule } from '../../../ui/components/DeferredRouteMount';
+import {
+  ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+  loadOrderTicketScreenRoute,
+} from '../orderTicketScreenPreload';
 import { runImmediateAction } from '../../../utils/actionLatency';
 import { useDeferredActiveFlag } from '../../../hooks/useDeferredActiveFlag';
 import { useNextFrameValue } from '../../../hooks/useNextFrameValue';
@@ -49,6 +54,8 @@ import { quotesWsService } from '../../../api/ws/quotesSocket';
 import { useInvestorReadOnlySession } from '../../../hooks/useInvestorReadOnlySession';
 import { useResponsiveLayout } from '../../../ui/layout/useResponsiveLayout';
 import { shouldScrollTradingSummary } from '../summaryViewport';
+import { PendingOrdersSection } from '../PendingOrdersSection';
+import { AccountPageGate } from '../../auth/AccountPageGate';
 
 // Render only the first screenful of trade rows first. This prevents 15-30 open
 // positions from all mounting and subscribing to live quotes before the user scrolls.
@@ -236,7 +243,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
   });
   const accountLeverage = typeof accountSummary?.leverage === 'number' && Number.isFinite(accountSummary.leverage) && accountSummary.leverage > 0 ? accountSummary.leverage : null;
 
-  const pnlCurrency = useTradingState((state: any) => state.account?.currency || 'USD');
+  const pnlCurrency = useTradingState((state: any) => state.account?.currency) || accountSummary?.currency || 'USD';
   const renderablePositions = useMemo(() => dedupePositionsById(positions.filter((position) => isRenderablePositionSymbol(position.symbol))), [positions]);
   const totalVolume = useMemo(
     () => renderablePositions.reduce((sum, p) => sum + (p.volume || 0), 0),
@@ -323,9 +330,9 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
   }, [bulkActionIconColor, navigateToBulkMode, showTradeActionSheet, t]);
 
   const showBulkSheet = useCallback(() => {
-    if (investorReadOnly) return;
+    if (investorReadOnly || renderablePositions.length === 0) return;
     runImmediateAction('trade.bulkSheet.open', () => showTradeActionSheet(bulkActionSheetConfig));
-  }, [bulkActionSheetConfig, investorReadOnly, showTradeActionSheet]);
+  }, [bulkActionSheetConfig, investorReadOnly, renderablePositions.length, showTradeActionSheet]);
 
   const showCloseSellPositions = useCallback(() => {
     if (investorReadOnly) return;
@@ -342,7 +349,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
 
   const showPositionSheet = useCallback(
     (item: PositionItem) => {
-      runImmediateAction('trade.positionSheet.open', () =>
+      runImmediateAction('trade.positionSheet.open', () => {
         showTradeActionSheet({
           presentation: 'mt5Plain',
           showActionIcons: true,
@@ -397,6 +404,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
                   {
                     icon: <Ionicons name="swap-horizontal-outline" size={20} color={T.textMuted} />,
                     label: t('Trade'),
+                    activateOnPressIn: true,
                     onPress: () => {
                       if (
                         requestOrrnnDemoTradeAuth({
@@ -407,25 +415,31 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
                       ) {
                         return;
                       }
-                      prefetchOrderTicketData(String(resolvedLogin ?? ''), item.symbol);
-                      router.push({
+                      router.navigate({
                         pathname: '/trade/order-ticket',
-                        params: { symbol: item.symbol },
+                        params: { symbol: item.symbol, origin: 'trade' },
                       });
+                      prefetchOrderTicketData(String(resolvedLogin ?? ''), item.symbol);
                     },
                   },
                 ] satisfies Parameters<typeof showTradeActionSheet>[0]['actions'])),
             {
               icon: <Ionicons name="analytics-outline" size={20} color={T.textMuted} />,
               label: t('Chart'),
+              activateOnPressIn: true,
               onPress: () => {
                 setChartSymbol(item.symbol);
                 router.push('/(tabs)/chart');
               },
             },
           ],
-        }),
-      );
+        });
+        preloadDeferredRouteModule(
+          ORDER_TICKET_ROUTE_MODULE_CACHE_KEY,
+          loadOrderTicketScreenRoute,
+        );
+        prefetchOrderTicketData(String(resolvedLogin ?? ''), item.symbol);
+      });
     },
     [T.textMuted, investorReadOnly, positionCloseActionColor, primePositionSnapshot, resolvedLogin, setChartSymbol, showTradeActionSheet, t],
   );
@@ -492,7 +506,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
               <Text style={[s.emptySub, { color: T.textDimmed }]}>{lastError ? `${t('Account')} ${lastFetchLogin ?? resolvedLogin ?? t('unknown')}: ${getTradingErrorOriginLabel(lastError.origin)}. ${lastError.title}: ${lastError.message}` : resolvedLogin ? `${t('Account')} ${resolvedLogin}: ${t('your active trades will appear here')}` : t('Waiting for active trading account')}</Text>
             </View>
           }
-          ListFooterComponent={renderablePositions.length > 0 ? <>{/* Top Exposures */}</> : null}
+          ListFooterComponent={<PendingOrdersSection active={tradeFetchActive} />}
         />
       </TradeSummaryHeader>
     </Screen>
@@ -502,5 +516,5 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
 export function TradeScreen() {
   const isScreenFocused = useIsFocused();
   const isLiveScreenFocused = useNextFrameValue(isScreenFocused);
-  return <TradeScreenInner isScreenFocused={isScreenFocused} isLiveScreenFocused={isLiveScreenFocused} />;
+  return <AccountPageGate page="Trade"><TradeScreenInner isScreenFocused={isScreenFocused} isLiveScreenFocused={isLiveScreenFocused} /></AccountPageGate>;
 }

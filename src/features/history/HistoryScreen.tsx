@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../ui/components/Screen';
 import { AppHeader } from '../../ui/components/AppHeader';
 import { FastPressable } from '../../ui/components/FastPressable';
@@ -17,17 +17,20 @@ import { useUserPreferences } from '../../state/userPreferences';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { useUIState } from '../../state/uiState';
 import { useResolvedTradingLogin } from '../../state/tradingLogin';
+import { AccountPageGate } from '../auth/AccountPageGate';
 import { usePositionHistoryQuery } from '../../query/positions';
 import { useAccountDealsQuery } from '../../query/deals';
 import { useOrdersByLoginQuery } from '../../query/orders';
 import { useAccountSummary } from '../../query/account';
 import { useLiveAccountState } from '../../state/liveAccountState';
+import { usePositionsState } from '../../state/positionsState';
 import { Deal } from '../../api/deals';
 import { useDeferredActiveFlag } from '../../hooks/useDeferredActiveFlag';
+import { useAppForeground } from '../../hooks/useAppForeground';
 import { useNextFrameValue } from '../../hooks/useNextFrameValue';
 import { LoginOrder } from '../../api/orders';
 import { ClosedPosition } from '../../api/positions';
-import { filterClosedRecordsByDateRange, resolveEffectiveHistoryDateRange } from './historyDateRange';
+import { filterClosedRecordsByDateRange, filterOrderRecordsByDateRange, resolveEffectiveHistoryDateRange } from './historyDateRange';
 import { deriveClosedPositionsFromDeals, mergeClosedPositionSources } from './derivedClosedPositions';
 import { keyHistoryRows } from './historyRowKeys';
 import {
@@ -39,6 +42,7 @@ import { spacing } from '../../ui/theme/index';
 import { useTheme } from '../../ui/theme/useTheme';
 import { ThemeColors } from '../../ui/theme/glass';
 import { fmt } from '../../utils/format';
+import { formatBackendPrice } from '../../utils/backendPrice';
 import { formatBrokerTime } from '../../utils/brokerTime';
 import { useTranslation } from '../../i18n/useTranslation';
 import { useShallow } from 'zustand/shallow';
@@ -48,7 +52,7 @@ import { showHistoryFilterHost } from './historyFilterHostController';
 import { useResponsiveLayout } from '../../ui/layout/useResponsiveLayout';
 import { shouldScrollTradingSummary } from '../trade/summaryViewport';
 
-type Tab = 'Positions' | 'Orders' | 'Deals';
+type Tab = 'Positions' | 'Orders' | 'Deals' | 'Deals & Orders';
 type SortBy = 'Default' | 'Symbol' | 'Ticket' | 'Type' | 'Volume' | 'Open Time' | 'Close Time' | 'Profit';
 type HistoryRow = {
   id: string;
@@ -56,6 +60,8 @@ type HistoryRow = {
   line1: string;
   line2: string;
   time: string;
+  openTime?: string;
+  closeTime?: string;
   status?: string;
   recordKind?: 'closed-position' | 'order' | 'deal';
   profit?: number | null;
@@ -67,12 +73,11 @@ type HistoryRow = {
   volumeNum?: number;
   openPrice?: number;
   closePrice?: number;
-  priceDecimals?: number;
 };
 
 type Tone = 'positive' | 'negative' | 'neutral';
 
-const TABS: Tab[] = ['Orders', 'Positions', 'Deals'];
+const TABS: Tab[] = ['Orders', 'Positions', 'Deals', 'Deals & Orders'];
 const SORT_OPTIONS: SortBy[] = ['Default', 'Symbol', 'Ticket', 'Type', 'Volume', 'Open Time', 'Close Time', 'Profit'];
 const EMPTY_CLOSED_POSITIONS: ClosedPosition[] = [];
 const EMPTY_DEALS: Deal[] = [];
@@ -258,27 +263,27 @@ function buildHistoryRowIdentity(prefix: string, source: Record<string, unknown>
  * and `time_done` (order completed). For closed orders, `time_done` is shown
  * as the primary timestamp since it represents when the position was closed.
  *
- * Price precision: 5 dp for non-JPY forex, 3 dp for JPY pairs.
+ * Price readouts use the shared integer-digit display rules.
  * Status forwarded so the row badge can colour-code filled vs closed/canceled.
  * Comment forwarded as `note` — shows EA name or manual annotation.
  */
 function mapOrderToRow(o: LoginOrder): HistoryRow {
   const source = o as unknown as Record<string, unknown>;
-  const isJpy = o.symbol?.includes('JPY');
-  const priceDecimals = isJpy ? 3 : 5;
 
   // Closed orders: show time_done (when position closed) as primary time.
   // Filled/open orders: show time_setup (when order was placed).
-  const isClosed = o.status === 'closed' || o.status === 'canceled';
-  const displayTime = isClosed ? o.time_done : o.time_setup;
+  const displayTime = o.time_done > 0 ? o.time_done : o.time_setup;
   const identity = buildHistoryRowIdentity('ho', source, [o.symbol, o.side, displayTime, o.volume]);
 
   return {
     ...identity,
     line1: `${o.symbol ?? ''} ${o.side ?? ''} ${(o.volume ?? 0).toFixed(2)}`,
-    line2: `${o.type ?? 'market'} at ${(o.price_open ?? 0).toFixed(priceDecimals)}`,
+    line2: `${o.type ?? 'market'} at ${formatBackendPrice(o.price_open ?? 0)}`,
     time: safeTimeStr(displayTime),
-    status: o.status,
+    openTime: safeTimeStr(o.time_setup ?? displayTime),
+    closeTime: safeTimeStr(o.time_done ?? displayTime),
+    status: String(o.status).toLowerCase(),
+    recordKind: 'order',
     profit: null,
     note: o.comment?.trim() || undefined,
   };
@@ -305,12 +310,15 @@ function mapDealToRow(d: Deal): HistoryRow {
           ? 'Deposit'
           : 'Balance';
     const identity = buildHistoryRowIdentity('hd', source, [label, d.time, balanceOperation.amount]);
+    const dealTimeStr = safeTimeStr(d.time);
 
     return {
       ...identity,
       line1: label,
       line2: `${fmt.pnlPrecise(balanceOperation.amount)} balance operation`,
-      time: safeTimeStr(d.time),
+      time: dealTimeStr,
+      openTime: dealTimeStr,
+      closeTime: dealTimeStr,
       profit: null,
       note: d.comment?.trim() || undefined,
     };
@@ -321,8 +329,6 @@ function mapDealToRow(d: Deal): HistoryRow {
   const timeStr = safeTimeStr(d.time);
 
   // Use symbol-aware decimal places: JPY pairs → 3 dp, all others → 5 dp
-  const isJpy = d.symbol?.includes('JPY');
-  const priceDecimals = isJpy ? 3 : 5;
 
   // Net profit includes swap, commission, and fee (all are real P&L costs).
   // entry_in deals (opening a position) typically have 0 profit but non-zero
@@ -335,8 +341,10 @@ function mapDealToRow(d: Deal): HistoryRow {
   return {
     ...identity,
     line1: `${d.symbol} ${direction},${entry}`,
-    line2: `${(d.volume ?? 0).toFixed(2)} at ${(d.price ?? 0).toFixed(priceDecimals)}`,
+    line2: `${(d.volume ?? 0).toFixed(2)} at ${formatBackendPrice(d.price ?? 0)}`,
     time: timeStr,
+    openTime: timeStr,
+    closeTime: timeStr,
     profit: netProfit,
     // Only forward non-empty comments — EA names, manual notes, or reason codes
     note: d.comment?.trim() || undefined,
@@ -353,21 +361,23 @@ function mapClosedPositionToRow(position: ClosedPosition): HistoryRow {
     pickFiniteNumber(source, ['price_close', 'priceClose', 'close_price', 'closePrice', 'close']) ??
     pickFiniteNumber(source, ['price_current', 'priceCurrent', 'current_price', 'currentPrice', 'price']) ??
     openPrice;
+  const openTimeRaw = pickHistoryTime(source, ['time_create', 'timeCreate', 'open_time', 'openTime', 'time_open', 'timeOpen', 'created_at']);
   const displayTime =
     pickHistoryTime(source, ['time_close', 'timeClose', 'close_time', 'closeTime', 'time_done', 'timeDone', 'closed_at', 'time']) ??
     pickHistoryTime(source, ['time_update', 'timeUpdate', 'updated_at']) ??
-    pickHistoryTime(source, ['time_create', 'timeCreate', 'open_time', 'openTime', 'time_open', 'timeOpen', 'created_at']);
+    openTimeRaw;
   const note = pickTrimmedString(source, ['comment', 'reason', 'description']);
-  const isJpy = symbol.includes('JPY');
-  const priceDecimals = isJpy ? 3 : 5;
   const netProfit = resolveClosedPositionNetProfit(position);
   const identity = buildHistoryRowIdentity('hp', source, [symbol, side, displayTime, volume]);
+  const displayTimeStr = safeTimeStr(displayTime);
 
   return {
     ...identity,
     line1: `${symbol} ${side} ${volume.toFixed(2)}`,
-    line2: `${openPrice.toFixed(priceDecimals)} → ${closePrice.toFixed(priceDecimals)}`,
-    time: safeTimeStr(displayTime),
+    line2: `${formatBackendPrice(openPrice)} → ${formatBackendPrice(closePrice)}`,
+    time: displayTimeStr,
+    openTime: safeTimeStr(openTimeRaw ?? displayTime),
+    closeTime: displayTimeStr,
     status: 'closed',
     recordKind: 'closed-position',
     profit: netProfit,
@@ -377,7 +387,6 @@ function mapClosedPositionToRow(position: ClosedPosition): HistoryRow {
     volumeNum: volume,
     openPrice,
     closePrice,
-    priceDecimals,
   };
 }
 
@@ -445,43 +454,57 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
   // GET /api/v2/account/deals             — deal history (JWT-resolved, date-range aware)
   // GET /api/v2/orders/{login}            — order history (login-based, verified real fields)
   const accountLogin = useResolvedTradingLogin();
-  const historyDataActive = useDeferredActiveFlag(isScreenFocused);
+  const appForeground = useAppForeground();
+  // Disabling polling alone still observes shared cache writes. Unsubscribe
+  // the retained tab so live deals do not remap hidden history rows. Subscribe
+  // immediately on focus to adopt cached results before deferred network work.
+  const historySubscribed = isScreenFocused && appForeground;
+  const historyDataActive = useDeferredActiveFlag(historySubscribed);
   // Cached data shows instantly on tab focus; the focus-refetch effect below
   // refreshes in the background without blocking the transition.
   // /positions/{login}/history is paged by from/to time windows (contract
   // 6.4), so the selected range is passed down instead of loading everything.
+  const historyDayKey = new Date().toDateString();
+  const { fromMs: effectiveHistoryFromMs, toMs: effectiveHistoryToMs } = useMemo(
+    () => resolveEffectiveHistoryDateRange(historyRange, historyFromMs, historyToMs),
+    [historyRange, historyFromMs, historyToMs, historyDayKey],
+  );
   const positionHistoryRange = useMemo(() => {
-    const range = resolveEffectiveHistoryDateRange(historyRange, historyFromMs, historyToMs);
     return {
-      from: range.fromMs != null ? Math.floor(range.fromMs / 1000) : undefined,
-      to: range.toMs != null ? Math.floor(range.toMs / 1000) : undefined,
+      from: effectiveHistoryFromMs != null ? Math.floor(effectiveHistoryFromMs / 1000) : undefined,
+      to: effectiveHistoryToMs != null ? Math.floor(effectiveHistoryToMs / 1000) : undefined,
     };
-  }, [historyRange, historyFromMs, historyToMs]);
-  const { data: rawPositionHistory = EMPTY_CLOSED_POSITIONS, refetch: refetchPositionHistory } = usePositionHistoryQuery(accountLogin, {
+  }, [effectiveHistoryFromMs, effectiveHistoryToMs]);
+  const { data: rawPositionHistory = EMPTY_CLOSED_POSITIONS, refetch: refetchPositionHistory, isPending: positionsPending, isError: positionsError } = usePositionHistoryQuery(accountLogin, {
     enabled: historyDataActive,
+    subscribed: historySubscribed,
     from: positionHistoryRange.from,
     to: positionHistoryRange.to,
   });
-  const { data: rawDeals = EMPTY_DEALS, refetch: refetchDeals } = useAccountDealsQuery({
+  const { data: rawDeals = EMPTY_DEALS, refetch: refetchDeals, isPending: dealsPending, isError: dealsError, historyComplete } = useAccountDealsQuery({
     login: accountLogin,
     enabled: historyDataActive,
+    subscribed: historySubscribed,
   });
-  const { data: rawOrders = EMPTY_ORDERS, refetch: refetchOrders } = useOrdersByLoginQuery(accountLogin, {
+  const { data: rawOrders = EMPTY_ORDERS, refetch: refetchOrders, isPending: ordersPending, isError: ordersError } = useOrdersByLoginQuery(accountLogin, {
     enabled: historyDataActive,
+    subscribed: historySubscribed,
+    from: positionHistoryRange.from,
+    to: positionHistoryRange.to,
   });
 
   // ── Refetch on tab focus ─────────────────────────────────────────────
   // When the user switches to the History tab, immediately fetch fresh data
   // from the server. This ensures that trades closed on other screens (Trade,
   // Chart, etc.) appear in the list without waiting for the polling interval.
-  const wasFocusedRef = useRef(isScreenFocused);
+  const wasFocusedRef = useRef(historyDataActive);
   useEffect(() => {
     if (historyDataActive && !wasFocusedRef.current) {
       refetchPositionHistory();
       refetchDeals();
       refetchOrders();
     }
-    wasFocusedRef.current = isScreenFocused;
+    wasFocusedRef.current = historyDataActive;
   }, [historyDataActive, isScreenFocused, refetchPositionHistory, refetchDeals, refetchOrders]);
 
   const accountLoginStr = String(accountDetails?.id ?? accountLogin ?? '—');
@@ -492,30 +515,40 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
   // Falls back to WebSocket live state for balance if API hasn't responded yet.
   const { data: accountSummary } = useAccountSummary(accountLoginString, {
     enabled: historyDataActive,
+    subscribed: historySubscribed,
   });
   const liveBalance = useLiveAccountState((s) => s.balance);
-  const balance = accountSummary?.balance ?? liveBalance ?? 0;
+  const balance = accountSummary?.balance ?? liveBalance;
   const currency = accountSummary?.currency ?? 'USD';
-  const { fromMs: effectiveHistoryFromMs, toMs: effectiveHistoryToMs } = useMemo(
-    () => resolveEffectiveHistoryDateRange(historyRange, historyFromMs, historyToMs),
-    [historyRange, historyFromMs, historyToMs],
+  const orderHistory = useMemo(
+    () => filterOrderRecordsByDateRange(rawOrders, effectiveHistoryFromMs, effectiveHistoryToMs),
+    [rawOrders, effectiveHistoryFromMs, effectiveHistoryToMs],
   );
   // Demo brokers (and occasionally real brokers under load) don't always
   // populate /positions/{login}/history immediately after a close, so we
   // also rebuild closed positions from the deals stream and merge the two
   // sources. The history endpoint wins on collisions when it does return
   // a record. This is what makes freshly-closed demo trades show up here.
+  const recentlyClosedPositions = usePositionsState((s) => s.recentlyClosedPositions);
   const derivedClosedPositions = useMemo(
     () => deriveClosedPositionsFromDeals(rawDeals),
     [rawDeals],
   );
   const mergedClosedPositions = useMemo(
-    () => mergeClosedPositionSources(rawPositionHistory, derivedClosedPositions),
-    [rawPositionHistory, derivedClosedPositions],
+    () => mergeClosedPositionSources(
+      mergeClosedPositionSources(rawPositionHistory, derivedClosedPositions),
+      recentlyClosedPositions,
+    ),
+    [rawPositionHistory, derivedClosedPositions, recentlyClosedPositions],
   );
   const positionHistory = useMemo(
     () => filterClosedRecordsByDateRange(mergedClosedPositions, effectiveHistoryFromMs, effectiveHistoryToMs),
     [mergedClosedPositions, effectiveHistoryFromMs, effectiveHistoryToMs],
+  );
+
+  const dealHistory = useMemo(
+    () => filterClosedRecordsByDateRange(rawDeals, effectiveHistoryFromMs, effectiveHistoryToMs),
+    [rawDeals, effectiveHistoryFromMs, effectiveHistoryToMs],
   );
 
   // Keep all money math in one pure helper: closed P/L includes swap,
@@ -532,10 +565,11 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
 
   const baseData = useMemo<HistoryRow[]>(() => {
     // GET /api/v2/account/orders — real order history, replaces static mock
-    if (tab === 'Orders') return rawOrders.map(mapOrderToRow);
-    if (tab === 'Deals') return rawDeals.map(mapDealToRow);
+    if (tab === 'Orders') return orderHistory.map(mapOrderToRow);
+    if (tab === 'Deals') return dealHistory.map(mapDealToRow);
+    if (tab === 'Deals & Orders') return [...dealHistory.map(mapDealToRow), ...orderHistory.map(mapOrderToRow)];
     return positionHistory.map(mapClosedPositionToRow);
-  }, [tab, rawDeals, rawOrders, positionHistory]);
+  }, [tab, dealHistory, orderHistory, positionHistory]);
 
   const keyedBaseData = useMemo(() => keyHistoryRows(baseData), [baseData]);
   const data = useMemo(() => sortHistoryRows(keyedBaseData, sortBy), [keyedBaseData, sortBy]);
@@ -560,6 +594,16 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
     setHistorySummaryDetailsVisible(!historySummaryDetailsVisible);
   }, [historySummaryDetailsVisible, setHistorySummaryDetailsVisible]);
 
+  const historyLoading = historyDataActive && (tab === 'Orders' ? ordersPending : tab === 'Deals' ? dealsPending : tab === 'Deals & Orders' ? dealsPending || ordersPending : positionsPending || dealsPending);
+  const historyError = tab === 'Orders' ? ordersError : tab === 'Deals' ? dealsError : tab === 'Deals & Orders' ? dealsError || ordersError : positionsError || dealsError;
+  const retryHistory = () => {
+    if (!historyDataActive) return;
+    if (tab === 'Orders') void refetchOrders();
+    else if (tab === 'Deals') void refetchDeals();
+    else if (tab === 'Deals & Orders') { void refetchDeals(); void refetchOrders(); }
+    else { void refetchPositionHistory(); void refetchDeals(); }
+  };
+  const historyNotice = historyError ? t('Could not refresh history. Please retry.') : tab !== 'Orders' && historyComplete === false ? t('History is incomplete. Some records and totals may be missing.') : null;
   const historySummaryHeader = (
     <>
       <Text style={styles.accountSummaryHeading}>{t('Account Summary')}</Text>
@@ -579,7 +623,7 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {fmt.decimal(balance)}
+              {typeof balance === 'number' && Number.isFinite(balance) ? fmt.decimal(balance) : '--'}
             </Text>
             <Text style={[styles.balanceQuickCurrency, { color: T.textSub }]}>{currency}</Text>
           </View>
@@ -591,6 +635,13 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
   return (
     <Screen noBottomInset style={isDark ? { backgroundColor: '#121212' } : undefined}>
       <AppHeader title={t('History')} noBorder />
+      {data.length > 0 && historyNotice ? (
+        <View style={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }} accessibilityLiveRegion="polite">
+          <Text style={{ color: T.textSub }}>{historyNotice}</Text>
+          <FastPressable accessibilityRole="button" accessibilityLabel={t('Retry')} onPress={retryHistory}><Text style={{ color: T.accent }}>{t('Retry')}</Text></FastPressable>
+          {historyComplete === false ? <FastPressable accessibilityRole="button" accessibilityLabel={t('Change date range')} onPress={openHistoryFilter}><Text style={{ color: T.accent }}>{t('Change date range')}</Text></FastPressable> : null}
+        </View>
+      ) : null}
       {!scrollSummary ? historySummaryHeader : null}
 
       <FlatList
@@ -690,7 +741,7 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
                       onPress={() => startTransition(() => setTab(item))}
                       latencyLabel={`history.tab.${item}`}
                     >
-                      <Text style={[styles.segmentText, { color: tab === item ? T.text : T.textMuted }]}>{t(item)}</Text>
+                      <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.segmentText, { color: tab === item ? T.text : T.textMuted }]}>{t(item)}</Text>
                     </FastPressable>
                   ))}
                 </View>
@@ -719,16 +770,16 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
                 />
                 <MetricPill
                   label={tab === 'Orders' ? t('Filled') : t('Win Rate')}
-                  value={tab === 'Orders' ? `${filledCount} / ${data.length}` : winRate}
+                  value={historyLoading || (historyError && data.length === 0) ? '--' : tab === 'Orders' ? `${filledCount} / ${data.length}` : winRate}
                   icon={tab === 'Orders' ? 'checkmark-done-outline' : 'stats-chart-outline'}
                   tone={tab === 'Orders' ? (filledCount > 0 ? 'positive' : 'neutral') : 'positive'}
                   T={T}
                   isDark={isDark}
                 />
-                <MetricPill label={t('Trades')} value={String(data.length)} icon='layers-outline' tone='neutral' T={T} isDark={isDark} />
+                <MetricPill label={t('Trades')} value={historyLoading || (historyError && data.length === 0) ? '--' : String(data.length)} icon='layers-outline' tone='neutral' T={T} isDark={isDark} />
                 <MetricPill
                   label={t('Net P/L')}
-                  value={fmt.pnl(netProfit)}
+                  value={historyLoading || (historyError && data.length === 0) ? '--' : fmt.pnl(netProfit)}
                   icon='wallet-outline'
                   tone={netTone}
                   T={T}
@@ -752,7 +803,13 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
           </>
         )}
         renderItem={renderHistoryRow}
-        ListEmptyComponent={<Text style={[styles.emptyText, { color: T.textMuted }]}>{t('No history records')}</Text>}
+        ListEmptyComponent={
+          <View style={{ padding: 24, alignItems: 'center', gap: 12 }} accessibilityLiveRegion="polite">
+            {historyLoading ? <ActivityIndicator color={T.accent} /> : null}
+            <Text style={[styles.emptyText, { color: T.textMuted }]}>{historyLoading ? t('Loading history...') : historyNotice ?? t('No history records')}</Text>
+            {!historyLoading && historyNotice ? <FastPressable accessibilityRole="button" accessibilityLabel={t('Retry')} onPress={retryHistory}><Text style={{ color: T.accent }}>{t('Retry')}</Text></FastPressable> : null}
+          </View>
+        }
       />
     </Screen>
   );
@@ -761,7 +818,7 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
 export function HistoryScreen() {
   const isScreenFocused = useIsFocused();
   const deferredScreenFocused = useNextFrameValue(isScreenFocused);
-  return <HistoryScreenInner isScreenFocused={deferredScreenFocused} />;
+  return <AccountPageGate page="History"><HistoryScreenInner isScreenFocused={deferredScreenFocused} /></AccountPageGate>;
 }
 
 /**
@@ -779,7 +836,8 @@ const HistoryItemRow = memo(function HistoryItemRow({ item, T, isDark, currency 
   const isBuy = sideLower.includes('buy');
   const isSell = sideLower.includes('sell');
   const profit = typeof item.profit === 'number' ? item.profit : null;
-  const isClosedTrade = item.status === 'closed';
+  const statusColor = item.status === 'filled' ? '#16A34A'
+    : item.status === 'expired' ? '#D97706' : item.status === 'rejected' ? '#DC2626' : T.textMuted;
   const cardBg = T.glass2;
 
   return (
@@ -813,7 +871,7 @@ const HistoryItemRow = memo(function HistoryItemRow({ item, T, isDark, currency 
               </View>
             ) : null}
             {volume ? <Text style={[rStyles.volumeText, { color: T.textMuted }]}>{volume}</Text> : null}
-            {isClosedTrade ? (
+            {item.status ? (
               <View
                 style={[
                   rStyles.statusBadge,
@@ -823,7 +881,7 @@ const HistoryItemRow = memo(function HistoryItemRow({ item, T, isDark, currency 
                   },
                 ]}
               >
-                <Text style={[rStyles.statusText, { color: T.textMuted }]}>closed</Text>
+                <Text style={[rStyles.statusText, { color: statusColor }]}>{item.status.toUpperCase()}</Text>
               </View>
             ) : null}
           </View>
@@ -877,7 +935,6 @@ function ClosedPositionRow({ item, T, isDark, currency }: { item: HistoryRow; T:
   const isSell = sideRaw === 'sell';
   const sideLabel = isBuy ? 'buy' : isSell ? 'sell' : sideRaw;
   const volumeNum = typeof item.volumeNum === 'number' ? item.volumeNum : Number(parseLine1(item.line1).volume) || 0;
-  const decimals = typeof item.priceDecimals === 'number' ? item.priceDecimals : (symbol.includes('JPY') ? 3 : 5);
   const openPrice = typeof item.openPrice === 'number' ? item.openPrice : NaN;
   const closePrice = typeof item.closePrice === 'number' ? item.closePrice : NaN;
   const profit = typeof item.profit === 'number' ? item.profit : 0;
@@ -938,11 +995,11 @@ function ClosedPositionRow({ item, T, isDark, currency }: { item: HistoryRow; T:
         <View style={cpStyles.priceRow}>
           <View style={cpStyles.priceLeft}>
             <Text style={[cpStyles.price, { color: T.textSub }]}>
-              {Number.isFinite(openPrice) ? openPrice.toFixed(decimals) : '---'}
+              {Number.isFinite(openPrice) ? formatBackendPrice(openPrice) : '---'}
             </Text>
             <Ionicons name="arrow-forward-outline" size={16} color={T.textSub} style={cpStyles.arrow} />
             <Text style={[cpStyles.price, { color: T.textSub }]}>
-              {Number.isFinite(closePrice) ? closePrice.toFixed(decimals) : '---'}
+              {Number.isFinite(closePrice) ? formatBackendPrice(closePrice) : '---'}
             </Text>
           </View>
           <Text style={[cpStyles.dateRight, { color: T.textSub }]}>
@@ -1060,7 +1117,8 @@ function sortHistoryRows<Row extends HistoryRow>(rows: Row[], sortBy: SortBy) {
       const bv = Number(parseLine1(b.line1).volume) || 0;
       return bv - av;
     }
-    if (sortBy === 'Open Time' || sortBy === 'Close Time') return b.time.localeCompare(a.time);
+    if (sortBy === 'Open Time') return (b.openTime ?? b.time).localeCompare(a.openTime ?? a.time);
+    if (sortBy === 'Close Time') return (b.closeTime ?? b.time).localeCompare(a.closeTime ?? a.time);
     if (sortBy === 'Profit') return (b.profit ?? Number.NEGATIVE_INFINITY) - (a.profit ?? Number.NEGATIVE_INFINITY);
     return 0;
   });
@@ -1149,7 +1207,8 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
 
   const accountSummaryCardBg = isDark ? '#1E1E1E' : cardBg; // Matches the app dark card tone.
   return StyleSheet.create({
-    list: { flex: 1 },
+    // Clip the details bleed so expanding the grid cannot cover the balance.
+    list: { flex: 1, overflow: 'hidden', zIndex: 0 },
     listContent: { paddingBottom: 32 },
     headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
     menuBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: T.glass1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: T.border },
@@ -1160,10 +1219,11 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       shadowColor: isDark ? '#000000' : '#64748B',
       shadowOffset: { width: 0, height: isDark ? 4 : 2 },
       shadowOpacity: isDark ? 0.08 : 0.06,
-      shadowRadius: isDark ? 16 : 8, elevation: isDark ? 4 : 1,
+      shadowRadius: isDark ? 16 : 8, elevation: isDark ? 5 : 2,
+      zIndex: 1, // Keep the balance above the scrolling details in both themes.
       overflow: 'hidden',
     },
-    summaryTop: { paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', gap: 12 },
+    summaryTop: { minHeight: 52, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', gap: 12 },
     summaryLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0, textTransform: 'uppercase', marginTop: 1 },
     summaryBalanceInline: {
       flex: 1,

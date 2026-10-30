@@ -7,7 +7,16 @@ const unavailable = (): never => {
 };
 type Asset = { uri: string; name: string; fileName?: string; file?: globalThis.File };
 type PickerResult = { canceled: boolean; assets: Asset[] };
-export async function getDocumentAsync(_options?: unknown): Promise<PickerResult> { return unavailable(); }
+export type DocumentPickerOptions = {
+  type?: string | string[];
+  copyToCacheDirectory?: boolean;
+  multiple?: boolean;
+  base64?: boolean;
+};
+export type DocumentPickerResult =
+  | { canceled: false; assets: (Asset & { lastModified: number; size?: number; mimeType?: string; base64?: string })[]; output?: FileList }
+  | { canceled: true; assets: null; output?: null };
+export async function getDocumentAsync(_options?: DocumentPickerOptions): Promise<DocumentPickerResult> { return unavailable(); }
 export async function launchImageLibraryAsync(_options?: unknown): Promise<PickerResult> { return unavailable(); }
 export async function setStringAsync(_text: string): Promise<boolean> { return unavailable(); }
 export const Accelerometer = {

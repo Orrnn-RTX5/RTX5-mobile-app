@@ -1,4 +1,4 @@
-﻿export type PublicMarketSocketRuntime = {
+export type PublicMarketSocketRuntime = {
   initialActive: boolean;
   isGuest: () => boolean;
   subscribeGuest: (listener: () => void) => () => void;
@@ -7,6 +7,7 @@
 };
 import { getOrrnnDemoPublicMarketCatalog, getOrrnnDemoPublicCandles, getOrrnnDemoPublicQuotePayloads, resolvePublicWireSymbol, resolveOrrnnDemoPublicCandleTimeframe, type OrrnnDemoPublicCatalog } from '../orrnnDemoPublicMarket';
 import { normalizeQuoteTickPayload, type QuoteTickEvent } from './quoteTickNormalizer';
+import { normalizeQuoteTickTimestampToMs } from './quoteTimestamp';
 import { normalizeSymbol } from '../../domain/symbols';
 import { normalizeLiveCandle } from '../../domain/candles/normalization/candleNormalizer';
 import type { CandleParams } from '../../domain/candles/stream/liveCandleStream';
@@ -27,6 +28,9 @@ export class PublicMarketSocketService {
   private context: PublicBrokerContext | null = null;
   private catalog: OrrnnDemoPublicCatalog | null = null;
   private wireSymbols = new Map<string, string>();
+  private demandedWireSymbols = new Set<string>();
+  private snapshotQuotesBySymbol = new Map<string, Record<string, unknown>[]>();
+  private candleChannels = new Map<string, CandleDemand>();
   private instrumentMetadata = new Map<string, Record<string, unknown>>();
   private acknowledged = new Set<string>();
   private active = true;
@@ -44,7 +48,7 @@ export class PublicMarketSocketService {
   constructor(private readonly runtime: PublicMarketSocketRuntime) {
     this.active = runtime.initialActive;
     this.disposers.push(runtime.subscribeVisibility(active => { if (active === this.active) return; this.active = active; if (!active) setPublicMarketStatus('offline'); this.restart(); }));
-    this.disposers.push(subscribePublicBrokerContext(() => { this.stop(); this.catalog = null; this.wireSymbols.clear(); this.retries = 0; this.hasReceivedQuote = false; resetQuoteMarketData(); void this.connect(); }));
+    this.disposers.push(subscribePublicBrokerContext(() => { this.stop(); this.retries = 0; this.hasReceivedQuote = false; resetQuoteMarketData(); void this.connect(); }));
     this.disposers.push(runtime.subscribeGuest(() => this.reconcileDemand()));
   }
   private hasDemand() { return this.quoteListeners.size > 0 || this.candleListeners.size > 0; }
@@ -61,13 +65,14 @@ export class PublicMarketSocketService {
     const context = this.context;
     const catalog = this.catalog;
     if (!context || !catalog || !isPublicBrokerContextCurrent(context)) { void this.connect(); return; }
-    const previous = new Set(this.wireSymbols.values());
+    const previous = this.demandedWireSymbols;
     this.wireSymbols.clear();
     for (const symbol of this.quoteListeners.keys()) {
       const wire = resolvePublicWireSymbol(symbol, catalog);
       if (wire) this.wireSymbols.set(symbol, wire);
     }
     const next = new Set(this.wireSymbols.values());
+    this.demandedWireSymbols = next;
     const removed = [...previous].filter(symbol => !next.has(symbol));
     const added = [...next].filter(symbol => !previous.has(symbol));
     for (const symbol of removed) { this.acknowledged.delete(symbol); this.markUnavailable(symbol); }
@@ -87,11 +92,18 @@ export class PublicMarketSocketService {
       demand.valid = Boolean(wire);
       if (wire) { demand.symbol = wire; addedCandles.push(demand); }
     }
-    if (![...this.candleListeners.values()].some(demand => demand.valid)) { this.closeSocket(this.candles); this.candles = null; }
+    this.candleChannels.clear();
+    for (const demand of this.candleListeners.values()) {
+      if (demand.valid) this.candleChannels.set(candleChannel(demand.symbol, demand.tf), demand);
+    }
+    if (!this.candleChannels.size) { this.closeSocket(this.candles); this.candles = null; }
     else if (!this.candles) { this.lastCandleMessage = Date.now(); this.candles = this.open(context.candleWsBase, context, 'candles'); }
     else for (const demand of addedCandles) this.sendCandle('subscribe', demand);
-    // The catalog snapshot only seeds missing prices, never replays over live data.
-    for (const row of catalog.quotes) this.publish(row, 'rest_snapshot');
+    // Seed newly demanded symbols only. Adding a second listener must not scan
+    // the broker's entire catalog or replay snapshots over live prices.
+    for (const wire of added) {
+      for (const row of this.snapshotQuotesBySymbol.get(wire) ?? []) this.publish(row, 'rest_snapshot');
+    }
     if ((this.feed || this.candles) && !this.timer) this.timer = setInterval(() => this.watch(), 3000);
     else if (!this.feed && !this.candles && this.timer) { clearInterval(this.timer); this.timer = null; }
   }
@@ -106,6 +118,13 @@ export class PublicMarketSocketService {
       if (!this.eligible() || !isPublicBrokerContextCurrent(context) || this.context !== context || lifecycle !== this.lifecycle) return;
       this.catalog = catalog;
       this.instrumentMetadata = new Map(catalog.instruments.map(row => [String(row.symbol), row]));
+      this.snapshotQuotesBySymbol.clear();
+      for (const row of catalog.quotes) {
+        const symbol = String(row.symbol);
+        const rows = this.snapshotQuotesBySymbol.get(symbol) ?? [];
+        rows.push(row);
+        this.snapshotQuotesBySymbol.set(symbol, rows);
+      }
       this.connecting = false;
       this.reconcileDemand();
     } catch { if (lifecycle === this.lifecycle) { this.stop(); setPublicMarketStatus('offline'); this.scheduleReconnect(); } } finally {
@@ -137,11 +156,11 @@ export class PublicMarketSocketService {
       } else {
         this.lastCandleMessage = Date.now();
         for (const channel of acknowledgedChannels(payload)) {
-          const demand = [...this.candleListeners.values()].find(item => candleChannel(item.symbol, item.tf) === channel);
+          const demand = this.candleChannels.get(channel);
           if (demand) { demand.ack = true; demand.rejected = false; demand.controller?.abort(); }
         }
         const channel = typeof payload?.channel === 'string' ? payload.channel : '';
-        const demand = [...this.candleListeners.values()].find(item => candleChannel(item.symbol, item.tf) === channel);
+        const demand = this.candleChannels.get(channel);
         if (!demand) return;
         if (payload.type === 'error' || payload.error || payload.action === 'error') { demand.ack = false; demand.rejected = true; void this.poll(demand); return; }
         const data = payload.data ?? payload;
@@ -162,21 +181,22 @@ export class PublicMarketSocketService {
     const row = payload as Record<string, unknown>;
     if (row.broker_id !== undefined && row.broker_id !== this.context?.feedBrokerId) return;
     const raw = String(row.symbol ?? '');
-    if (![...this.wireSymbols.values()].includes(raw)) return;
+    if (!this.demandedWireSymbols.has(raw)) return;
     const retained = useTradingState.getState().quotes[normalizeSymbol(raw)];
     if (transport === 'rest_snapshot' && retained) return;
     if (row.has_quote === false) { this.markUnavailable(raw); return; }
     const result = normalizeQuoteTickPayload({ ...this.instrumentMetadata.get(raw), ...row }, Date.now()); if (!result.ok) return;
+    const normalizedTickMs = normalizeQuoteTickTimestampToMs(result.update.timestamp);
     if (result.update.timestampSource === 'feed' && retained?.feedTickAt !== undefined &&
-        result.update.timestamp !== undefined && result.update.timestamp !== null && result.update.timestamp < retained.feedTickAt) return;
+        normalizedTickMs !== null && normalizedTickMs < retained.feedTickAt) return;
     this.hasReceivedQuote = true;
     if (transport === 'websocket' && this.acknowledged.has(raw)) setPublicMarketStatus('live');
     const update = result.update;
     const tick: QuoteTickEvent = { ...update, symbol: update.symbol, bid: update.bid, ask: update.ask,
       // Sequence identifiers are opaque even when they consist solely of digits.
       sequence: typeof (row.sequence ?? row.seq ?? row.source_seq ?? row.sourceSeq ?? row.sequenceId ?? row.sourceSequence) === 'string' ? String(row.sequence ?? row.seq ?? row.source_seq ?? row.sourceSeq ?? row.sequenceId ?? row.sourceSequence) : update.sequence,
-      receivedAt: Date.now(), receiptMonotonicAt: quoteLatencyMonotonicNow(), timestamp: update.timestamp ?? Date.now(),
-      feedTickAt: update.timestampSource === 'feed' ? update.timestamp ?? undefined : undefined, transport };
+      receivedAt: Date.now(), receiptMonotonicAt: quoteLatencyMonotonicNow(), timestamp: normalizedTickMs ?? Date.now(),
+      feedTickAt: update.timestampSource === 'feed' ? normalizedTickMs ?? undefined : undefined, transport };
     useTradingState.getState().setQuote(raw, { bid: tick.bid, ask: tick.ask, lastTickAt: tick.timestamp, lastReceivedAt: tick.receivedAt, feedTickAt: tick.feedTickAt,
       digits: tick.digits, digitsSource: tick.digits === undefined ? undefined : 'backend', point: tick.point, tickSize: tick.tickSize, sequence: tick.sequence,
       stale: tick.stale, tradable: tick.tradable, degraded: tick.degraded, marketState: tick.marketState, transport });
@@ -206,13 +226,20 @@ export class PublicMarketSocketService {
   }
   private async poll(demand: CandleDemand) {
     if (!demand.valid || demand.polling || !this.eligible() || !this.context || demand.ack) return;
-    const context = this.context; demand.polling = true; demand.controller = new AbortController();
+    const context = this.context;
+    const lifecycle = this.lifecycle;
+    const controller = new AbortController();
+    demand.polling = true; demand.controller = controller;
     try {
-      const result = await getOrrnnDemoPublicCandles(demand.symbol, demand.tf, 3, demand.controller.signal);
-      if (!demand.controller.signal.aborted && this.eligible() && isPublicBrokerContextCurrent(context) && [...this.candleListeners.values()].includes(demand)) {
+      const result = await getOrrnnDemoPublicCandles(demand.symbol, demand.tf, 3, controller.signal);
+      if (!controller.signal.aborted && demand.controller === controller && lifecycle === this.lifecycle &&
+          this.eligible() && isPublicBrokerContextCurrent(context) &&
+          this.candleChannels.get(candleChannel(demand.symbol, demand.tf)) === demand) {
         for (const row of result.candles) this.publishCandle(demand, row);
       }
-    } catch {} finally { demand.polling = false; }
+    } catch {} finally {
+      if (demand.controller === controller) { demand.polling = false; demand.controller = undefined; }
+    }
   }
   private scheduleReconnect() {
     if (this.reconnect || !this.eligible()) return;
@@ -245,12 +272,23 @@ export class PublicMarketSocketService {
       for (const wire of this.wireSymbols.values()) this.markUnavailable(wire);
     }
     this.context = null;
+    // The API layer owns the bounded catalog cache. A suspended, disposed or
+    // private-session transport must not retain a second set of public indexes.
+    this.catalog = null;
+    this.wireSymbols.clear();
+    this.instrumentMetadata.clear();
+    this.snapshotQuotesBySymbol.clear();
     this.connecting = false;
     this.catalogController?.abort(); this.catalogController = null;
     if (this.timer) clearInterval(this.timer); this.timer = null;
     if (this.reconnect) clearTimeout(this.reconnect); this.reconnect = null;
     this.acknowledged.clear();
-    for (const demand of this.candleListeners.values()) { demand.ack = false; demand.valid = undefined; demand.controller?.abort(); }
+    this.demandedWireSymbols.clear();
+    this.candleChannels.clear();
+    for (const demand of this.candleListeners.values()) {
+      demand.ack = false; demand.valid = undefined; demand.controller?.abort();
+      demand.controller = undefined; demand.polling = false;
+    }
     for (const socket of [this.feed, this.candles]) this.closeSocket(socket);
     this.feed = this.candles = null;
   }

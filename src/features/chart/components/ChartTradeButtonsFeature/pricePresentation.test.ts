@@ -32,3 +32,11 @@ test('terminal price presentation leaves placeholders untouched', () => {
     trailing: '',
   });
 });
+
+test('terminal price emphasis retains full backend precision', () => {
+  for (const price of ['58.870999999999995', '1.234567891234', '0.00000000123', '123']) {
+    const parts = splitFormattedChartTradePrice(price);
+    assert.equal(parts.leading + parts.trailing, price);
+    assert.ok(parts.trailing.length <= 2);
+  }
+});

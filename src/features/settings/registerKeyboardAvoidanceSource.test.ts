@@ -89,7 +89,7 @@ test('register demo form and handoff preview use the same compact Demo Account h
   for (const headingSource of [source, previewSource]) {
     assert.match(headingSource, /<Text style=\{styles\.headerTitle\} numberOfLines=\{1\}>Demo Account<\/Text>/);
     assert.doesNotMatch(headingSource, /heroSection|stats-chart-outline|Open Demo Account/);
-    assert.match(headingSource, /headerBackButton:\s*\{[\s\S]*?width: 40,[\s\S]*?height: 40,[\s\S]*?alignItems: 'center'/);
+    assert.match(headingSource, /headerBackButton:\s*\{[\s\S]*?width: 44,[\s\S]*?height: 44,[\s\S]*?alignItems: 'center'/);
     assert.doesNotMatch(headingSource, /headerBackButton:\s*\{[^}]*?(?:backgroundColor|borderColor|borderRadius|borderWidth)/);
   }
 

@@ -1,6 +1,6 @@
 import { GDark } from '../../../ui/theme/glass';
 import { Ionicons } from '@expo/vector-icons';
-import type { EconomicEvent, ImpactLevel } from '../../../dev/mock/calendarData';
+import type { EconomicEvent, ImpactLevel } from '../../../api/economicCalendar';
 
 export const DATE_TABS = ['Today', 'Tomorrow', 'This Week'];
 export const IMPACT_FILTERS: ImpactLevel[] = ['high', 'medium', 'low'];
@@ -68,22 +68,22 @@ export function getShortDate(dayOffset: number): string {
 export function formatDateLabel(d: Date): string {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+  return `${days[d.getUTCDay()]}, ${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
 export function formatShortDate(d: Date): string {
-  return `${d.getDate()}/${d.getMonth() + 1}`;
+  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 }
 
 export function toDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
 export function getEventsForTab(tab: string, eventsList: EconomicEvent[]): { date: string; shortDate: string; events: EconomicEvent[]; dayOffset: number }[] {
   const now = new Date();
   const todayKey = toDateKey(now);
   const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const tomorrowKey = toDateKey(tomorrow);
 
   const grouped = new Map<string, { d: Date; events: EconomicEvent[] }>();
@@ -97,7 +97,14 @@ export function getEventsForTab(tab: string, eventsList: EconomicEvent[]): { dat
   }
 
   for (const group of grouped.values()) {
-    group.events.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    group.events.sort((a, b) => {
+      const timeA = a.date ? Date.parse(a.date) : Number.NaN;
+      const timeB = b.date ? Date.parse(b.date) : Number.NaN;
+      if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return (a.time || '').localeCompare(b.time || '');
+    });
   }
 
   const sortedKeys = [...grouped.keys()].sort();

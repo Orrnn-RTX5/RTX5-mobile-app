@@ -28,11 +28,11 @@ test('all guest trading entry points share one root authentication modal', () =>
   assert.match(source, /openAuthFlow/); assert.doesNotMatch(source, /Alert\.alert/);
   assert.match(root, /<GuestFlowHost \/>/); assert.match(host, /<Modal/);
   const modals = host.match(/<Modal\b[^>]*\banimationType=(?:"[^"]*"|\{[^}]*\})/g) ?? [];
-  assert.equal(modals.length, 2, 'broker selection and authentication retain their root modal hosts');
+  assert.equal(modals.length, 1, 'broker selection and authentication share the same root modal host');
   for (const modal of modals) {
     assert.match(modal, /animationType="none"/, 'every auth stage must use one stable instant native presentation');
   }
-  assert.match(host, /<Modal visible=\{visible && Boolean\(context\)\} animationType="none" onRequestClose=\{close\}/);
+  assert.match(host, /<Modal visible=\{brokerPickerVisible \|\| visible && \(Boolean\(context\) \|\| flow.screen === 'select-broker'\)\} animationType="none" onRequestClose=\{brokerPickerVisible \? closeBrokerPicker : close\}/);
   assert.match(host, /The order will not be sent automatically/);
 });
 test('active login and demo routes delegate to the modal and only return one reviewed draft', () => {
@@ -44,8 +44,9 @@ test('active login and demo routes delegate to the modal and only return one rev
   assert.match(host, /const investor = captureActiveBrokerSession\(\)\?\.session\.investor === true/);
   const close = sourceBetween(host, 'const close = () =>', 'const submit = async');
   assert.match(close, /void logoutBrokerSession\(\)/);
-  assert.match(close, /if \(!tryPrepareGuestBrokerSelection\(\)\) void logoutBrokerSession\(\)/);
-  assert.doesNotMatch(close, /if \(committedNamespace\.current\)/);
+  assert.match(close, /const committed = committedNamespace\.current/);
+  assert.match(close, /if \(committed && captureActiveBrokerSession\(\)\?\.session\.cacheNamespace === committed\) void logoutBrokerSession\(\)/);
+  assert.match(close, /cancelBrokerSessionCommitAuthorization/);
   assert.match(host, /pathname: '\/trade\/order-ticket'/);
   assert.doesNotMatch(host, /placeMarketOrder|placePendingOrder|createDemoAccount|deposit/);
 });
@@ -56,7 +57,7 @@ test('retained authentication entries cannot redirect Settings or reopen dismiss
   assert.match(source, /const focused = useIsFocused\(\)/);
   assert.match(effect, /if \(!context \|\| !focused \|\|/);
   assert.ok(effect.indexOf('!focused') < effect.indexOf('openAuthFlow('));
-  assert.ok(effect.indexOf('!focused') < effect.indexOf('router.replace('));
+  assert.ok(effect.indexOf('!focused') < effect.indexOf('router.dismissTo('));
   assert.match(effect, /\[context, form, pathname, focused\]/);
   const host = readSource('src/features/auth/GuestFlowHost.tsx');
   assert.match(host, /if \(retainAuthEntryHandoff\(pathname\)\) return;/);
@@ -101,7 +102,7 @@ test('primary trade entry points guard before navigation, prefetch, or execution
 
   const details = readSource('src/features/quotes/SymbolDetailsScreen/SymbolDetailsScreen.tsx');
   const detailsTrade = sourceBetween(details, 'const handleTrade', 'const handleTradeNow');
-  assertGuardBefore(detailsTrade, 'tradeTapLockRef.current');
+  assertGuardBefore(detailsTrade, 'resolveSessionQuoteActionAvailability');
   assertGuardBefore(detailsTrade, 'placeOrder(');
   const tradeNow = sourceBetween(details, 'const handleTradeNow', '\n\n  return (');
   assertGuardBefore(tradeNow, 'prefetchOrderTicketData');
@@ -114,14 +115,14 @@ test('primary trade entry points guard before navigation, prefetch, or execution
     'stale chart-window ownership must fail closed before prompting for trade authentication',
   );
   assertGuardBefore(chartTrade, 'resolveCurrentQuoteActionAvailability');
-  assertGuardBefore(chartTrade, 'showOrderTicketLaunch');
+  assert.doesNotMatch(chartTrade, /showOrderTicketLaunch/);
   assertGuardBefore(chartTrade, 'dispatchChartTradeImmediately');
   assert.doesNotMatch(chart, /const chartTradeActionDisabled = isPublicDemoTradePrompt[\s\S]*\? false/);
   const chartButtons = readSource(
     'src/features/chart/components/ChartTradeButtonsFeature/ChartTradeButtonsFeature.tsx',
   );
   assert.match(chartButtons, /const tradeBlocked = chartTradeActionDisabled \|\| lotInvalid/);
-  assert.match(details, /disabled=\{isPending \|\| \(!isPublicDemoTradePrompt/);
+  assert.match(details, /disabled=\{!isPublicDemoTradePrompt && oneClickAccepted && !quoteActionAvailability\.allowed\}/);
 
   const webChart = readSource('src/features/chart/ChartScreen.web.tsx');
   const webTrade = sourceBetween(
@@ -130,7 +131,7 @@ test('primary trade entry points guard before navigation, prefetch, or execution
     '// Micro-component: isolated 4fps render cycle',
   );
   assertGuardBefore(webTrade, 'getCurrentExecutableQuoteState');
-  assert.match(webChart, /disabled=\{isPending \|\| !quoteActionAvailability\.allowed\}/);
+  assert.match(webChart, /disabled=\{!quoteActionAvailability\.allowed\}/);
 });
 
 test('order ticket and position mutations guard before validation or API calls', () => {
@@ -139,7 +140,8 @@ test('order ticket and position mutations guard before validation or API calls',
   const pending = sourceBetween(ticket, 'const handlePlacePendingOrder', 'const rawSpreadPoints');
   assertGuardBefore(market, 'resolveCurrentQuoteAvailability');
   assertGuardBefore(market, 'ordersApi.placeMarketOrder');
-  assertGuardBefore(pending, 'isPendingOrderTypeBackendLocked');
+  assert.ok(pending.indexOf('isPendingOrderPlacementBackendLocked') < pending.indexOf('requestOrrnnDemoTradeAuth'),
+    'preview-only pending actions must return before opening authentication');
   assertGuardBefore(pending, 'ordersApi.placePendingOrder');
 
   const quickClose = readSource('src/features/trade/closePositionFlow.ts');
@@ -182,7 +184,8 @@ test('order ticket and position mutations guard before validation or API calls',
     'const handleSubmitPendingTradeFromSheet',
     'const handleToggleChartTradeSheetMode',
   );
-  assertGuardBefore(chartPending, 'isPendingOrderTypeBackendLocked');
+  assert.ok(chartPending.indexOf('isPendingOrderPlacementBackendLocked') < chartPending.indexOf('requestOrrnnDemoTradeAuth'),
+    'preview-only chart actions must return before opening authentication');
   assertGuardBefore(chartPending, 'ordersApi.placePendingOrder');
 });
 
@@ -197,7 +200,7 @@ test('plain login navigates after secure commit; a pending draft still awaits ac
   const dashboard = submit.indexOf('if (completeAuthenticatedLogin(attempt))');
   assert.ok(dashboard > submit.indexOf('await commitBrokerSession('));
   assert.ok(dashboard < submit.indexOf('const hydrated = await (hydration'));
-  assert.ok(submit.indexOf("router.replace('/(tabs)/quotes')", dashboard) < submit.indexOf('hydration = Promise.resolve()'));
+  assert.ok(submit.indexOf("router.dismissTo('/(tabs)/quotes')", dashboard) < submit.indexOf('hydration = Promise.resolve()'));
   assert.match(submit, /if \(didNavigate\) scheduleAfterVisualFrame\(startSessionWork\);\s*else startSessionWork\(\)/);
   assert.match(submit, /const startSessionWork = \(\) => \{\s*if \(!isAuthAttemptCurrent\(attempt\) \|\| captureActiveBrokerSession\(\)\?\.session\.cacheNamespace !== active\.session\.cacheNamespace\) return/);
   assert.match(submit, /\}, authorization\.current\);\s*if \(didNavigate\) return;/);

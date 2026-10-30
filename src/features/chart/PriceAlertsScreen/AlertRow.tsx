@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { PriceAlert } from '../../../api/alerts';
 import { formatBrokerTime } from '../../../utils/brokerTime';
+import { formatBackendPrice } from '../../../utils/backendPrice';
 import type { ThemeColors } from '../../../ui/theme/glass';
 import type { PriceAlertsStyles } from './styles';
 
@@ -78,7 +79,7 @@ export function AlertRow({
           <Text style={[styles.alertCondition, {
             color: alert.triggered ? T.textMuted : conditionColor,
           }]}>
-            {conditionLabel} {alert.price.toFixed(5)}
+            {conditionLabel} {formatBackendPrice(alert.price)}
           </Text>
           {!!alert.message && (
             <Text style={[styles.alertMessage, { color: T.textMuted }]} numberOfLines={1}>

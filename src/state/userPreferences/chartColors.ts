@@ -253,7 +253,7 @@ export const DEFAULT_CHART_DISPLAY_SETTINGS: ChartDisplaySettings = {
   // O/H/L/C under the symbol picker is part of the primary chart header.
   showOHLC: true,
   showQuickTradingButtons: true,
-  // Single visible guide line: live Bid only. Ask stays internal for trading.
+  // Bid is shown by default; the independent Ask guide is opt-in.
   showLivePriceLine: true,
   // Legacy keys kept for persisted preference migration only.
   showBidPriceLine: true,

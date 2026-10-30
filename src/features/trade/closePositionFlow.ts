@@ -17,7 +17,7 @@ import {
 } from '../../api/tradingErrors';
 import { appQueryClient } from '../../state/providers/AppProviders';
 import { usePositionsState } from '../../state/positionsState';
-import type { PositionItem } from '../../dev/mock/tradingData';
+import type { PositionItem } from '../../domain/tradingModels';
 import {
   quoteActionBlockMessage,
   recordBlockedPriceAction,
@@ -31,6 +31,54 @@ import {
 } from '../../state/activeBrokerSession';
 import { invalidateSessionQueryRoots } from '../../query/authenticatedQueryScope';
 import { requestOrrnnDemoTradeAuth } from './tradeAuthPrompt';
+import { beginProtectedPositionsMutation } from '../../state/positionsMutationBarrier';
+
+const resolveExecutableClosePrice = (
+  position: PositionItem,
+  quote: ExecutableQuoteInput | null | undefined,
+): number | undefined => {
+  const quotePrice = position.side === 'buy' ? quote?.bid : quote?.ask;
+  if (typeof quotePrice === 'number' && Number.isFinite(quotePrice) && quotePrice > 0) {
+    return quotePrice;
+  }
+  const currentPrice = Number(position.currentPrice);
+  if (Number.isFinite(currentPrice) && currentPrice > 0) {
+    return currentPrice;
+  }
+  const openPrice = Number(position.openPrice);
+  return Number.isFinite(openPrice) && openPrice > 0 ? openPrice : undefined;
+};
+
+/** Chart controls retain the position while the existing API confirms closure. */
+export async function closePositionConfirmed(position: PositionItem, options: Readonly<{
+  quote: ExecutableQuoteInput | null | undefined;
+}>): Promise<void> {
+  const availability = resolveSessionQuoteActionAvailability(options.quote, Date.now());
+  if (!availability.allowed) throw new Error(quoteActionBlockMessage(availability));
+  if (!isValidCloseTicket(position.id)) throw new Error('This position has no valid broker ticket.');
+  const capture = captureActiveBrokerSession();
+  if (!capture?.credentials.accessToken) throw new Error('Sign in before closing a position.');
+  const provenance = getActiveBrokerSessionProvenance(capture.session);
+  const fallbackClosePrice = resolveExecutableClosePrice(position, options.quote);
+  const release = beginProtectedPositionsMutation();
+  try {
+    const response = await positionsApi.closePosition(position.id);
+    if (!isActiveBrokerSessionProvenanceCurrent(provenance)) return;
+    const state = usePositionsState.getState();
+    state.recordClosedPosition(position, {
+      closePrice: response?.price_close ?? response?.price ?? fallbackClosePrice,
+      profit: response?.profit,
+      closeTimeSeconds: response?.time,
+      accountLogin: provenance.identity.accountLogin,
+    });
+    state.finishOptimisticClose(position.id);
+    void invalidateSessionQueryRoots(appQueryClient, provenance.cacheNamespace, CLOSE_INVALIDATION_KEYS);
+    globalThis.setTimeout?.(() => {
+      if (!isActiveBrokerSessionProvenanceCurrent(provenance)) return;
+      void invalidateSessionQueryRoots(appQueryClient, provenance.cacheNamespace, CLOSE_INVALIDATION_KEYS);
+    }, 1200);
+  } finally { release(); }
+}
 
 function isValidCloseTicket(value: unknown): value is string | number {
   return typeof value === 'number'
@@ -103,13 +151,25 @@ export function closePositionImmediately(
 
   // Remove the row instantly; restore it if the broker rejects the close.
   const closeSnapshot = { ...position };
-  usePositionsState.getState().beginOptimisticClose(ticketId);
+  const fallbackClosePrice = resolveExecutableClosePrice(position, options.quote);
+  const initialState = usePositionsState.getState();
+  initialState.recordClosedPosition(closeSnapshot, {
+    closePrice: fallbackClosePrice,
+    accountLogin: options.resolvedLogin ?? actionProvenance.identity.accountLogin,
+  });
+  initialState.beginOptimisticClose(ticketId);
 
   void positionsApi
     .closePosition(ticketId)
-    .then(() => {
+    .then((response) => {
       if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) return;
       const state = usePositionsState.getState();
+      state.recordClosedPosition(closeSnapshot, {
+        closePrice: response?.price_close ?? response?.price ?? fallbackClosePrice,
+        profit: response?.profit,
+        closeTimeSeconds: response?.time,
+        accountLogin: options.resolvedLogin ?? actionProvenance.identity.accountLogin,
+      });
       state.finishOptimisticClose(ticketId);
 
       void invalidateSessionQueryRoots(
@@ -117,6 +177,14 @@ export function closePositionImmediately(
         actionProvenance.cacheNamespace,
         CLOSE_INVALIDATION_KEYS,
       );
+      setTimeout(() => {
+        if (!isActiveBrokerSessionProvenanceCurrent(actionProvenance)) return;
+        void invalidateSessionQueryRoots(
+          appQueryClient,
+          actionProvenance.cacheNamespace,
+          CLOSE_INVALIDATION_KEYS,
+        );
+      }, 1200);
 
       if (options.resolvedLogin) {
         void state.refreshPositions(options.resolvedLogin);

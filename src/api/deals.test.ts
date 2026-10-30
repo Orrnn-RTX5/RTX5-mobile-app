@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { ACCOUNT_DEALS_PAGE_SIZE, fetchAllAccountDeals, type Deal } from './deals';
+import { ACCOUNT_DEALS_PAGE_SIZE, fetchAllAccountDeals, fetchAccountDealHistory, readDealsPayload, type Deal } from './deals';
 
 // Contract v3 6.4 deal row (note: no position_ticket).
 const deal = (ticket: number): Deal => ({
@@ -66,4 +66,29 @@ test('a server that ignores offset stops after the repeated page', async () => {
   });
   assert.equal(result.length, 1000);
   assert.equal(calls, 2);
+});
+
+
+test('malformed deal records fail visibly rather than becoming empty or zero-valued history', async () => {
+  for (const invalid of [null, {}, { ...deal(1), price: 'bad' }, { ...deal(1), time: null }, { ...deal(1), ticket: NaN }]) {
+    assert.throws(() => readDealsPayload([invalid]), /Invalid deal history/);
+  }
+  await assert.rejects(fetchAllAccountDeals({ fetchPage: async () => [null] as unknown as Deal[] }), /Invalid deal history/);
+  assert.deepEqual(readDealsPayload({ data: [] }), []);
+});
+
+test('nested deal payloads normalize numeric strings and preserve optional position tickets', () => {
+  const parsed = readDealsPayload({ data: { deals: [{ ...deal(1), price: '1.1376', profit: '0.15' }] } });
+  assert.equal(parsed[0].price, 1.1376); assert.equal(parsed[0].profit, 0.15);
+  assert.equal(parsed[0].position_ticket, undefined);
+});
+
+test('page caps and ignored offsets explicitly mark history as incomplete', async () => {
+  const page = Array.from({ length: 1000 }, (_, index) => deal(index + 1));
+  const capped = await fetchAccountDealHistory({ maxPages: 1, fetchPage: async () => page });
+  assert.equal(capped.complete, false); assert.equal(capped.reason, 'page-limit');
+  const repeated = await fetchAccountDealHistory({ fetchPage: async () => page });
+  assert.equal(repeated.complete, false); assert.equal(repeated.reason, 'repeated-page');
+  const complete = await fetchAccountDealHistory({ fetchPage: async () => page.slice(0, 3) });
+  assert.equal(complete.complete, true); assert.equal(complete.reason, null);
 });

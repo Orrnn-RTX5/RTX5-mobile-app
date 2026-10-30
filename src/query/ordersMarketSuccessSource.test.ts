@@ -27,7 +27,11 @@ test('market success delegates position ownership to the API reconciliation coor
 
 test('market execution responses never create a fabricated position', () => {
   assert.doesNotMatch(querySource, /canOptimisticallyInsertPosition|\.upsertPosition\(/);
-  assert.doesNotMatch(orderSource, /\.upsertPosition\(/);
+  assert.match(
+    orderSource,
+    /assertOrderSessionCurrent\(\);\s*const confirmedPosition = confirmedPositionFill\(finalData\);\s*if \(confirmedPosition\) usePositionsState\.getState\(\)\.upsertPosition\(confirmedPosition\);/,
+  );
+  assert.equal([...orderSource.matchAll(/\.upsertPosition\(/g)].length, 1);
   assert.doesNotMatch(reconciliationSource, /\.upsertPosition\(/);
   assert.match(orderSource, /applyPositionsSnapshot\(/);
 });

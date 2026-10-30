@@ -22,7 +22,7 @@ test('persisted user preferences are normalized before second-launch hydration r
   assert.match(storeSource, /oneClickAccepted: true/);
   assert.match(storeSource, /hasPersistedLivePriceLine = typeof record\.showLivePriceLine === 'boolean'/);
   assert.match(storeSource, /!hasPersistedLivePriceLine && typeof record\.showBidPriceLine === 'boolean'[\s\S]*next\.showLivePriceLine = record\.showBidPriceLine/);
-  assert.match(storeSource, /next\.showAskPriceLine = false/);
+  assert.match(storeSource, /next\.showAskPriceLine = asBoolean\(record\.showAskPriceLine, false\)/);
   assert.match(
     storeSource,
     /typeof persistedChartDisplay\.showTradeHistory !== 'boolean'[\s\S]*nextChartDisplay\.showTradeHistory = legacyShowOnChartState\.showClosedPositions/,
@@ -67,7 +67,7 @@ test('persisted user preferences are normalized before second-launch hydration r
     /setItem: \(name, value\) => \{\s*pendingPreferenceWrites\.set\(name, value\);\s*schedulePreferenceWriteFlush\(\);\s*\}/,
   );
   assert.match(storeSource, /isAsyncStorageCapacityError\(error\)/);
-  assert.match(storeSource, /await pruneObsoleteSessionCaches\(\);[\s\S]*await persistWrites\(\)/);
+  assert.match(storeSource, /await pruneObsoleteSessionCaches\(\);[\s\S]*await persistWrite\(\)/);
   assert.match(storeSource, /export const flushUserPreferencesPersistence/);
 });
 

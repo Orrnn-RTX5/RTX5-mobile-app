@@ -22,7 +22,8 @@ export function makeTradeScreenStyles(T: ThemeColors, isDark: boolean) {
 
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: screenBg },
-    list: { flex: 1, backgroundColor: screenBg },
+    // Keep the details card's negative-margin bleed inside the scrolling list.
+    list: { flex: 1, backgroundColor: screenBg, overflow: 'hidden', zIndex: 0 },
     listContent: { paddingBottom: 32 },
     marketDataBanner: {
       marginHorizontal: spacing.md,
@@ -95,15 +96,24 @@ export function makeTradeScreenStyles(T: ThemeColors, isDark: boolean) {
       borderRadius: 16,
       backgroundColor: cardBg,
       borderWidth: 1,
+      // RN 0.81 Android turns a removed edge-width override into NaN, which
+      // clips out this card's children. Keep it numeric in both toggle states.
+      borderBottomWidth: 1,
       borderColor: T.border,
       shadowColor: isDark ? '#000000' : '#64748B',
       shadowOffset: { width: 0, height: isDark ? 4 : 8 },
       shadowOpacity: isDark ? 0.08 : 0.08,
       shadowRadius: isDark ? 16 : 24,
-      elevation: 4,
+      // The main readout must remain above the expanded details on Android.
+      elevation: 5,
+      zIndex: 1,
       overflow: 'hidden',
     },
     summaryTop: {
+      // Keep the headline toggle easy to tap in both visibility states.
+      minHeight: 56,
+      // Reset the expanded divider explicitly instead of unsetting its width.
+      borderBottomWidth: 0,
       paddingHorizontal: spacing.md,
       paddingVertical: 14,
       flexDirection: 'row',
@@ -150,6 +160,7 @@ export function makeTradeScreenStyles(T: ThemeColors, isDark: boolean) {
       alignItems: 'center',
       minHeight: 20,
       flexWrap: 'wrap',
+      columnGap: 8,
       rowGap: 4,
     },
     summaryMetricLabel: {
@@ -164,15 +175,6 @@ export function makeTradeScreenStyles(T: ThemeColors, isDark: boolean) {
     summaryMetricCurrency: {
       fontSize: 10,
       fontWeight: '600',
-    },
-    summaryMetricLeader: {
-      flex: 1,
-      height: 1,
-      alignSelf: 'center',
-      marginHorizontal: 8,
-      borderBottomWidth: 1,
-      borderStyle: 'dotted',
-      borderBottomColor: isDark ? 'rgba(210,220,235,0.24)' : 'rgba(91,103,122,0.32)',
     },
     summaryMetricValue: {
       fontSize: 13,

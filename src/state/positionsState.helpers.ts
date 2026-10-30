@@ -1,4 +1,4 @@
-import type { PositionItem } from '../dev/mock/tradingData';
+import type { PositionItem } from '../domain/tradingModels';
 import {
   UNKNOWN_POSITION_SYMBOL,
   isRenderablePositionSymbol,
@@ -185,6 +185,7 @@ export function buildOpenPositionsCacheSignature(positions: PositionItem[]): str
       openPrice: Number(position.openPrice) || 0,
       swap: Number(position.swap) || 0,
       commission: Number(position.commission) || 0,
+      pnlReported: position.pnlReported,
       openTime: position.openTime,
       sl: Number(position.sl) || 0,
       tp: Number(position.tp) || 0,
@@ -224,6 +225,16 @@ export function buildMergedPositions(
 ): PositionItem[] {
   const preserveOptimisticMs = options.preserveOptimisticMs ?? 60000;
   const preserveModifiedMs = options.preserveModifiedMs ?? 10000;
+  // A full snapshot can contain thousands of rows. Index once instead of
+  // scanning the whole ledger twice for every incoming position. Keep the
+  // first occurrence, matching the previous Array.find behavior.
+  const currentById = new Map<PositionItem['id'], PositionItem>();
+  const currentByIncomingId = new Map<string, PositionItem>();
+  for (const position of currentPositions) {
+    if (!currentById.has(position.id)) currentById.set(position.id, position);
+    const incomingId = String(position.id);
+    if (!currentByIncomingId.has(incomingId)) currentByIncomingId.set(incomingId, position);
+  }
   const terminalPositionIds = new Set(
     dtos
       .filter(isTerminalPositionUpdate)
@@ -232,11 +243,14 @@ export function buildMergedPositions(
   );
   const mapped = dtos
     .filter((dto) => !isTerminalPositionUpdate(dto))
-    .map((dto) => mapPositionToItem(
-      dto,
-      findExistingPosition(currentPositions, dto),
-      { preserveMissingProtection: options.preserveMissingExisting === true },
-    ))
+    .map((dto) => {
+      const incomingId = dto?.ticket ?? dto?.position_ticket ?? dto?.order_ticket ?? dto?.id;
+      return mapPositionToItem(
+        dto,
+        incomingId == null ? undefined : currentByIncomingId.get(String(incomingId)),
+        { preserveMissingProtection: options.preserveMissingExisting === true },
+      );
+    })
     .filter(isRenderablePosition);
   const now = Date.now();
   const mappedIds = new Set(mapped.map((position) => position.id));
@@ -260,7 +274,7 @@ export function buildMergedPositions(
     : optimisticPositions;
 
   const mergedMapped = mapped.map((mappedPosition) => {
-    const existing = currentPositions.find((position) => position.id === mappedPosition.id);
+    const existing = currentById.get(mappedPosition.id);
     const { clientCreatedAt: mappedClientCreatedAt, ...confirmedPosition } = mappedPosition;
     // Incremental websocket batches must not clear the post-order convergence
     // marker. The next partial/empty batch could otherwise remove the new row
@@ -272,7 +286,7 @@ export function buildMergedPositions(
     if (existing?.clientModifiedAt) {
       const modAgeMs = now - existing.clientModifiedAt;
       if (modAgeMs >= 0 && modAgeMs < preserveModifiedMs) {
-        return {
+        const next = {
           ...confirmedPosition,
           ...(retainedClientCreatedAt !== undefined
             ? { clientCreatedAt: retainedClientCreatedAt }
@@ -281,21 +295,25 @@ export function buildMergedPositions(
           tp: existing.tp,
           clientModifiedAt: existing.clientModifiedAt,
         };
+        return arePositionItemsShallowEqual(existing, next) ? existing : next;
       }
     }
 
-    return {
+    const next = {
       ...confirmedPosition,
       ...(retainedClientCreatedAt !== undefined
         ? { clientCreatedAt: retainedClientCreatedAt }
         : {}),
       clientModifiedAt: existing?.clientModifiedAt,
     };
+    // A changed row must not invalidate every other row's selector/memo.
+    return existing && arePositionItemsShallowEqual(existing, next) ? existing : next;
   });
 
-  const merged = dedupePositionsById([...preservedMissingPositions, ...mergedMapped]).sort(
-    (a, b) => new Date(b.openTime).getTime() - new Date(a.openTime).getTime(),
-  );
+  const merged = dedupePositionsById([...preservedMissingPositions, ...mergedMapped]);
+  // Parse timestamps once per row rather than twice per sort comparison.
+  const openTimes = new Map(merged.map(position => [position, new Date(position.openTime).getTime()]));
+  merged.sort((a, b) => openTimes.get(b)! - openTimes.get(a)!);
 
   // Refresh polls usually return the same ledger. Keeping the previous array
   // identity lets every subscribed screen (retained tabs, warmed action

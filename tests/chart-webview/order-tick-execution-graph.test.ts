@@ -62,7 +62,7 @@ test('order execution graph renders a price label for the lowest dotted guide', 
   );
   assert.match(
     source,
-    /y=\{graphBottomGuideY \+ 4\}[\s\S]*\{bottomGuidePriceLevel\.toFixed\(priceDecimals\)\}/,
+    /y=\{graphBottomGuideY \+ 4\}[\s\S]*\{formatBackendPrice\(bottomGuidePriceLevel\)\}/,
   );
 });
 

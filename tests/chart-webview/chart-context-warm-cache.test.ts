@@ -275,6 +275,41 @@ test('activation reports an explicit hit only after synchronous replacement succ
   );
 });
 
+test('first timeframe visit activates prepared exact history before selection commits', () => {
+  const activationBody = extractFunctionBody(source, 'activateCachedChartContext');
+  const cache = buildCacheHarness();
+  const events: string[] = [];
+  const replies: boolean[] = [];
+  let applied: { context: string; data: Array<Record<string, number>> } | undefined;
+  let allowPaint = true;
+  const activate = new Function('cache', 'events', 'replies', 'apply', `
+    var series = {}, _pendingInit = false, seriesType = 'candles', lastDisplayDecimals = 2;
+    var rememberCachedChartContextSnapshot = cache.remember;
+    var readCachedChartContextSnapshot = cache.read;
+    function clearChartContextPresentationForActivation() { events.push('clear'); }
+    function setDisplayDecimals() { events.push('precision'); }
+    function updateChartData(data, options) { events.push('paint'); return apply(data, options); }
+    function postChartContextActivated(id, context, token, hit) { events.push('ack'); replies.push(hit); }
+    return function(dataContextSig, paintToken, displayDecimals, requestId, preparedData) {${activationBody}};
+  `)(cache, events, replies, (data: Array<Record<string, number>>, options: { dataContextSig: string }) => {
+    applied = { context: options.dataContextSig, data };
+    return allowPaint;
+  });
+  const m5 = [{ time: 300, open: 1.2, high: 1.3, low: 1.1, close: 1.25 }];
+  assert.equal(cache.read('session:EURUSD:M5', 'candles'), null);
+  assert.equal(activate('session:EURUSD:M5', 'session:EURUSD:M5:1', 5, 1, m5), true);
+  assert.deepEqual(events, ['clear', 'precision', 'paint', 'ack']);
+  assert.deepEqual(replies, [true]);
+  assert.equal(applied?.context, 'session:EURUSD:M5');
+  assert.deepEqual(applied?.data, m5);
+  m5[0].close = 9;
+  assert.equal(cache.read('session:EURUSD:M5', 'candles')?.data[0].close, 1.25);
+  assert.equal(activate('session:EURUSD:M15', 'session:EURUSD:M15:2', 5, 2, null), false);
+  allowPaint = false;
+  assert.equal(activate('session:EURUSD:M30', 'session:EURUSD:M30:3', 5, 3, m5), false);
+  assert.deepEqual(replies, [true, false, false]);
+});
+
 test('delayed native overlay writes are rejected outside the activated context', () => {
   const guardBody = extractFunctionBody(source, 'isChartOverlayWriteContextCurrent');
   const isCurrent = new Function(

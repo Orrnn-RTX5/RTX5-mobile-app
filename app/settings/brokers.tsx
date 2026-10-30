@@ -29,6 +29,7 @@ import {
 } from '../../src/utils/navigation';
 import { selectGuestBrokerById } from '../../src/services/selectGuestBroker';
 import { hideSidebarDestination } from '../../src/ui/components/sidebarDestinationHostController';
+import { openAuthFlow } from '../../src/features/trade/authFlowState';
 
 export default function BrokersRoute() {
   const routeMountedRef = useRef(true);
@@ -49,8 +50,8 @@ export default function BrokersRoute() {
         if (!routeMountedRef.current) return;
         void selectGuestBrokerById(broker.brokerId, () => routeMountedRef.current).then(selected => {
           if (!selected || !routeMountedRef.current) return;
+          openAuthFlow(undefined, undefined, '/settings/brokers');
           hideBrokersLaunch(); hideSidebarDestination();
-          router.replace('/(tabs)/quotes');
         }).catch(error => Alert.alert('Broker unavailable', error.message));
       },
       onUnavailable: () => {

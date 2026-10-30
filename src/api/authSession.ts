@@ -92,7 +92,7 @@ export function readLoginAccountLogin(response: unknown, typedLogin?: string): s
   return value;
 }
 
-/** broker_id in the response must equal the selected broker, ignoring case. */
+/** broker_id in the response must equal the selected broker (case-sensitive). */
 export function isSameBrokerId(a: unknown, b: unknown): boolean {
   const left = typeof a === 'string' || typeof a === 'number' ? String(a).trim() : '';
   const right = typeof b === 'string' || typeof b === 'number' ? String(b).trim() : '';

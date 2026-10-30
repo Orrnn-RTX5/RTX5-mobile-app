@@ -40,11 +40,11 @@ export function scheduleLanguagePreferenceCommit(
     apply(next);
   };
 
-  const scheduleAfterFrame =
-    typeof globalThis.requestAnimationFrame === 'function'
-      ? globalThis.requestAnimationFrame
-      : (callback: FrameRequestCallback) =>
-          setTimeout(() => callback(Date.now()), 16) as unknown as number;
+  const usingRaf = typeof globalThis.requestAnimationFrame === 'function';
+  const scheduleAfterFrame = usingRaf
+    ? globalThis.requestAnimationFrame
+    : (callback: FrameRequestCallback) =>
+        setTimeout(() => callback(Date.now()), 16) as unknown as number;
 
   // One paint frame so the language list can flip the checkmark, then commit
   // on a macrotask so React finishes the press-frame render first.
@@ -59,8 +59,10 @@ export function scheduleLanguagePreferenceCommit(
 
   commitHandle = {
     cancel: () => {
-      if (typeof globalThis.cancelAnimationFrame === 'function') {
+      if (usingRaf && typeof globalThis.cancelAnimationFrame === 'function') {
         globalThis.cancelAnimationFrame(frameId as number);
+      } else {
+        clearTimeout(frameId as unknown as ReturnType<typeof setTimeout>);
       }
     },
   };

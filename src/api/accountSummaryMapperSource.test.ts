@@ -122,7 +122,7 @@ test('missing server metrics keep the last known values and are marked stale', (
   assert.equal(first.staleMetrics.includes('equity'), true);
 });
 
-test('explicit zero values are kept and margin_level 0 displays as an em dash', () => {
+test('explicit zero and unavailable margin levels display zero while backend percentages are retained', () => {
   const zero = mapAccountSummaryApiResponse({
     id: '200082',
     balance: 10000,
@@ -140,8 +140,11 @@ test('explicit zero values are kept and margin_level 0 displays as an em dash', 
   assert.equal(zero.marginLevel, 0);
   assert.equal(zero.currency, 'EUR');
   assert.deepEqual(zero.staleMetrics, []);
-  assert.equal(formatMarginLevel(zero.marginLevel), '—');
-  assert.equal(formatMarginLevel(Number.NaN), '—');
+  assert.equal(formatMarginLevel(zero.marginLevel), '0%');
+  assert.equal(formatMarginLevel(Number.NaN), '0%');
+  assert.equal(formatMarginLevel(undefined), '0%');
+  assert.equal(formatMarginLevel(null), '0%');
+  assert.equal(formatMarginLevel(Infinity), '0%');
   assert.equal(formatMarginLevel(87952.5), '87952.50%');
   assert.equal(formatMarginLevel(150, (value) => value.toFixed(0)), '150%');
 });

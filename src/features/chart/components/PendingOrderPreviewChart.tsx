@@ -1,3 +1,4 @@
+import { formatBackendPrice } from '../../../utils/backendPrice';
 import { useTheme } from '../../../ui/theme/useTheme';
 import React, { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -333,7 +334,7 @@ export const PendingOrderPreviewChart = React.memo(({
                   fontSize="11"
                   textAnchor="end"
                 >
-                  {price.toFixed(displayDecimals)}
+                  {formatBackendPrice(price)}
                 </SvgText>
               </G>
             );
@@ -416,7 +417,7 @@ export const PendingOrderPreviewChart = React.memo(({
                   fontWeight="700"
                   textAnchor="middle"
                 >
-                  {line.price.toFixed(displayDecimals)}
+                  {formatBackendPrice(line.price)}
                 </SvgText>
               </G>
             );

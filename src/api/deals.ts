@@ -26,7 +26,7 @@ export interface Deal {
    * optional-at-runtime for older builds; derived history falls back to
    * per-symbol FIFO pairing when it is missing.
    */
-  position_ticket: number;
+  position_ticket?: number;
   account_login: number;
   symbol: string;
   /** Deal action type — "deal_buy" or "deal_sell" */
@@ -45,20 +45,49 @@ export interface Deal {
   time: number;
 }
 
-const readDealsPayload = (json: unknown, depth = 0): Deal[] => {
-  if (Array.isArray(json)) return json as Deal[];
-  if (!json || typeof json !== 'object') return [];
+export class InvalidDealsResponseError extends Error {
+  constructor() { super('Invalid deal history response. Please retry.'); this.name = 'InvalidDealsResponseError'; }
+}
 
+/** Normalize finite JSON numbers only; never substitute zero for corrupt values. */
+export function validateDeal(value: unknown): Deal {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new InvalidDealsResponseError();
+  const row = value as Record<string, unknown>;
+  const number = (key: string, fallback?: number): number => {
+    const raw = row[key];
+    if (raw == null && fallback !== undefined) return fallback;
+    const parsed = typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() ? Number(raw) : NaN;
+    if (!Number.isFinite(parsed)) throw new InvalidDealsResponseError();
+    return parsed;
+  };
+  if (typeof row.symbol !== 'string' || typeof row.action !== 'string' || !row.action || typeof row.entry !== 'string' || !row.entry) throw new InvalidDealsResponseError();
+  const ticket = number('ticket'), account_login = number('account_login'), time = number('time');
+  if (!Number.isSafeInteger(ticket) || ticket <= 0 || !Number.isSafeInteger(account_login) || account_login <= 0 || time <= 0) throw new InvalidDealsResponseError();
+  return {
+    ticket, account_login, time, symbol: row.symbol, action: row.action, entry: row.entry,
+    order_ticket: number('order_ticket', 0),
+    ...(row.position_ticket == null ? {} : { position_ticket: number('position_ticket') }),
+    volume: number('volume'), price: number('price'), profit: number('profit'),
+    swap: number('swap', 0), commission: number('commission', 0), fee: number('fee', 0), magic: number('magic', 0),
+    comment: typeof row.comment === 'string' ? row.comment : '',
+  };
+}
+
+export const readDealsPayload = (json: unknown, depth = 0): Deal[] => {
+  if (Array.isArray(json)) return json.map(validateDeal);
+  if (!json || typeof json !== 'object' || depth > 2) throw new InvalidDealsResponseError();
   const payload = json as Record<string, unknown>;
-  const keys = ['data', 'deals', 'items', 'records', 'rows', 'result', 'history'];
-
-  for (const key of keys) {
-    const value = payload[key];
-    const deals = depth < 2 ? readDealsPayload(value, depth + 1) : [];
-    if (Array.isArray(value) || deals.length > 0) return deals;
+  for (const key of ['data', 'deals', 'items', 'records', 'rows', 'result', 'history']) {
+    if (key in payload) return readDealsPayload(payload[key], depth + 1);
   }
+  throw new InvalidDealsResponseError();
+};
 
-  return [];
+export type DealHistoryResult = {
+  deals: Deal[];
+  complete: boolean;
+  reason: 'page-limit' | 'repeated-page' | 'legacy-fallback' | null;
+  fullFetchedAt: number;
 };
 
 /** Contract 6.4: /account/deals returns at most 1000 rows per page. */
@@ -82,33 +111,39 @@ const dealPageSignature = (deals: Deal[]): string =>
  * Walks GET /account/deals with offset paging (limit=1000) until a short or
  * empty page. A repeated page (a server that ignores offset) stops the walk.
  */
-export const fetchAllAccountDeals = async (
+export const fetchAccountDealHistory = async (
   options: Readonly<{
     from?: number;
     to?: number;
     maxPages?: number;
     fetchPage?: AccountDealsPageFetcher;
   }> = {},
-): Promise<Deal[]> => {
+): Promise<DealHistoryResult> => {
   const fetchPage = options.fetchPage ?? dealsApi.getAccountDeals;
-  const maxPages = Math.max(1, Math.floor(options.maxPages ?? ACCOUNT_DEALS_MAX_PAGES));
+  const requestedPages = options.maxPages ?? ACCOUNT_DEALS_MAX_PAGES;
+  const maxPages = Number.isFinite(requestedPages) ? Math.max(1, Math.min(ACCOUNT_DEALS_MAX_PAGES, Math.floor(requestedPages))) : ACCOUNT_DEALS_MAX_PAGES;
   const deals: Deal[] = [];
   const seenSignatures = new Set<string>();
   let offset = 0;
+  const result = (complete: boolean, reason: DealHistoryResult['reason'] = null): DealHistoryResult => ({ deals, complete, reason, fullFetchedAt: Date.now() });
 
   for (let page = 0; page < maxPages; page += 1) {
-    const rows = await fetchPage(ACCOUNT_DEALS_PAGE_SIZE, offset, options.from, options.to);
-    if (rows.length === 0) break;
+    const rows = readDealsPayload(await fetchPage(ACCOUNT_DEALS_PAGE_SIZE, offset, options.from, options.to));
+    if (rows.length === 0) return result(true);
     const signature = dealPageSignature(rows);
-    if (seenSignatures.has(signature)) break;
+    if (seenSignatures.has(signature)) return result(false, 'repeated-page');
     seenSignatures.add(signature);
     deals.push(...rows);
-    if (rows.length < ACCOUNT_DEALS_PAGE_SIZE) break;
+    if (rows.length < ACCOUNT_DEALS_PAGE_SIZE) return result(true);
     offset += rows.length;
   }
 
-  return deals;
+  return result(false, 'page-limit');
 };
+
+/** Compatibility array API for callers that do not render completeness. */
+export const fetchAllAccountDeals = async (options: Parameters<typeof fetchAccountDealHistory>[0] = {}): Promise<Deal[]> =>
+  (await fetchAccountDealHistory(options)).deals;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Trading API — Account Deals (JWT-resolved, date-range aware)

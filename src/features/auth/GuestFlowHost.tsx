@@ -4,11 +4,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { router, usePathname } from 'expo-router';
 import { useBrokerDirectory } from '../../query/broker';
 import { useUserPreferences } from '../../state/userPreferences';
+import { useTheme } from '../../ui/theme/useTheme';
 import { createPublicBrokerContext, getPublicBrokerContext, setPublicBrokerContext, subscribePublicBrokerContext, publicBrokerFetch, isPublicBrokerContextCurrent } from '../../state/publicBrokerContext';
 import { captureActiveBrokerSession, getActiveBrokerSessionProvenance } from '../../state/activeBrokerSession';
-import { getAuthFlowState, subscribeAuthFlow, dismissAuthFlow, showAuthForm, beginAuthSubmission, isAuthAttemptCurrent, setAuthProgress, completeAuthenticatedLogin, completeAuthenticatedFlow, retainAuthEntryHandoff, openAuthFlow } from '../trade/authFlowState';
+import { getAuthFlowState, subscribeAuthFlow, dismissAuthFlow, showAuthForm, beginAuthBrokerSelection, cancelAuthBrokerSelection, beginAuthSubmission, isAuthAttemptCurrent, setAuthProgress, completeAuthenticatedLogin, completeAuthenticatedFlow, retainAuthEntryHandoff, openAuthFlow, completeDeferredAuthEntry } from '../trade/authFlowState';
 import { authenticateGuest, demoRegistrationBody, GuestAuthError, loginRequestBody, isDemoRegistrationEnabled } from '../../api/guestAuthentication';
-import { authorizeBrokerSessionCommit, cancelBrokerSessionCommitAuthorization, commitBrokerSession, logoutBrokerSession, tryPrepareGuestBrokerSelection } from '../../services/brokerSessionCoordinator';
+import { authorizeBrokerSessionCommit, cancelBrokerSessionCommitAuthorization, commitBrokerSession, logoutBrokerSession } from '../../services/brokerSessionCoordinator';
 import { selectGuestBroker } from '../../services/selectGuestBroker';
 import { bootstrapApp } from '../../services/bootstrapApp';
 import { acceptTradingHydration } from '../../services/tradingAccess';
@@ -27,6 +28,8 @@ import { resolveDemoAccountPolicy } from './demoAccountPolicy';
 import type { PublicBrokerContext } from '../../state/publicBrokerContext';
 import { getDemoBrokerOptions } from './demoBrokerOptions';
 import { resolveStartupGuestBroker } from './startupGuestBroker';
+import { hideBrokersLaunch } from '../settings/brokersLaunchController';
+import { ActionSheet } from '../../ui/components/ActionSheet';
 
 // Native text/autofill events update this ref before React commits a render,
 // so an immediate Login tap submits the latest value on its first attempt.
@@ -38,6 +41,7 @@ function useImmediateField<T>(initial: T) {
 }
 
 export function GuestFlowHost() {
+  const T = useTheme();
   const pathname = usePathname();
   const previousPath = useRef(pathname);
   const flow = useSyncExternalStore(subscribeAuthFlow, getAuthFlowState, getAuthFlowState);
@@ -49,18 +53,21 @@ export function GuestFlowHost() {
   const selectedDemoBroker = demoBrokerOptions.find(broker => broker.brokerId === flow.context?.brokerId);
   const [name, setName, nameValue] = useImmediateField(''); const [identity, setIdentity, identityValue] = useImmediateField('');
   const [password, setPassword, passwordValue] = useImmediateField(''); const [confirmation, setConfirmation, confirmationValue] = useImmediateField('');
+  const [investorPassword, setInvestorPassword, investorPasswordValue] = useImmediateField('');
   const [brokerConfig, setBrokerConfig] = useState<{ context: PublicBrokerContext; payload: any } | null>(null);
   const config = brokerConfig?.context === context ? brokerConfig.payload : null;
   const [registeredAccount, setRegisteredAccount] = useState<{ attempt: number; metadata: Record<string, unknown> } | null>(null);
   const [localError, setLocalError] = useState('');
   const [brokerPickerVisible, setBrokerPickerVisible] = useState(false);
+  const brokerPickerRequest = useRef(0);
+  const pickerRequest = brokerPickerRequest.current;
   const startupBrokerSelectionAttempted = useRef(false);
   const [retryAt, setRetryAt] = useState(0); const [now, setNow] = useState(Date.now());
   const [rateForm, setRateForm] = useState<'login' | 'demo'>('demo');
   const [ambiguous, setAmbiguous] = useState(false);
   const [remember, setRemember, rememberValue] = useImmediateField(true);
   const loginVariant = useRef<'login' | 'broker'>('login');
-  if (flow.screen === 'choice') loginVariant.current = 'broker';
+  if (flow.screen === 'choice') loginVariant.current = flow.variant ?? 'broker';
   else if (flow.screen === 'guest' || flow.screen === 'ready') loginVariant.current = 'login';
   const authorization = useRef<BrokerSessionCommitAuthorization | null>(null);
   const committedNamespace = useRef<string | null>(null);
@@ -69,17 +76,22 @@ export function GuestFlowHost() {
   const visible = !['guest', 'ready'].includes(flow.screen);
   useEffect(() => subscribeAuthFlow(() => {
     if (getAuthFlowState().screen !== 'guest') return;
+    brokerPickerRequest.current += 1;
+    setBrokerPickerVisible(false);
     cancelBrokerSessionCommitAuthorization(authorization.current);
     authorization.current = null;
     committedNamespace.current = null;
     submitting.current = null;
     setName(''); setIdentity(''); setPassword(''); setConfirmation('');
+    setInvestorPassword('');
     setLocalError(''); setAmbiguous(false);
     setRegisteredAccount(null);
   }), []);
-  useEffect(() => () => { cancelBrokerSessionCommitAuthorization(authorization.current); dismissAuthFlow(); }, []);
+  useEffect(() => () => { brokerPickerRequest.current += 1; cancelBrokerSessionCommitAuthorization(authorization.current); dismissAuthFlow(); }, []);
   useEffect(() => {
     const previous = previousPath.current; previousPath.current = pathname;
+    if (previous !== pathname) { brokerPickerRequest.current += 1; setBrokerPickerVisible(false); }
+    if (completeDeferredAuthEntry(pathname)) return;
     if (previous === pathname || ['guest', 'ready'].includes(getAuthFlowState().screen)) return;
     // Child entry effects can open the modal before this route effect runs.
     // Keep both steps of that owned handoff; unrelated navigation still cancels.
@@ -91,13 +103,13 @@ export function GuestFlowHost() {
   useEffect(() => {
     if (!directory.data) return;
     const activeSelection = captureActiveBrokerSession();
-    const candidates = directory.data.selectableServers.filter(row => row.broker_id === brokerId);
-    const selected = candidates.find(row => row.market_api_url === activeSelection?.session.apiBase) ?? candidates[0];
+    // The pending public broker can differ from the authenticated account.
+    // Directory refreshes reconcile that selection, never the private session.
+    const candidates = directory.data.selectableServers.filter(row => row.broker_id === (context?.brokerId ?? brokerId));
+    const selected = candidates.find(row => row.market_api_url === (context?.apiBase ?? activeSelection?.session.apiBase)) ?? candidates[0];
     if (!selected) {
       if (context) setPublicBrokerContext(null);
-      if (activeSelection) {
-        void logoutBrokerSession();
-      } else if (!isLoggedIn && !brokerPickerVisible && !startupBrokerSelectionAttempted.current) {
+      if (!isLoggedIn && !brokerPickerVisible && getAuthFlowState().screen !== 'select-broker' && !startupBrokerSelectionAttempted.current) {
         // Quotes stays visible while the verified directory supplies a guest
         // feed. Run once so later manual selections cannot be overwritten.
         const startupBroker = resolveStartupGuestBroker(directory.data.selectableServers);
@@ -112,19 +124,20 @@ export function GuestFlowHost() {
     }
     try {
       const verified = createPublicBrokerContext(selected);
-      // Restoring a saved selection also finishes startup. A later broker
-      // switch may briefly clear its context while secure cleanup completes.
+      // Restoring a saved selection also finishes startup.
       startupBrokerSelectionAttempted.current = true;
-      const active = captureActiveBrokerSession();
-      if (active && (active.session.brokerId !== verified.brokerId || active.session.configVersion !== verified.configVersion || active.session.apiBase !== verified.apiBase || active.session.feedWsBase !== verified.feedWsBase || active.session.feedStatusUrl !== verified.feedStatusUrl || active.session.servicesDomain !== verified.endpoints.servicesDomain || active.session.tradeWsBase !== verified.endpoints.tradeWsBase)) void logoutBrokerSession();
       if (context?.brokerId === verified.brokerId && context.configVersion === verified.configVersion && context.apiBase === verified.apiBase && context.extendedApiBase === verified.extendedApiBase && context.feedWsBase === verified.feedWsBase && context.feedBrokerId === verified.feedBrokerId && context.feedStatusUrl === verified.feedStatusUrl && context.endpoints.tradeWsBase === verified.endpoints.tradeWsBase && context.endpoints.servicesDomain === verified.endpoints.servicesDomain) return;
       setPublicBrokerContext(selected);
     } catch (error) { setPublicBrokerContext(null); setLocalError(error instanceof Error ? error.message : 'Invalid broker configuration.'); }
   }, [directory.data, brokerId, context, isLoggedIn, brokerPickerVisible]);
   useEffect(() => {
-    setBrokerConfig(null); setRegisteredAccount(null); setPassword(''); setConfirmation(''); setRetryAt(0); setAmbiguous(false);
+    const currentFlow = getAuthFlowState();
+    const retainLoginFields = currentFlow.screen === 'login' && currentFlow.form === 'login' && currentFlow.context === context;
+    setBrokerConfig(null); setRegisteredAccount(null); setConfirmation(''); setRetryAt(0); setAmbiguous(false);
+    setInvestorPassword('');
+    if (!retainLoginFields) { setPassword(''); setName(''); setIdentity(''); }
     if (!context) return;
-    setLocalError(''); setName(''); setIdentity('');
+    setLocalError('');
     const controller = new AbortController();
     void publicBrokerFetch('/broker/config?broker_id=' + encodeURIComponent(context.brokerId), controller.signal).then(response => { if (!response.ok) throw new Error(); return response.json(); })
       .then(payload => { if (isPublicBrokerContextCurrent(context)) setBrokerConfig({ context, payload: payload?.data ?? payload }); }).catch(() => {});
@@ -149,11 +162,14 @@ export function GuestFlowHost() {
   }, [retryAt, visible]);
   const demoAllowed = isDemoRegistrationEnabled(config);
   const close = () => {
+    const committed = committedNamespace.current;
     dismissAuthFlow(); setPassword(''); setConfirmation('');
+    setInvestorPassword('');
+    cancelBrokerSessionCommitAuthorization(authorization.current);
     committedNamespace.current = null;
-    // A clean guest can return to broker search immediately. Any active or
-    // pending secure transition still goes through the serialized full logout.
-    if (!tryPrepareGuestBrokerSelection()) void logoutBrokerSession();
+    // Cancel only the incomplete session owned by this form. Opening or
+    // cancelling a broker login must leave a previous account signed in.
+    if (committed && captureActiveBrokerSession()?.session.cacheNamespace === committed) void logoutBrokerSession();
   };
   const submit = async () => {
     const currentFlow = getAuthFlowState();
@@ -162,7 +178,7 @@ export function GuestFlowHost() {
     if (currentFlow.form === 'demo' && !demoBrokerOptions.some(broker => broker.brokerId === currentFlow.context?.brokerId && broker.server)) {
       setLocalError('Choose an available broker from the broker list.'); return;
     }
-    try { body = currentFlow.form === 'demo' ? demoRegistrationBody({ name: nameValue.current, email: identityValue.current, password: passwordValue.current, confirmation: confirmationValue.current }, currentFlow.context.brokerId) : loginRequestBody(identityValue.current, passwordValue.current, currentFlow.context.brokerId); }
+    try { body = currentFlow.form === 'demo' ? demoRegistrationBody({ name: nameValue.current, email: identityValue.current, investorPassword: investorPasswordValue.current, password: passwordValue.current, confirmation: confirmationValue.current }, currentFlow.context.brokerId) : loginRequestBody(identityValue.current, passwordValue.current, currentFlow.context.brokerId); }
     catch (error) { setLocalError((error as Error).message); return; }
     const operation = beginAuthSubmission(); if (!operation) return;
     Keyboard.dismiss();
@@ -194,7 +210,9 @@ export function GuestFlowHost() {
           if (completeAuthenticatedLogin(attempt)) {
             didNavigate = true;
             committedNamespace.current = null; setPassword(''); setConfirmation('');
-            router.replace('/(tabs)/quotes');
+            setInvestorPassword('');
+            hideBrokersLaunch();
+            router.dismissTo('/(tabs)/quotes');
             if (__DEV__) console.info('[AuthTiming] dashboard navigation', Date.now() - authStartedAt);
           }
           const startSessionWork = () => {
@@ -229,14 +247,16 @@ export function GuestFlowHost() {
       const intent = completeAuthenticatedFlow(attempt, true, investor);
       if (__DEV__) console.info('[AuthTiming] authentication ready', Date.now() - authStartedAt);
       committedNamespace.current = null; setPassword(''); setConfirmation('');
+      setInvestorPassword('');
+      hideBrokersLaunch();
       if (intent?.symbol && intent.side && !investor) {
         const symbols = extractMarketSymbols(hydrated.instruments);
         const equivalent = symbols.filter(symbol => normalizeSymbol(symbol) === normalizeSymbol(intent.symbol!));
         const authorizedSymbol = symbols.includes(intent.symbol) ? intent.symbol : equivalent.length === 1 ? equivalent[0] : null;
-        if (!authorizedSymbol) { router.replace('/(tabs)/quotes'); return; }
+        if (!authorizedSymbol) { router.dismissTo('/(tabs)/quotes'); return; }
         if (intent.volume) useUserPreferences.getState().setTradeVolume(intent.volume);
         router.replace({ pathname: '/trade/order-ticket', params: { symbol: authorizedSymbol, side: intent.side, origin: intent.origin ?? 'trade' } });
-      } else router.replace('/(tabs)/quotes');
+      } else router.dismissTo('/(tabs)/quotes');
     } catch (error) {
       if (!isAuthAttemptCurrent(attempt)) return;
       if (error instanceof GuestAuthError) { setRetryAt(error.retryAt); setRateForm(operation.state.form); setAmbiguous(error.ambiguous); }
@@ -244,9 +264,18 @@ export function GuestFlowHost() {
     } finally { if (submitting.current === attempt) submitting.current = null; }
   };
   const changeBroker = () => {
-    close();
-    setLocalError('');
+    if (!beginAuthBrokerSelection()) return;
+    Keyboard.dismiss();
+    brokerPickerRequest.current += 1;
     setBrokerPickerVisible(true);
+    setLocalError('');
+  };
+  const closeBrokerPicker = () => {
+    if (brokerPickerRequest.current !== pickerRequest) return;
+    brokerPickerRequest.current += 1;
+    setBrokerPickerVisible(false);
+    cancelAuthBrokerSelection();
+    setLocalError('');
   };
   const selectDemoBroker = useCallback((id: string) => {
     const current = getAuthFlowState();
@@ -265,26 +294,51 @@ export function GuestFlowHost() {
       ?? directory.data?.selectableServers.find(row => row.broker_id === flow.context?.brokerId);
     return buildBrokerDirectoryRows(directory.data?.entries).find(row => row.brokerId === selectedRecord?.broker_id && row.serverUrl === selectedRecord?.server_url);
   }, [directory.data, flow.context?.brokerId, flow.context?.apiBase]);
+  const brokerPickerActions = useMemo(() => {
+    const servers = directory.data?.selectableServers ?? [];
+    if (!servers.length) return [{
+      label: directory.isFetching ? 'Loading brokers...' : 'Retry broker list',
+      disabled: directory.isFetching,
+      onPress: () => { void directory.refetch(); },
+    }];
+    const rows = buildBrokerDirectoryRows(directory.data?.entries);
+    return servers.map(server => ({
+      label: server.broker_name,
+      subtitle: rows.find(row => row.brokerId === server.broker_id && row.serverUrl === server.server_url)?.server || server.broker_id,
+      selected: context?.brokerId === server.broker_id && context.apiBase === server.market_api_url,
+      onPress: () => {
+        if (!brokerPickerVisible || brokerPickerRequest.current !== pickerRequest) return;
+        closeBrokerPicker();
+        if (!beginAuthBrokerSelection()) return;
+        const attempt = getAuthFlowState().attempt;
+        void selectGuestBroker(server).catch(error => {
+          if (!isAuthAttemptCurrent(attempt)) return;
+          cancelAuthBrokerSelection();
+          setLocalError(error instanceof Error ? error.message : 'Broker selection could not be completed.');
+        });
+      },
+    }));
+  }, [directory.data, directory.isFetching, directory.refetch, context, brokerPickerVisible, pickerRequest]);
   const explanation = flow.intent ? `${flow.intent.side?.toUpperCase()} ${flow.intent.symbol} · ${flow.intent.volume} lots. After authentication, you will review an order draft. The order will not be sent automatically.` : undefined;
   const demoPolicy = resolveDemoAccountPolicy(config, flow.context?.name ?? '', registeredAccount?.attempt === flow.attempt ? registeredAccount.metadata : undefined);
   return <>
-    <Modal visible={brokerPickerVisible} animationType="none" onRequestClose={() => setBrokerPickerVisible(false)} presentationStyle="fullScreen">
-      {brokerPickerVisible ? <GuestBrokerPicker onBack={() => setBrokerPickerVisible(false)} selectionError={localError}
-        onSelectBroker={row => {
-          void selectGuestBroker(row).then(selected => {
-            if (selected) setBrokerPickerVisible(false);
-          }).catch(error => setLocalError(error instanceof Error ? error.message : 'Broker selection could not be completed.'));
-        }} /> : null}
-    </Modal>
     {/* A constant animation type keeps one native dialog through choice,
-        Login, Demo and completion, with no slide delay or Android recreation. */}
-    <Modal visible={visible && Boolean(context)} animationType="none" onRequestClose={close} presentationStyle="fullScreen" statusBarTranslucent navigationBarTranslucent>
+        Login, Demo and broker changes, avoiding competing iOS presentations. */}
+    <Modal visible={brokerPickerVisible || visible && (Boolean(context) || flow.screen === 'select-broker')} animationType="none" onRequestClose={brokerPickerVisible ? closeBrokerPicker : close} presentationStyle="fullScreen" statusBarTranslucent navigationBarTranslucent>
       {/* This native modal extends behind system bars; its insets differ from the tab navigator's. */}
-      <SafeAreaProvider>
-      {visible && context ? flow.form === 'demo' && flow.screen !== 'choice' ? <DemoAccountScreen
+      <SafeAreaProvider style={{ flex: 1, backgroundColor: T.bg }}>
+      {flow.screen === 'select-broker' && !flow.context ? <GuestBrokerPicker onBack={close} selectionError={localError}
+        onSelectBroker={row => {
+          const attempt = flow.attempt;
+          if (!isAuthAttemptCurrent(attempt)) return;
+          void selectGuestBroker(row).catch(error => {
+            if (isAuthAttemptCurrent(attempt)) setLocalError(error instanceof Error ? error.message : 'Broker selection could not be completed.');
+          });
+        }} /> : visible && context ? flow.form === 'demo' && flow.screen !== 'choice' ? <DemoAccountScreen
         key={flow.context?.cacheNamespace}
-        name={name} email={identity} password={password} confirmation={confirmation}
+        name={name} email={identity} investorPassword={investorPassword} password={password} confirmation={confirmation}
         onNameChange={setName} onEmailChange={setIdentity} onPasswordChange={setPassword} onConfirmationChange={setConfirmation}
+        onInvestorPasswordChange={setInvestorPassword}
         brokerName={selectedDemoBroker?.name ?? ''} leverage={demoPolicy.leverage} explanation={explanation}
         brokerId={flow.context?.brokerId ?? ''} brokerOptions={demoBrokerOptions} onSelectBroker={selectDemoBroker}
         error={localError || flow.error || (directory.data && !selectedDemoBroker?.server ? 'Choose an available broker from the broker list.' : !demoAllowed ? 'Demo signup is disabled. Login and guest browsing are available.' : '')}
@@ -292,10 +346,10 @@ export function GuestFlowHost() {
         busy={busy} hydrating={flow.screen === 'hydrating'} disabled={busy || retryAt > now && rateForm === 'demo' || !demoAllowed || ambiguous || !selectedDemoBroker?.server}
         termsUrl={config?.terms_url ?? config?.legal?.terms_url} privacyUrl={config?.privacy_url ?? config?.legal?.privacy_url} recoveryUrl={config?.recovery_url}
         onSubmit={() => { void submit(); }} onBack={close}
-        onLogin={() => { showAuthForm('login'); setAmbiguous(false); setLocalError(''); }}
+        onLogin={() => { setInvestorPassword(''); showAuthForm('login'); setAmbiguous(false); setLocalError(''); }}
         onChangeBroker={changeBroker}
       /> : <LoginAccountScreen
-        key={flow.context?.cacheNamespace} variant={loginVariant.current}
+        key="login" variant={loginVariant.current}
         brokerId={flow.context?.brokerId ?? ''} brokerName={flow.context?.name ?? ''}
         serverName={selectedRow?.server || flow.context?.name || ''} logoUrl={selectedRow?.logoUrl}
         identity={identity} password={password} remember={remember}
@@ -306,6 +360,9 @@ export function GuestFlowHost() {
         onSubmit={() => { if (flow.screen === 'choice') showAuthForm('login'); void submit(); }}
         onDemo={() => { showAuthForm('demo'); setLocalError(''); }} onBack={close} onChangeBroker={changeBroker}
       /> : null}
+      <ActionSheet visible={brokerPickerVisible} onClose={closeBrokerPicker} title="Select Broker"
+        actions={brokerPickerActions} searchable searchPlaceholder="Search brokers..." detent="large"
+        instantOpen entryMotion="instant" immediateHostHideOnClose runActionAfterClose={false} />
       </SafeAreaProvider>
     </Modal>
   </>;

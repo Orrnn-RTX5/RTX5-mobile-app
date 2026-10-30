@@ -5,6 +5,9 @@ export type PositionsMutationBarrierSnapshot = Readonly<{
 let generation = 0;
 let activeProtectedMutations = 0;
 
+/** A confirmed structural socket update supersedes earlier in-flight REST reads. */
+export const invalidatePendingPositionsReads = (): void => { generation += 1; };
+
 /**
  * Prevents an unrelated positions poll that started before/during a protected
  * mutation from committing after the coordinator's eligible reconciliation.

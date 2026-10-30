@@ -59,9 +59,10 @@ const CHART_SETTINGS_DISPLAY_ITEMS: Array<{
   { key: 'showOHLC', label: 'Show OHLC', description: 'Show open, high, low, and close values', icon: 'stats-chart-outline' },
   { key: 'showQuickTradingButtons', label: 'Show quick trading buttons', description: 'Show quick buy and sell buttons on the chart', icon: 'flash-outline' },
   { key: 'showLivePriceLine', label: 'Show live price line', description: 'Show the live Bid price line on the chart', icon: 'pulse-outline' },
+  { key: 'showAskPriceLine', label: 'Show Ask line', description: 'Show the Ask price used to trigger BUY pending orders', icon: 'trending-up-outline' },
   { key: 'showLastPriceLine', label: 'Show last price line', description: 'Show the last price marker on the chart', icon: 'ellipse-outline' },
   { key: 'showGrid', label: 'Show grid', description: 'Show the chart grid lines', icon: 'grid-outline' },
-  { key: 'periodSeparators', label: 'Period separators', description: 'Show MT5-style period separator lines', icon: 'reorder-three-outline' },
+  { key: 'periodSeparators', label: 'Period separators', description: 'Show period separator lines', icon: 'reorder-three-outline' },
   { key: 'showObjectDescriptions', label: 'Show object descriptions', description: 'Show labels for chart objects', icon: 'text-outline' },
   { key: 'showTradeLevels', label: 'Show trade levels', description: 'Show trade level lines on the chart', icon: 'shield-checkmark-outline' },
   {

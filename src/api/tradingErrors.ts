@@ -6,6 +6,7 @@ export type TradingAction =
   | 'load-positions'
   | 'close-position'
   | 'close-by'
+  | 'cancel-pending-order'
   | 'modify-position';
 
 export type TradingIssueOrigin = 'frontend' | 'api' | 'backend' | 'session';
@@ -40,6 +41,7 @@ const ACTION_LABELS: Record<TradingAction, string> = {
   'load-positions': 'load positions',
   'close-position': 'close the position',
   'close-by': 'close the paired positions',
+  'cancel-pending-order': 'delete the pending order',
   'modify-position': 'modify the position',
 };
 
@@ -52,6 +54,7 @@ const BROKER_ERROR_MESSAGES: Record<string, string> = {
   // 400
   UNAUTHORIZED: 'Invalid session or credentials. Please log in again.',
   INVALID_INPUT: 'The trade request was invalid. Check the symbol and volume, then try again.',
+  CLIENT_ORDER_ID_REQUIRED: 'The trade request id was missing or invalid. Please submit the order again.',
   INVALID_CLIENT_ORDER_ID: 'The trade request id was invalid. Please submit the order again.',
   INVALID_SIDE: 'The trade direction was invalid. Choose Buy or Sell and try again.',
   INVALID_IDEMPOTENCY_KEY: 'The trade request key was invalid. Please try the order again.',
@@ -79,8 +82,9 @@ const BROKER_ERROR_MESSAGES: Record<string, string> = {
   STALE_QUOTE: 'The market price is stale. Wait for a fresh quote and try again.',
   POSITION_STATE_CHANGED: 'The position changed while your request was processed. Review it and try again.',
   POSITION_ALREADY_CLOSED: 'This position is already closed.',
-  ORDER_ALREADY_PROCESSED: 'This order was already processed. The order list has been refreshed.',
+  ORDER_ALREADY_PROCESSED: 'Order is no longer pending. The order list has been refreshed.',
   ORDER_STATE_CHANGED: 'The order changed while your request was processed. Review it and try again.',
+  ORDER_EXPIRED: 'The order command expired before it was applied. Review the order list and try again.',
   ORDER_COMMAND_REJECTED: 'The trading server rejected the order command. Please try again.',
   MARKET_SESSION_CHANGED: 'The market session changed while your request was processed. Please try again.',
   ACCOUNT_IDENTITY_CHANGED: 'Your trading account changed while the request was processed. Please log in again.',
@@ -98,7 +102,8 @@ const BROKER_ERROR_MESSAGES: Record<string, string> = {
   COMMAND_ROUTING_UNAVAILABLE: 'Order routing is temporarily unavailable. Please try again shortly.',
   COMMAND_COMMIT_UNCERTAIN: 'The trading server could not confirm the request. Check your positions before trying again.',
   ENGINE_CLOSE_UNAVAILABLE: 'Closing is temporarily unavailable, please contact support.',
-  TRIGGER_CAPTURE_UNAVAILABLE: 'Stop Loss / Take Profit is temporarily unavailable. Please try again shortly.',
+  EXACT_PENDING_CANCEL_UNAVAILABLE: 'Cancelling pending orders is temporarily unavailable. Please try again shortly.',
+  TRIGGER_CAPTURE_UNAVAILABLE: 'Protection temporarily unavailable. Please try again shortly.',
   EXACT_CALCULATION_UNAVAILABLE: 'Trading calculations are temporarily unavailable. Please try again shortly.',
   MARKET_SCHEDULE_UNAVAILABLE: 'The market schedule is unavailable, so trading is paused for this symbol.',
   MISSING_FX_RATE: 'A required conversion rate is unavailable. Please try again shortly.',
@@ -403,6 +408,22 @@ export const classifyTradingError = (
       kind: 'integration',
       title: 'Account Mismatch',
       message: 'The trading account does not match your logged-in account. Log in again and retry.',
+      status,
+      detail,
+    };
+  }
+
+  if (
+    options.action === 'cancel-pending-order' &&
+    (brokerCode === 'NOT_FOUND' ||
+      brokerCode === 'ORDER_ALREADY_PROCESSED' ||
+      brokerCode === 'LP_COMMAND_UNSUPPORTED')
+  ) {
+    return {
+      origin: 'backend',
+      kind: 'backend-rejection',
+      title: 'Order No Longer Pending',
+      message: 'Order is no longer pending.',
       status,
       detail,
     };

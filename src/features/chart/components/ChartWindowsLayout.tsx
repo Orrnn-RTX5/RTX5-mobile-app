@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import type { PositionItem } from '../../../dev/mock/tradingData';
+import type { PositionItem } from '../../../domain/tradingModels';
 import { GDark, GLight } from '../../../ui/theme/glass';
 import type { ChartWindowPane, ChartWindowState } from '../chartWindowState';
 import type { PersistedChartDrawing } from '../drawingPersistence';
@@ -46,6 +46,7 @@ export type ChartWindowsLayoutProps = Readonly<{
   isDark: boolean;
   lotSize: number;
   showTradeRow: boolean;
+  executionDisabled?: boolean;
   lotInvalid?: boolean;
   invalidLotDisplay?: string;
   /** Immediate navigation-focus check used only by the trade tap safety gate. */
@@ -96,6 +97,7 @@ export const ChartWindowsLayout = memo(function ChartWindowsLayout({
   isDark,
   lotSize,
   showTradeRow,
+  executionDisabled = false,
   lotInvalid = false,
   invalidLotDisplay = '',
   isTradeExecutionFocused,
@@ -161,6 +163,7 @@ export const ChartWindowsLayout = memo(function ChartWindowsLayout({
     <ChartWindowTradeRow
       context={context}
       active={isScreenFocused && isSplit}
+      executionDisabled={executionDisabled}
       isDark={isDark}
       lotSize={lotSize}
       lotInvalid={lotInvalid}
@@ -173,6 +176,7 @@ export const ChartWindowsLayout = memo(function ChartWindowsLayout({
       onIncreaseLot={onIncreaseLot}
     />
   ), [
+    executionDisabled,
     invalidLotDisplay,
     isDark,
     isScreenFocused,

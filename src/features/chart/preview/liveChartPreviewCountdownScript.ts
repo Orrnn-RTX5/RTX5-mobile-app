@@ -1,3 +1,4 @@
+import { VALUE_BASED_PRICE_WEBVIEW_JS } from '../../../utils/backendPrice';
 import { CHART_CANDLE_COUNTDOWN_FIXED_SECONDS } from '../chartCandleCountdown';
 import { CHART_RIGHT_PRICE_SCALE_MINIMUM_WIDTH } from '../ChartScreen.constants';
 
@@ -11,6 +12,7 @@ import { CHART_RIGHT_PRICE_SCALE_MINIMUM_WIDTH } from '../ChartScreen.constants'
  * countdown for a newly selected pane.
  */
 export const LIVE_CHART_PREVIEW_COUNTDOWN_SCRIPT = String.raw`
+      ${VALUE_BASED_PRICE_WEBVIEW_JS}
       var PREVIEW_CANDLE_COUNTDOWN_FIXED_SECONDS = ${JSON.stringify(CHART_CANDLE_COUNTDOWN_FIXED_SECONDS)};
       var PREVIEW_PRICE_BADGE_PRICE_ROW_HEIGHT = 18;
       var PREVIEW_PRICE_BADGE_COUNTDOWN_ROW_HEIGHT = 14;
@@ -279,7 +281,7 @@ export const LIVE_CHART_PREVIEW_COUNTDOWN_SCRIPT = String.raw`
         );
         var decimals = Math.max(0, Math.min(10, Math.floor(previewCountdownDisplayDecimals || 0)));
 
-        priceRow.textContent = Number(previewCountdownLivePrice).toFixed(decimals);
+        priceRow.textContent = formatValueBasedPrice(previewCountdownLivePrice);
         countdownRow.textContent = countdownLabel;
         badge.style.position = 'absolute';
         badge.style.left = axisMetrics.axisLeft + 'px';

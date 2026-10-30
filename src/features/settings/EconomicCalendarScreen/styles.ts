@@ -131,7 +131,7 @@ export function makeEconomicCalendarStyles(T: ThemeColors, isDark: boolean) {
       zIndex: 10000,
     },
     filterSheetHostHidden: {
-      // React-owned final barrier for interrupted UI-thread animations.
+      // React-owned final barrier after native exit completion or immediate close.
       opacity: 0,
     },
     filterSheetAnimatedHost: {

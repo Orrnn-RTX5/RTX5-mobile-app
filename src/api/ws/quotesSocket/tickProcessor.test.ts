@@ -7,6 +7,22 @@ import { processIncomingPayload, processTick, type TickProcessorBridge } from '.
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
+test('staged quote updates carry only backend daily changes and clear a missing percentage', () => {
+  const bridge: TickProcessorBridge = {
+    pendingUpdates: new Map(), emitTick: () => {}, emitSymbolTick: () => {},
+    shouldStageQuoteUpdate: () => true, logCandleFeed: () => {}, acceptNormalizedTick: () => true,
+  };
+  const quote = { symbol: 'XAUUSD', bid: 105, ask: 105.1, previous_close: 100, daily_open: 95 };
+  assert.equal(processTick(bridge, { ...quote, daily_change_pct: -1.25 }), true);
+  assert.equal(bridge.pendingUpdates.get('XAUUSD').changePct, -1.25);
+  assert.equal(processTick(bridge, { ...quote, daily_change_pct: 0 }), true);
+  assert.equal(bridge.pendingUpdates.get('XAUUSD').changePct, 0);
+  assert.equal(processTick(bridge, quote), true);
+  const staged = bridge.pendingUpdates.get('XAUUSD');
+  assert.equal(Object.hasOwn(staged, 'changePct'), true);
+  assert.equal(staged.changePct, undefined);
+});
+
 test('quote tick processor carries websocket envelope context into nested tick payloads', () => {
   const source = readSource('src/api/ws/quotesSocket/tickProcessor.ts');
 
@@ -134,5 +150,44 @@ test('quote-socket candle payloads cannot bypass the captured identity gate', ()
     else process.env.EXPO_PUBLIC_CANDLE_SOURCE_MODE = previousMode;
     if (previousProven === undefined) delete process.env.EXPO_PUBLIC_SERVER_CANDLES_PROVEN_COMPATIBLE;
     else process.env.EXPO_PUBLIC_SERVER_CANDLES_PROVEN_COMPATIBLE = previousProven;
+  }
+});
+
+test('row-only delivery skips unused store payload copies while staged ticks retain metadata', () => {
+  const originalExtend = liveCandleStream.extendActiveCandlesFromQuoteTick;
+  let extended = 0;
+  (liveCandleStream as any).extendActiveCandlesFromQuoteTick = () => { extended++; };
+  let stage = false;
+  let metadataReads = 0;
+  const events: string[] = [];
+  const raw = {
+    symbol: 'EURUSD', bid: 1.2, ask: 1.3,
+    get brokerMetadata() { metadataReads++; return 'retained'; },
+  };
+  const bridge: TickProcessorBridge = {
+    pendingUpdates: new Map(),
+    emitTick: () => { events.push('global'); assert.equal(metadataReads, 0); },
+    emitSymbolTick: () => { events.push('row'); assert.equal(metadataReads, 0); },
+    shouldStageQuoteUpdate: () => stage,
+    logCandleFeed: () => {},
+    acceptNormalizedTick: () => true,
+  };
+  try {
+    for (let i = 0; i < 500; i++) assert.equal(processTick(bridge, raw), false);
+    assert.equal(events.length, 1_000);
+    assert.equal(extended, 500);
+    assert.equal(metadataReads, 0, 'no store consumer means no copied raw envelope');
+    assert.equal(bridge.pendingUpdates.size, 0);
+
+    stage = true;
+    assert.equal(processTick(bridge, raw), true);
+    assert.equal(metadataReads, 1);
+    const pending = bridge.pendingUpdates.get('EURUSD');
+    assert.equal(pending.brokerMetadata, 'retained');
+    assert.equal(pending.bid, 1.2); assert.equal(pending.ask, 1.3);
+    assert.equal(pending.transport, 'websocket');
+    assert.equal(pending.bidHigh, 1.2); assert.equal(pending.bidLow, 1.2);
+  } finally {
+    (liveCandleStream as any).extendActiveCandlesFromQuoteTick = originalExtend;
   }
 });

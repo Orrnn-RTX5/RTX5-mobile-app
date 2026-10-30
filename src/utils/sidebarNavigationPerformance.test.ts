@@ -182,7 +182,7 @@ test('sidebar drawer reveals instantly and keeps navigation and closing work non
   assert.match(fastTabVisualSource, /export function showFastTabVisualForSidebar\(pathOrName: string\)/);
   assert.match(fastTabVisualSource, /export function scheduleFastTabNavigation\(\s*revision: number,\s*action: \(\) => void,\s*settleDelayMs: number = FAST_TAB_NAVIGATION_SETTLE_DELAY_MS,\s*\)/);
   assert.match(source, /import \{ invalidateSidebarOpenVisualWork, navigateMountedSidebarTab, registerSidebarOpenHandler, scheduleAfterSidebarOpenVisual \} from '\.\/sidebarDrawerController'/);
-  assert.match(source, /useEffect\(\(\) => registerSidebarOpenHandler\(\(\) => \{\s*if \(animatedVisibleRef\.current\) return;\s*revealDrawerImmediately\(\);\s*showInteractiveAfterVisualFrame\(\);/);
+  assert.match(source, /if \(!animatedVisibleRef\.current\) revealDrawerImmediately\(\);\s*showInteractiveAfterVisualFrame\(\);/);
   assert.match(source, /useUIState\.subscribe\(\(state, previousState\) => \{/);
   assert.match(source, /if \(state\.sidebarOpen\) \{\s*if \(!animatedVisibleRef\.current\) \{\s*revealDrawerImmediately\(\);\s*showInteractiveAfterVisualFrame\(\);\s*\}/);
   assert.match(source, /if \(!isClosingRef\.current && animatedVisibleRef\.current\) \{\s*handleClose\(\);/);
@@ -457,12 +457,12 @@ test('sidebar profile avatar shows the logged-in broker logo with RTX5 fallback'
 
   assert.match(source, /Alert, Animated, BackHandler, Easing, Image, Linking/);
   assert.match(source, /const brokerLogoUrl = useUserPreferences\(\(s\) => s\.brokerLogoUrl\)/);
-  assert.match(source, /const activeBrokerLogoUrl = useMemo\(/);
-  assert.match(source, /\(\) => \(isLoggedIn \? brokerLogoUrl\.trim\(\) : ''\)/);
-  assert.match(source, /const \[brokerLogoFailed, setBrokerLogoFailed\] = useState\(false\)/);
-  assert.match(source, /useEffect\(\(\) => \{\s*setBrokerLogoFailed\(false\);\s*\}, \[activeBrokerLogoUrl\]\)/);
-  assert.match(source, /activeBrokerLogoUrl && !brokerLogoFailed \? \(/);
-  assert.match(source, /<Image[\s\S]*accessibilityLabel="Broker logo"[\s\S]*source=\{\{ uri: activeBrokerLogoUrl \}\}[\s\S]*onError=\{\(\) => setBrokerLogoFailed\(true\)\}/);
+  assert.match(source, /resolveSidebarBrokerLogoCandidates\(\{[\s\S]*brokerConfig, brokerServers/);
+  assert.match(source, /useBrokerServers\(false\)/);
+  assert.match(source, /const \[failedBrokerLogoUrls, setFailedBrokerLogoUrls\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(source, /setFailedBrokerLogoUrls\(\[\]\);\s*\}, \[brokerId, accountDetails\?\.id, isLoggedIn, interactive\]\)/);
+  assert.match(source, /brokerLogoCandidates\.find\(\(uri\) => !failedBrokerLogoUrls\.includes\(uri\)\)/);
+  assert.match(source, /<Image[\s\S]*key=\{activeBrokerLogoUrl\}[\s\S]*resizeMode="contain"[\s\S]*source=\{\{ uri: activeBrokerLogoUrl \}\}[\s\S]*setFailedBrokerLogoUrls/);
   assert.match(source, /\) : \(\s*<AppLogo style=\{ds\.avatarImage\} \/>\s*\)/);
 });
 

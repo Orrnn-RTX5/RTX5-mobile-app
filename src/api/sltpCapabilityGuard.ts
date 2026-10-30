@@ -7,6 +7,7 @@ import {
 import { captureActiveBrokerSession } from '../state/activeBrokerSession';
 import { StaleBrokerSessionError } from './brokerApi';
 import { createTradingApiError } from './tradingErrors';
+import { PENDING_ORDER_PLACEMENT_AVAILABLE } from '../config/pendingOrderAvailability';
 
 type ProtectionPayload = Readonly<Record<string, unknown>>;
 
@@ -112,7 +113,7 @@ export function assertActivePendingProtectionAllowed(
 
   const active = getActiveCapabilities();
   if (
-    (protectionIntent && !active.capabilities.pendingOrderProtection) ||
+    (protectionIntent && !PENDING_ORDER_PLACEMENT_AVAILABLE) ||
     (trailingIntent && !active.capabilities.trailingStop)
   ) {
     throw unavailable(active.brokerId);

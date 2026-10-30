@@ -10,6 +10,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTranslation } from '../../../i18n/useTranslation';
 import { OVERLAY_MODAL_PROPS } from '../../../ui/overlayModalProps';
+import { formatBackendPrice } from '../../../utils/backendPrice';
+import { parsePositiveDecimalInput } from '../../../utils/decimalInput';
+import { PriceScrollWheel } from '../../trade/PriceScrollWheel';
 import {
   normalizeTradeVolume,
   resolveTradeVolumeBounds,
@@ -31,7 +34,7 @@ import { CHART_TRADE_SLIDER_THUMB_SIZE, FOOTER_LOT_PICKER_VALUE_ITEM_HEIGHT } fr
 
 
 /**
- * Modal component allowing the user to precisely step-adjust the trade volume/lot size with +/- buttons.
+ * Modal component allowing the user to step-adjust prices or trade volume with +/- buttons.
  */
 export function ChartStepperModal({
   visible,
@@ -42,6 +45,7 @@ export function ChartStepperModal({
   min,
   max,
   editable = false,
+  priceReadout = false,
   styles,
   onClose,
   onCommit,
@@ -54,6 +58,7 @@ export function ChartStepperModal({
   min?: number;
   max?: number;
   editable?: boolean;
+  priceReadout?: boolean;
   styles: ReturnType<typeof makeStyles>;
   onClose: () => void;
   onCommit: (next: number) => void;
@@ -61,6 +66,9 @@ export function ChartStepperModal({
   const { t } = useTranslation();
   const [value, setValue] = React.useState(initial);
   const [draft, setDraft] = React.useState(() => initial.toFixed(Math.max(decimals, 0)));
+  const valueRef = React.useRef(value);
+  const draftRef = React.useRef(draft);
+  const draftEditedRef = React.useRef(false);
 
   const clamp = React.useCallback(
     (v: number) => {
@@ -74,32 +82,46 @@ export function ChartStepperModal({
 
   React.useEffect(() => {
     if (!visible) {
+      draftEditedRef.current = false;
       return;
     }
+    // A live Bid can seed an unset pending price, but must not replace typing.
+    if (draftEditedRef.current) return;
 
     const nextValue = clamp(initial);
+    valueRef.current = nextValue;
+    draftRef.current = nextValue.toFixed(decimals);
     setValue(nextValue);
-    setDraft(nextValue.toFixed(decimals));
+    setDraft(draftRef.current);
   }, [clamp, decimals, initial, visible]);
 
   const syncDraftToValue = React.useCallback((nextValue: number) => {
     const clampedValue = clamp(nextValue);
+    valueRef.current = clampedValue;
+    draftRef.current = clampedValue.toFixed(decimals);
     setValue(clampedValue);
-    setDraft(clampedValue.toFixed(decimals));
+    setDraft(draftRef.current);
     return clampedValue;
   }, [clamp, decimals]);
 
   const bump = React.useCallback(
-    (dir: -1 | 1) => syncDraftToValue(value + dir * step),
-    [step, syncDraftToValue, value],
+    (dir: -1 | 1) => {
+      draftEditedRef.current = true;
+      return syncDraftToValue(valueRef.current + dir * step);
+    },
+    [step, syncDraftToValue],
   );
 
   if (!visible) return null;
   const prev = clamp(value - step);
   const next = clamp(value + step);
+  const formatReadout = (price: number) => priceReadout ? formatBackendPrice(price) : price.toFixed(decimals);
 
   const handleDraftChange = (text: string) => {
-    const nextDraft = sanitizeTradeVolumeDraft(text);
+    const nextDraft = priceReadout ? text.replace(',', '.') : sanitizeTradeVolumeDraft(text);
+    if (priceReadout && !/^\d*\.?\d*$/.test(nextDraft)) return;
+    draftEditedRef.current = true;
+    draftRef.current = nextDraft;
     setDraft(nextDraft);
 
     if (!nextDraft.trim() || nextDraft === '.') {
@@ -108,24 +130,37 @@ export function ChartStepperModal({
 
     const parsed = Number(nextDraft);
     if (Number.isFinite(parsed)) {
-      setValue(clamp(parsed));
+      valueRef.current = clamp(parsed);
+      setValue(valueRef.current);
     }
   };
 
   const commitDraft = () => {
-    const parsed = Number(draft);
+    const parsed = priceReadout ? parsePositiveDecimalInput(draftRef.current) : Number(draftRef.current);
+    if (parsed === undefined) return undefined;
     if (!Number.isFinite(parsed)) {
-      return syncDraftToValue(value);
+      return syncDraftToValue(valueRef.current);
     }
+    if (priceReadout && clamp(parsed) <= 0) return undefined;
 
     return syncDraftToValue(parsed);
   };
 
   const commitValue = () => {
-    const nextValue = editable ? commitDraft() : value;
+    const nextValue = editable ? commitDraft() : valueRef.current;
+    if (nextValue === undefined) return;
     onCommit(nextValue);
     onClose();
   };
+  const selectedReadout = editable ? (
+    <TextInput
+      style={[styles.stepperModalMain, styles.stepperModalMainInput]}
+      value={draft} onChangeText={handleDraftChange} onBlur={commitDraft}
+      onSubmitEditing={() => { commitDraft(); Keyboard.dismiss(); }}
+      keyboardType="decimal-pad" returnKeyType="done" selectTextOnFocus
+      autoCorrect={false} autoCapitalize="none" maxLength={12} accessibilityLabel={title}
+    />
+  ) : <Text style={styles.stepperModalMain}>{formatReadout(value)}</Text>;
 
   return (
     <Modal
@@ -144,42 +179,29 @@ export function ChartStepperModal({
               <Text style={styles.stepperModalMinusText}>−</Text>
             </Pressable>
             <View style={styles.stepperModalStack}>
-              <Text style={styles.stepperModalGhost}>{prev.toFixed(decimals)}</Text>
-              <View style={styles.stepperModalDivider} />
-              {editable ? (
-                <TextInput
-                  style={[styles.stepperModalMain, styles.stepperModalMainInput]}
-                  value={draft}
-                  onChangeText={handleDraftChange}
-                  onBlur={commitDraft}
-                  onSubmitEditing={() => {
-                    commitDraft();
-                    Keyboard.dismiss();
-                  }}
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                  selectTextOnFocus
-                  autoCorrect={false}
-                  autoCapitalize="none"
-                  maxLength={12}
-                  accessibilityLabel={title}
-                />
-              ) : (
-                <Text style={styles.stepperModalMain}>{value.toFixed(decimals)}</Text>
-              )}
-              <View style={styles.stepperModalDivider} />
-              <Text style={styles.stepperModalGhost}>{next.toFixed(decimals)}</Text>
+              {priceReadout ? <PriceScrollWheel label={title} value={value} step={step} decimals={decimals} min={min} max={max}
+                textStyle={styles.stepperModalGhost} selectionStyle={styles.stepperModalWheelSelection}
+                onScrollStart={() => { draftEditedRef.current = true; Keyboard.dismiss(); }}
+                onChange={syncDraftToValue}>{selectedReadout}</PriceScrollWheel> : <>
+                <Text style={styles.stepperModalGhost}>{formatReadout(prev)}</Text>
+                <View style={styles.stepperModalDivider} />
+                {selectedReadout}
+                <View style={styles.stepperModalDivider} />
+                <Text style={styles.stepperModalGhost}>{formatReadout(next)}</Text>
+              </>}
             </View>
             <Pressable style={styles.stepperModalPlus} onPress={() => bump(1)} hitSlop={10}>
               <Text style={styles.stepperModalPlusText}>+</Text>
             </Pressable>
           </View>
+          {priceReadout ? <Text style={styles.stepperModalDragHint}>{t('Scroll up or down to select a price')}</Text> : null}
           <View style={styles.stepperModalActions}>
             <Pressable onPress={onClose} hitSlop={8}>
               <Text style={styles.stepperModalCancel}>{t('Cancel')}</Text>
             </Pressable>
             <Pressable
               onPress={commitValue}
+              disabled={editable && priceReadout && parsePositiveDecimalInput(draft) === undefined}
               hitSlop={8}
             >
               <Text style={styles.stepperModalOk}>{t('OK')}</Text>

@@ -25,6 +25,33 @@ const cachedPositionFixture = {
   tp: 1.16,
 };
 
+test('a changed position preserves unchanged row references and identical snapshots preserve the ledger', () => {
+  const dtos = Array.from({ length: 200 }, (_, index) => ({
+    ...cachedPositionFixture, id: String(10000 + index), profit: 1.25,
+  }));
+  const current = buildMergedPositions([], dtos);
+  assert.equal(buildMergedPositions(current, dtos), current);
+  const changed = buildMergedPositions(current, dtos.map((dto, index) => index === 50 ? { ...dto, profit: 9 } : dto));
+  assert.notEqual(changed, current);
+  assert.equal(changed[50].pnl, 8.75);
+  for (let index = 0; index < current.length; index++) {
+    if (index === 50) assert.notEqual(changed[index], current[index]);
+    else assert.equal(changed[index], current[index], `unchanged ticket ${current[index].id}`);
+  }
+});
+
+test('indexed merge preserves first duplicate lookup, exact ticket spelling and stable equal-time order', () => {
+  const first = { ...cachedPositionFixture, id: ' 9101 ', sl: 1.2 };
+  const second = { ...first, sl: 1.3 };
+  const merged = buildMergedPositions([first, second], [
+    { ticket: ' 9101 ', price_current: 1.15 },
+    { ticket: 9102, symbol: 'GBPUSD', openTime: first.openTime },
+  ], { preserveMissingExisting: true });
+  assert.deepEqual(merged.map(position => position.id), [' 9101 ', '9102']);
+  assert.equal(merged[0].sl, first.sl);
+  assert.equal(merged[0].currentPrice, 1.15);
+});
+
 test('open-position cache signature ignores price and PnL-only websocket ticks', () => {
   const before = buildOpenPositionsCacheSignature([cachedPositionFixture]);
   const after = buildOpenPositionsCacheSignature([

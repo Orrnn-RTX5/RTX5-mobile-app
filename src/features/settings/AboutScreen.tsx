@@ -196,7 +196,7 @@ export const AboutScreenInner = memo(function AboutScreenInner({ isScreenFocused
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 0) + 6 }]}>
         <FastPressable
           onPress={handleOpenMenu}
-          activateOnTouchStart
+          activateOnTouchStart={Platform.OS !== 'ios'}
           latencyLabel="about.menu"
           hitSlop={12}
           style={styles.menuButton}

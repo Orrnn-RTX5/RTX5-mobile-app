@@ -1,5 +1,6 @@
 import { isPublicBrokerContextCurrent, type PublicBrokerContext } from '../state/publicBrokerContext';
 import { timedFetch } from '../utils/apiLatency';
+import { redactSensitiveString } from '../utils/securityRedaction';
 
 export type GuestSession = Readonly<{
   accessToken: string; refreshToken: string; expiresAt: string; accountLogin: string;
@@ -31,18 +32,20 @@ export function normalizeGuestSession(payload: any, brokerId: string, operation:
     // API keys are deliberately excluded from the session and metadata.
     metadata: Object.fromEntries(['name', 'broker_name', 'group', 'server', 'leverage', 'currency', 'balance'].filter(key => payload[key] !== undefined).map(key => [key, payload[key]])) });
 }
-export type DemoForm = { name: string; email: string; password: string; confirmation: string };
+export type DemoForm = { name: string; email: string; investorPassword: string; password: string; confirmation: string };
 export const isDemoRegistrationEnabled = (config: any): boolean => config?.demo_registration_enabled !== false && config?.registration_enabled !== false && config?.capabilities?.demo_registration_enabled !== false;
 export function validateDemoForm(form: DemoForm): string | null {
   if (!form.name.trim()) return 'Enter your full name.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) return 'Enter a valid email address.';
+  if (!form.investorPassword) return 'Enter an investor password.';
+  if (form.investorPassword.length < 8 || !/[A-Za-z]/.test(form.investorPassword) || !/[0-9]/.test(form.investorPassword)) return 'Investor password: use at least 8 characters, including a letter and a number.';
   if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/[0-9]/.test(form.password)) return 'Use at least 8 characters, including a letter and a number.';
   if (form.password !== form.confirmation) return 'Passwords must match exactly.';
   return null;
 }
 export function demoRegistrationBody(form: DemoForm, brokerId: string) {
   const error = validateDemoForm(form); if (error) throw new GuestAuthError(error, 400, 'INVALID_INPUT');
-  return { name: form.name.trim(), email: form.email.trim(), username: form.email.trim(), password: form.password, broker_id: brokerId };
+  return { name: form.name.trim(), email: form.email.trim(), username: form.email.trim(), investor_pass: form.investorPassword, password: form.password, broker_id: brokerId };
 }
 export function loginRequestBody(identity: string, password: string, brokerId: string): string {
   const value = identity.trim(); if (!value || !password) throw new GuestAuthError('Enter your login and password.');
@@ -53,7 +56,7 @@ export function loginRequestBody(identity: string, password: string, brokerId: s
     ? `{"login":${BigInt(value).toString()},${rest}` : JSON.stringify({ username: value, password, broker_id: brokerId });
 }
 export function authenticationError(status: number, payload: any, retryAfter: string | null, registering: boolean, now = Date.now()): GuestAuthError {
-  const code = typeof payload?.code === 'string' ? payload.code : typeof payload?.error === 'string' ? payload.error : payload?.error?.code || '';
+  const code = typeof payload?.code === 'string' ? payload.code : typeof payload?.error === 'string' ? payload.error : payload?.error?.code || (status === 0 ? 'NETWORK_ERROR' : '');
   const messages: Record<string, string> = {
     INVALID_INPUT: 'Check your name, email and password.', WEAK_PASSWORD: 'Choose a stronger password.',
     DEMO_REGISTRATION_DISABLED: 'Demo signup is disabled for this broker. You can still log in or browse as a guest.',
@@ -61,9 +64,11 @@ export function authenticationError(status: number, payload: any, retryAfter: st
     CALCULATION_POLICY_UNSUPPORTED: 'This broker’s calculation policy does not support demo signup.',
   };
   const ambiguous = registering && (status === 0 || status >= 500 && (status !== 503 || !['DEMO_REGISTRATION_UNAVAILABLE', 'DEMO_THROTTLE_UNAVAILABLE', 'DEMO_POLICY_UNAVAILABLE'].includes(code)));
-  let message = ambiguous ? 'The result could not be confirmed. An account may have been created. Try login or account recovery before submitting again.'
-    : messages[code] || (status === 413 ? 'The submitted information is too large.' : status === 429 ? 'Too many requests. Wait before trying again.'
-      : status === 503 ? 'Demo signup is unavailable because of broker configuration, policy or licensing. Try login or continue as a guest.'
+  const backendMessage = typeof payload?.message === 'string' ? redactSensitiveString(payload.message.trim()) : '';
+  const message = ambiguous ? 'The result could not be confirmed. An account may have been created. Try login or account recovery before submitting again.'
+    : status === 0 ? 'Could not connect to the broker. Check your internet connection and try again.'
+    : backendMessage || messages[code] || (status === 413 ? 'The submitted information is too large.' : status === 429 ? 'Too many requests. Wait before trying again.'
+      : status === 503 ? registering ? 'Demo signup is unavailable because of broker configuration, policy or licensing. Try login or continue as a guest.' : 'The broker login service is unavailable. Try again later.'
       : status >= 500 ? 'The broker service is unavailable. Try again later.' : status === 401 ? 'The login or password was not accepted.' : 'Authentication was not accepted. Check your details.');
   const seconds = Number(retryAfter);
   const retryAt = retryAfter ? Number.isFinite(seconds) ? now + Math.max(0, seconds) * 1000 : Date.parse(retryAfter) || 0 : 0;
@@ -71,9 +76,11 @@ export function authenticationError(status: number, payload: any, retryAfter: st
 }
 export async function authenticateGuest(context: PublicBrokerContext, operation: 'login' | 'register', body: string | Record<string, unknown>, signal: AbortSignal): Promise<GuestSession> {
   if (!isPublicBrokerContextCurrent(context)) throw new GuestAuthError('Broker selection changed.');
+  if (signal.aborted) throw new GuestAuthError('Authentication was cancelled.', 0, 'AUTH_CANCELLED');
   const controller = new AbortController(); const abort = () => controller.abort();
   signal.addEventListener('abort', abort, { once: true }); if (signal.aborted) abort();
-  const timeout = setTimeout(abort, 15000);
+  let timedOut = false;
+  const timeout = setTimeout(() => { timedOut = true; abort(); }, 15000);
   try {
     const response = await timedFetch(`${context.extendedApiBase}/auth/${operation}`, {
       method: 'POST', credentials: 'omit', signal: controller.signal,
@@ -84,13 +91,19 @@ export async function authenticateGuest(context: PublicBrokerContext, operation:
     // Preserve account identity when a server returns an integer larger than JS precision.
     let payload: any;
     try { payload = JSON.parse(text.replace(/("(?:account_login|accountLogin|login)"\s*:\s*)(\d{16,})(?=\s*[,}])/g, '$1"$2"')); }
-    catch { if (response.ok) throw authenticationError(0, {}, null, operation === 'register'); payload = {}; }
+    catch { if (response.ok) throw new GuestAuthError('The broker returned an invalid authentication response. Try again later.', response.status, 'INVALID_RESPONSE', 0, operation === 'register'); payload = {}; }
     if (!response.ok) throw authenticationError(response.status, payload, response.headers.get('Retry-After'), operation === 'register');
     if (response.status !== (operation === 'register' ? 201 : 200)) throw new GuestAuthError('Unexpected authentication response. Use login or recovery.', response.status, 'INVALID_SESSION', 0, operation === 'register');
     if (signal.aborted || !isPublicBrokerContextCurrent(context)) throw new GuestAuthError('Authentication was cancelled.');
     return normalizeGuestSession(payload, context.brokerId, operation);
   } catch (error) {
+    if (signal.aborted || !isPublicBrokerContextCurrent(context)) throw new GuestAuthError('Authentication was cancelled.', 0, 'AUTH_CANCELLED');
     if (error instanceof GuestAuthError) throw error;
+    if (timedOut || error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+      const ambiguous = operation === 'register';
+      throw new GuestAuthError(ambiguous ? authenticationError(0, {}, null, true).message
+        : 'Login request timed out. Check your connection and try again.', 0, 'AUTH_TIMEOUT', 0, ambiguous);
+    }
     throw authenticationError(0, {}, null, operation === 'register');
   } finally { clearTimeout(timeout); signal.removeEventListener('abort', abort); }
 }

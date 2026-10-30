@@ -22,7 +22,7 @@ const evaluate = (source: string, context: Record<string, unknown>) => runInNewC
 
 // Run the production handlers against deterministic native/frame hosts. This
 // checks event order and native writes without requiring an Android runtime.
-function createButtons(os = 'android') {
+function createButtons(os = 'android', sessionRequired = false) {
   let revision = 0;
   const reveals: string[] = [];
   const commits: Array<() => void> = [];
@@ -41,7 +41,7 @@ function createButtons(os = 'android') {
     React: { createElement: (_type: unknown, props: unknown) => props },
     showFastTabVisual: (route: string) => { reveals.push(route); return ++revision; },
     useUIState: { getState: () => ({ hideActionSheet() {} }) },
-    requestOrrnnDemoTradeAuth: () => { authRequests++; return true; },
+    requestOrrnnDemoTradeAuth: () => { authRequests++; return sessionRequired; },
     scheduleFastTabNavigation: (requested: number, action: () => void) => commits.push(() => { if (requested === revision) action(); }),
     TAB_BAR_NAVIGATION_SETTLE_DELAY_MS: 0,
     scheduleIdleWork: (action: () => void) => idle.push(action),
@@ -118,11 +118,26 @@ test('web press-in does not bypass PlatformPressable link handling and guest Tra
   assert.equal(web.reveals.length, 0);
   button.onPress({});
   assert.deepEqual(web.reveals, ['quotes']);
-  const native = createButtons();
+  const native = createButtons('android', true);
   native.button('trade').onTouchStart({});
   assert.equal(native.authRequests, 1);
   assert.equal(native.reveals.length, 0);
   assert.equal(native.commits.length, 0);
+});
+
+test('guest Trade and History tabs request login before revealing account pages', () => {
+  for (const os of ['android', 'ios', 'web']) {
+    for (const route of ['trade', 'history'] as const) {
+      const host = createButtons(os, true);
+      host.button(route).onPress({});
+      assert.equal(host.authRequests, 1);
+      assert.equal(host.reveals.length, 0);
+      assert.equal(host.commits.length, 0);
+      const signedIn = createButtons(os, false);
+      signedIn.button(route).onPress({});
+      assert.deepEqual(signedIn.reveals, [route]);
+    }
+  }
 });
 
 test('Chart prefetch cannot block the route commit or run after a newer tab tap', () => {

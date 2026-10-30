@@ -1,3 +1,4 @@
+import { createCoalescedWriter } from '../../../utils/coalescedWriter';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { sanitizeCandlesForChart } from '../normalization/chartAdapter';
@@ -154,6 +155,7 @@ const parseStorage = (
 let storageSnapshot: PersistedCandleCacheState | null = null;
 let storageReadPromise: Promise<PersistedCandleCacheState> | null = null;
 let storageWriteQueue: Promise<void> = Promise.resolve();
+let diskWriter: ReturnType<typeof createCoalescedWriter<string, PendingPersistedCandleWrite>> | null = null;
 let boundCacheNamespace: string | null = null;
 let candleCacheResetGeneration = 0;
 const pendingWrites = new Map<string, PendingPersistedCandleWrite>();
@@ -174,7 +176,9 @@ const clearPersistedCandleCacheRuntime = (): void => {
   hydrationPromises.clear();
   storageSnapshot = null;
   storageReadPromise = null;
-  storageWriteQueue = Promise.resolve();
+  diskWriter?.cancel();
+  diskWriter = null;
+  // Keep existing I/O ordered even when a new session binds during a write.
   boundCacheNamespace = null;
 };
 
@@ -271,38 +275,33 @@ const flushPersistedEntry = (key: string, scheduledScope: CandleCacheScope) => {
     return;
   }
 
-  const { entry, scope } = pendingWrite;
   lastWriteAt.set(key, Date.now());
-
-  storageWriteQueue = storageWriteQueue
-    .then(async () => {
-      if (!isCandleCacheScopeCurrent(scope)) {
-        return;
+  if (!diskWriter) {
+    diskWriter = createCoalescedWriter<string, PendingPersistedCandleWrite>((batch) => {
+      const operation = storageWriteQueue.then(async () => {
+        const currentBatch = batch.filter(([, item]) => isCandleCacheScopeCurrent(item.scope));
+        if (!currentBatch.length) return;
+        const scope = currentBatch[0][1].scope;
+        const current = await readStorage(scope);
+        if (!isCandleCacheScopeCurrent(scope)) return;
+        const entries = { ...current.entries };
+        for (const [entryKey, item] of currentBatch) entries[entryKey] = item.entry;
+        const nextState: PersistedCandleCacheState = {
+          version: STORAGE_VERSION, cacheNamespace: scope.cacheNamespace, entries: trimEntries(entries),
+        };
+        await AsyncStorage.setItem(getPersistedCandleStorageKey(scope.cacheNamespace), JSON.stringify(nextState));
+        if (isCandleCacheScopeCurrent(scope)) storageSnapshot = nextState;
+      });
+      storageWriteQueue = operation.catch(() => undefined);
+      return operation;
+    }, (error, batch) => {
+      for (const [entryKey, item] of batch) {
+        if (isCandleCacheScopeCurrent(item.scope)) lastScheduledSignature.delete(entryKey);
       }
-
-      const current = await readStorage(scope);
-      if (!isCandleCacheScopeCurrent(scope)) {
-        return;
-      }
-
-      const nextState: PersistedCandleCacheState = {
-        version: STORAGE_VERSION,
-        cacheNamespace: scope.cacheNamespace,
-        entries: trimEntries({
-          ...current.entries,
-          [key]: entry,
-        }),
-      };
-
-      storageSnapshot = nextState;
-      await AsyncStorage.setItem(
-        getPersistedCandleStorageKey(scope.cacheNamespace),
-        JSON.stringify(nextState),
-      );
-    })
-    .catch((error) => {
       console.error('[persistedCandleCache] Failed to write candle cache', error);
     });
+  }
+  diskWriter.enqueue(key, pendingWrite);
 };
 
 /**

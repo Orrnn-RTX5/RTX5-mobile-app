@@ -24,12 +24,14 @@ function quoteHarness(t: TestContext, quotes: unknown[] = [], beforeOpen?: (url:
   globalThis.fetch = (async url => new Response(JSON.stringify(String(url).endsWith('/instruments')
     ? [{ symbol: 'EURUSD.pro', digits: 5 }, { symbol: 'GBPUSD.pro', digits: 5 }] : quotes))) as typeof fetch;
   const sockets: FakeSocket[] = [];
+  let visibility: (active: boolean) => void = () => {};
   const service = new PublicMarketSocketService({
-    initialActive: true, isGuest: () => true, subscribeGuest: () => () => {}, subscribeVisibility: () => () => {},
+    initialActive: true, isGuest: () => true, subscribeGuest: () => () => {},
+    subscribeVisibility: listener => { visibility = listener; return () => {}; },
     openSocket: url => { beforeOpen?.(url); const socket = new FakeSocket(url); sockets.push(socket); return socket as unknown as WebSocket; },
   });
   t.after(() => { service.dispose(); t.mock.timers.reset(); globalThis.fetch = original; setPublicBrokerContext(null); });
-  return { sockets, service };
+  return { sockets, service, visibility: (active: boolean) => visibility(active) };
 }
 test('anonymous quotes validate catalog, preserve flags and sequence, heartbeat and resume after reconnect', async t => {
   const original = fetch; setPublicBrokerContext(publicBrokerFixture());
@@ -161,4 +163,85 @@ test('broker changes discard retained quotes and reject the old socket callback'
   assert.equal(ticks.length, 1); assert.deepEqual(useTradingState.getState().quotes, {});
   await settle(); assert.equal(sockets.length, 2);
   assert.equal(new URL(sockets[1].url).searchParams.get('broker_id'), 'Other');
+});
+
+test('new quote demand seeds only its own snapshot and live bursts remain synchronous', async t => {
+  const { sockets, service } = quoteHarness(t, [
+    { symbol: 'EURUSD.pro', bid: 1, ask: 1.1, time_ms: 1799999999000 },
+    { symbol: 'GBPUSD.pro', bid: 1.3, ask: 1.4, time_ms: 1799999999000 },
+  ]);
+  const eur: any[] = []; const gbp: any[] = [];
+  service.subscribeToSymbol('EURUSD.pro', tick => eur.push(tick));
+  await settle(); sockets[0].open();
+  assert.equal(eur.length, 1);
+  assert.equal(useTradingState.getState().quotes['GBPUSD.PRO'], undefined);
+  service.subscribeToSymbol('GBPUSD.pro', tick => gbp.push(tick));
+  assert.equal(eur.length, 1); assert.equal(gbp.length, 1);
+  for (let i = 0; i < 500; i++) {
+    sockets[0].message({ symbol: 'EURUSD.pro', bid: 1 + i / 10_000, ask: 1.1 + i / 10_000, time_ms: 1800000000000 + i });
+  }
+  assert.equal(eur.length, 501, 'the indexed demand path must not batch away listener ticks');
+  assert.equal(gbp.length, 1);
+  assert.equal(eur.at(-1).bid, 1.0499);
+  const stopDuplicate = service.subscribeToSymbol('EURUSD.pro', () => {});
+  stopDuplicate();
+  assert.equal(sockets.length, 1); assert.equal(eur.length, 501); assert.equal(gbp.length, 1);
+});
+
+test('foreground candle polling resumes despite an unfinished aborted request and rejects its late response', async t => {
+  const { sockets, service, visibility } = quoteHarness(t);
+  const catalogFetch = globalThis.fetch;
+  const requests: { signal: AbortSignal | null | undefined; resolve: (response: Response) => void }[] = [];
+  globalThis.fetch = ((url, init) => String(url).includes('/candles/')
+    ? new Promise<Response>(resolve => requests.push({ signal: init?.signal, resolve }))
+    : catalogFetch(url, init)) as typeof fetch;
+  const bars: any[] = [];
+  const stop = service.subscribeCandle('EURUSD.pro', 'M1', bar => bars.push(bar));
+  await settle(); sockets[0].open();
+  t.mock.timers.tick(3_000); await settle(); assert.equal(requests.length, 1);
+
+  visibility(false); assert.equal(requests[0].signal?.aborted, true);
+  visibility(true); await settle(); sockets[1].open();
+  t.mock.timers.tick(3_000); await settle();
+  assert.equal(requests.length, 2, 'an aborted old request must not block the resumed feed');
+  const response = (close: number) => new Response(JSON.stringify({
+    symbol: 'EURUSD.pro', timeframe: 'M1',
+    candles: [{ time: 1800000000, open: 1, high: 10, low: .5, close, volume: 10 }],
+  }));
+  requests[0].resolve(response(9)); await settle();
+  assert.equal(bars.length, 0, 'the previous lifecycle must not publish into the resumed chart');
+  t.mock.timers.tick(3_000); await settle();
+  assert.equal(requests.length, 2, 'old cleanup must not clear the replacement request ownership');
+  requests[1].resolve(response(1.5)); await settle();
+  assert.equal(bars.length, 1); assert.equal(bars[0].close, 1.5);
+  stop(); t.mock.timers.tick(60_000); await settle(); assert.equal(requests.length, 2);
+});
+
+test('suspending and disposing release public catalog indexes while resume restores demand and metadata', async t => {
+  const { sockets, service, visibility } = quoteHarness(t, [
+    { symbol: 'EURUSD.pro', bid: 1, ask: 1.1, time_ms: 1799999999000 },
+  ]);
+  const ticks: any[] = [];
+  service.subscribeToSymbol('EURUSD.pro', tick => ticks.push(tick));
+  service.subscribeCandle('EURUSD.pro', 'M1', () => {});
+  await settle(); sockets.forEach(socket => socket.open());
+  const retained = service as unknown as {
+    catalog: unknown; instrumentMetadata: Map<string, unknown>; snapshotQuotesBySymbol: Map<string, unknown>;
+    wireSymbols: Map<string, string>; demandedWireSymbols: Set<string>; candleChannels: Map<string, unknown>;
+  };
+  const assertReleased = () => {
+    assert.equal(retained.catalog, null);
+    for (const index of [retained.instrumentMetadata, retained.snapshotQuotesBySymbol,
+      retained.wireSymbols, retained.demandedWireSymbols, retained.candleChannels]) assert.equal(index.size, 0);
+  };
+  assert.ok(retained.catalog);
+  visibility(false); assertReleased();
+  visibility(true); await settle(); assert.equal(sockets.length, 4);
+  sockets[2].open(); sockets[3].open();
+  assert.deepEqual(sockets[2].sent[0].symbols, ['EURUSD.pro']);
+  assert.equal(sockets[3].sent[0].channel, 'candles.EURUSD.pro.M1');
+  assert.equal(ticks.length, 1, 'resume must not advance retained quote freshness through a catalog replay');
+  sockets[2].message({ symbol: 'EURUSD.pro', bid: 1.2, ask: 1.3, time_ms: 1800000000000 });
+  assert.equal(ticks.length, 2); assert.equal(ticks[1].digits, 5);
+  service.dispose(); assertReleased();
 });

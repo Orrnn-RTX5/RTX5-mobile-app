@@ -111,7 +111,7 @@ test('webview bridge: candles arriving before READY are retained and sent after 
   assertSourceContains(source, /const sanitizedBackendCandles = useMemo\([\s\S]*sanitizeCandlesForChart\(candles, \{[\s\S]*timeframe: chartTimeframe,[\s\S]*pruneSyntheticFlatLiveTail: shouldApplyClosedCandlePolicy,[\s\S]*closedMarketSessionClose: shouldApplyClosedCandlePolicy[\s\S]*closedCandlePolicySessionClose/, 'native host must clamp and prune backend candles only for a confirmed close or bounded reopen repair');
   assertSourceContains(source, /const sanitizedCandles = useMemo\([\s\S]*return sanitizedBackendCandles;[\s\S]*\[\s*sanitizedBackendCandles\s*\]/, 'native host must render backend candle data without live-quote candle synthesis');
   assert.doesNotMatch(source, /resolveLivePriceCoherentCandles/, 'native host must not build display candles from quote ticks');
-  assertSourceContains(source, /const overlayCandles = sanitizedBackendCandles\.length > 0 \? sanitizedBackendCandles : sanitizedCandles/, 'overlay rebuilds must stay tied to backend candles when backend history exists');
+  assertSourceContains(source, /const overlayCandles = sanitizedBackendCandles\.length > 0\s*\? sanitizedBackendCandles\s*: sanitizedCandles\.length > 0\s*\? sanitizedCandles\s*: chartMetaCanonicalCandles/, 'overlay rebuilds must stay tied to backend candles when backend history exists');
   assertSourceContains(source, /buildChartOverlayMarkers\(\{[\s\S]*candles: overlayMarkerCandles/, 'candle/history markers must be isolated from live quote ticks');
   assertSourceContains(source, /buildChartOverlayPayload\(\{[\s\S]*candles: EMPTY_DISPLAY_CANDLES/, 'quote-driven overlay work must build price lines without rescanning candle history');
   assertSourceContains(source, /const candlesRef = useRef\(sanitizedCandles\)/, 'sanitized candles must be retained outside render timing');
@@ -789,7 +789,7 @@ test('closed-market chart intent warms a deeper exact history window without bro
   );
   assertSourceContains(
     quotesScreenSource,
-    /openChartTabForSymbol[\s\S]*prefetchChartSelectionHistory\(sym, chartTimeframe\)/,
+    /openChartTabForSymbol[\s\S]*prefetchChartSelectionHistory\((?:sym|targetSymbol), chartTimeframe\)/,
     'the Quotes-to-Chart action must begin the exact history warm-up before revealing Chart',
   );
   assertSourceContains(
@@ -880,13 +880,13 @@ test('webview bridge: split trade labels retain separate side and live PnL field
   );
   assertSourceContains(
     refreshBody,
-    /var hasSplitTradeLabel = !!\(item\.labelSideText && item\.labelValueText\)[\s\S]*sideSpan\.textContent = item\.labelSideText[\s\S]*separatorSpan\.textContent = ', '[\s\S]*valueSpan\.textContent = item\.labelValueText[\s\S]*valueSpan\.style\.color = item\.labelValueColor \|\| item\.color/,
-    'open-position labels must render BUY/SELL volume and live USD value as separate text spans',
+    /var hasSplitTradeLabel = !!\(item\.labelSideText && item\.labelValueText\)[\s\S]*sideSpan\.textContent = item\.labelSideText[\s\S]*separatorSpan\.textContent = isPendingEntryLabel \? ' ' : ', '[\s\S]*valueSpan\.textContent = item\.labelValueText[\s\S]*valueSpan\.style\.color = item\.labelValueColor \|\| item\.color/,
+    'pending labels separate type and lots with a space; open-position labels retain separate side and live USD spans',
   );
   assertSourceContains(
     refreshBody,
-    /label\.style\.color = item\.labelSideColor \|\| item\.color[\s\S]*label\.style\.fontSize = hasSplitTradeLabel \? '9px' : '12px'[\s\S]*label\.style\.fontWeight = '700'/,
-    'split labels must keep the trade-side fallback color with compact bold typography',
+    /label\.style\.color = item\.labelSideColor \|\| item\.color[\s\S]*label\.style\.fontSize = isPendingEntryLabel \? '11px' : hasSplitTradeLabel \? '9px' : '12px'[\s\S]*label\.style\.fontWeight = '700'/,
+    'pending labels use readable 11px text while existing split labels retain their compact bold typography',
   );
 });
 
@@ -918,7 +918,7 @@ test('webview bridge: per-tick trade label patches touch text only and retain la
   );
 });
 
-test('live native label patches recolour Buy/Sell and lot together with P/L', () => {
+test('live native label patches preserve Buy/Sell color while updating P/L', () => {
   const patchBody = extractFunctionBody(chartWebViewHtmlSource, 'updateOverlayTradeLabelValues');
   const nodes = [{ nodeName: 'SPAN', textContent: 'SELL 0.03', style: { color: '#DC2626' } },
     { nodeName: 'SPAN', textContent: ', ', style: { color: '#DC2626' } },
@@ -939,7 +939,9 @@ test('live native label patches recolour Buy/Sell and lot together with P/L', ()
     });
     assert.equal(nodes[0].textContent, 'SELL 0.03');
     assert.equal(nodes[2].textContent, text);
-    assert.ok(nodes.every((node) => node.style.color === color));
+    assert.equal(nodes[0].style.color, '#DC2626');
+    assert.equal(nodes[1].style.color, color);
+    assert.equal(nodes[2].style.color, color);
     assert.equal(label.childNodes, nodes);
   }
 });
@@ -966,7 +968,7 @@ test('webview bridge: open-position trade labels stay in one vertical column whi
   );
   assertSourceContains(
     refreshBody,
-    /anchoredLabels\.sort\(function\(left, right\) \{ return left\.y - right\.y; \}\)[\s\S]*resolveAnchoredOverlayLabelTops\(anchoredLabels\)/,
+    /anchoredLabels\.sort\(function\(left, right\) \{ return left\.y - right\.y \|\| String\(left\.id \|\| ''\)\.localeCompare\(String\(right\.id \|\| ''\)\); \}\)[\s\S]*resolveAnchoredOverlayLabelTops\(anchoredLabels\)/,
     'anchored trade labels must be price-sorted into one vertical layout',
   );
   assertSourceContains(
@@ -976,8 +978,8 @@ test('webview bridge: open-position trade labels stay in one vertical column whi
   );
   assertSourceContains(
     repositionBody,
-    /anchoredLabelRecords\.sort\(function\(left, right\) \{ return left\.y - right\.y; \}\)[\s\S]*resolveAnchoredOverlayLabelTops\(anchoredLabelRecords\)[\s\S]*record\.node\.style\.top = labelTop[\s\S]*var rowY = resolveAnchoredOverlayRowY\(labelTop\)[\s\S]*record\.lineNode\.style\.top = rowY[\s\S]*record\.boxNode\.style\.top = Math\.round\(rowY - OVERLAY_POSITION_BOX_HEIGHT \/ 2\)/,
-    'pan and zoom frames must keep each open-position label, line, and box on one shared row',
+    /anchoredLabelRecords\.sort\(function\(left, right\) \{ return left\.y - right\.y \|\| String\(left\.id \|\| ''\)\.localeCompare\(String\(right\.id \|\| ''\)\); \}\)[\s\S]*resolveAnchoredOverlayLabelTops\(anchoredLabelRecords\)[\s\S]*record\.node\.style\.top = labelTop[\s\S]*renderPositionControl\(record\.node, record, labelTop[\s\S]*var rowY = record\.y[\s\S]*record\.lineNode\.style\.top = rowY[\s\S]*record\.boxNode\.style\.top = Math\.round\(rowY - OVERLAY_POSITION_BOX_HEIGHT \/ 2\)/,
+    'pan and zoom must retain the exact entry line and price box while controls use their collision layout',
   );
   assertSourceContains(
     anchoredLaneBody,
@@ -1301,7 +1303,12 @@ test('webview bridge: setLivePriceLine hides native market badges and paints one
   assertSourceContains(renderMarketPriceScaleExtensionBody, /className = 'rtx5-market-price-scale-extension'[\s\S]*style\.left = axisLeft \+ 'px'[\s\S]*style\.width = Math\.min\(axisWidth/, 'custom market price-scale extension must render only over the right price scale');
   assertSourceContains(renderMarketPriceScaleExtensionsBody, /renderMarketPriceScaleExtension\(layer, lastLivePrice, marketLiveColor\)/, 'overlay refresh must repaint the custom live price-scale extension');
   assertSourceContains(axisMetricsBody, /resolveRightPriceScaleFallbackAxisMetrics\(Object\.assign[\s\S]*MARKET_PRICE_SCALE_BADGE_MIN_WIDTH[\s\S]*axisLeft \+ axisWidth > chartWidth/, 'custom market price badges must occupy the owned right price-scale strip without overflowing the chart');
-  assertSourceContains(badgeFormatterBody, /resolveOverlayDisplayDecimals\(\)[\s\S]*Number\(price\)\.toFixed\(decimals\)/, 'custom market price badges must use the same configured display precision as the overlay');
+  assertSourceContains(badgeFormatterBody, /return formatChartBrokerPrice\(price\)/, 'custom market price badges must use broker display precision');
+  assertSourceContains(
+    extractFunctionBody(chartWebViewHtmlSource, 'formatChartBrokerPrice'),
+    /isFinite\(price\) \? price\.toFixed\(Math\.max\(0, Math\.min\(10, lastDisplayDecimals\)\)\) : '--'/,
+    'broker display precision must stay bounded and invalid prices must remain unavailable',
+  );
   assertSourceContains(collectMarketPriceScaleBadgeBody, /var countdownLabel = role === 'live' \? resolveCandleCountdownLabel\(\) : null[\s\S]*var priceRowHeight =[\s\S]*var desiredTop = Math\.round\(y - priceRowHeight \/ 2\)[\s\S]*desiredTop: desiredTop[\s\S]*top: desiredTop/, 'custom market price badges must align the live-price row to the real price coordinate while placing countdown below it');
   assertSourceContains(renderMarketPriceScaleBadgeBody, /rtx5-market-price-scale-badge[\s\S]*rtx5-market-price-scale-badge-price[\s\S]*rtx5-market-price-scale-badge-countdown[\s\S]*priceRow\.textContent = formatMarketPriceScaleBadgeLabel\(badge\.price\)[\s\S]*countdownRow\.textContent = badge\.countdownLabel \|\| ''[\s\S]*style\.left = axisMetrics\.axisLeft \+ 'px'[\s\S]*style\.width = axisMetrics\.axisWidth \+ 'px'[\s\S]*style\.background = badge\.color[\s\S]*style\.color = '#FFFFFF'[\s\S]*style\.textAlign = 'right'/, 'custom market price-scale badge must render stable price and countdown rows inside the colored right-axis box');
   assertSourceContains(renderMarketPriceScaleBadgesBody, /collectMarketPriceScaleBadge\(layer, axisMetrics, lastLivePrice, marketLiveColor, 'live'\)[\s\S]*badges\.sort[\s\S]*MARKET_PRICE_SCALE_BADGE_GAP[\s\S]*renderMarketPriceScaleBadge\(layer, badges\[badgeIndex\], axisMetrics\)/, 'overlay refresh must repaint the custom live price-scale badge in place');
@@ -1413,7 +1420,7 @@ test('native chart status overlays do not block symbol recovery controls', () =>
   );
   assertSourceContains(
     source,
-    /<WebView[\s\S]*backgroundColor: resolvedChartColors\.background,[\s\S]*opacity: hasUsableRetainedChart \? 1 : 0/,
+    /<WebView[\s\S]*backgroundColor: resolvedChartColors\.background,[\s\S]*opacity: hasUsableRetainedChart \|\| retainPreviousChartSurface \? 1 : 0/,
     'an unconfirmed quote-only WebView must stay fully concealed beneath the native loading state',
   );
   assertSourceContains(
@@ -1819,7 +1826,7 @@ test('webview bridge: custom right price-scale labels are backend-data-driven an
   );
   assertSourceContains(
     ticksBody,
-    /for \(var scaleIndex = 0; scaleIndex <= intervals[\s\S]*ticks\.length < RIGHT_PRICE_SCALE_FALLBACK_MAX_LABELS[\s\S]*appendInterpolatedTick[\s\S]*ticks\.sort\(function\(left, right\) \{ return left\.y - right\.y; \}\)/,
+    /for \(var scaleIndex = 0; scaleIndex <= intervals[\s\S]*ticks\.length < RIGHT_PRICE_SCALE_FALLBACK_MAX_LABELS[\s\S]*appendInterpolatedTick[\s\S]*ticks\.sort\(function\(left, right\) \{ return left\.y - right\.y \|\| String\(left\.id \|\| ''\)\.localeCompare\(String\(right\.id \|\| ''\)\); \}\)/,
     'custom axis ticks must update the full right-scale range instead of changing only edge labels',
   );
   assertSourceContains(
@@ -1900,7 +1907,7 @@ test('webview bridge: native chart uses the GitHub resolved chart background', (
   const paneBackgroundBody = extractFunctionBody(chartWebViewHtmlSource, 'updateChartPaneBackgroundLayer');
 
   assertSourceContains(source, /layout: \{[\s\S]*background: \{ color: resolvedChartColors\.background \}/, 'native chart canvas must use the resolved chart background');
-  assertSourceContains(source, /<WebView[\s\S]*style=\{\{[\s\S]*flex: 1,[\s\S]*backgroundColor: resolvedChartColors\.background,[\s\S]*opacity: hasUsableRetainedChart \? 1 : 0,[\s\S]*\}\}/, 'native WebView host must use the resolved chart background and hide unconfirmed bootstrap data');
+  assertSourceContains(source, /<WebView[\s\S]*style=\{\{[\s\S]*flex: 1,[\s\S]*backgroundColor: resolvedChartColors\.background,[\s\S]*opacity: hasUsableRetainedChart \|\| retainPreviousChartSurface \? 1 : 0,[\s\S]*\}\}/, 'native WebView host must use the resolved chart background, retain confirmed timeframe transitions, and hide unconfirmed bootstrap data');
   assertSourceContains(source, /customColors: \{[\s\S]*grid: chartDisplay\.showGrid \? chartGridColor : 'transparent',[\s\S]*axisDivider: chartAxisBorderColor/, 'native chart custom colors must keep only the GitHub axis divider override');
   assertSourceContains(source, /chartAxisBorderColor\}-\$\{chartColorsSignature\}/, 'chart config signature must use the GitHub color signature shape');
   assert.doesNotMatch(source, /CHART_DARK_CANVAS_BACKGROUND_COLOR|chartAxisBackgroundColor|axisBackground:/);

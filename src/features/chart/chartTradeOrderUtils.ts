@@ -19,6 +19,7 @@ type PendingChartTradeValidationInput = {
   bid: number;
   ask: number;
   pointSize: number;
+  minDistance?: number;
 };
 
 type StablePendingChartTradeValidationInput = PendingChartTradeValidationInput & {
@@ -211,6 +212,7 @@ export const isPendingChartTradeValid = ({
   bid,
   ask,
   pointSize,
+  minDistance = 0,
 }: PendingChartTradeValidationInput) => {
   if (!isPendingChartOrderType(orderType) || !Number.isFinite(entryPrice) || entryPrice <= 0) {
     return false;
@@ -218,23 +220,22 @@ export const isPendingChartTradeValid = ({
 
   const liveBid = Number.isFinite(bid) && bid > 0 ? bid : null;
   const liveAsk = Number.isFinite(ask) && ask > 0 ? ask : null;
-  void pointSize;
+  const epsilon = Math.max(Math.abs(pointSize) * 1e-5, Number.EPSILON * Math.max(1, entryPrice) * 8);
+  const farEnough = (delta: number) => delta > epsilon && delta + epsilon >= minDistance;
 
   switch (orderType) {
     case 'Buy Limit':
-      return liveAsk !== null && entryPrice < liveAsk;
+      return liveAsk !== null && farEnough(liveAsk - entryPrice);
     case 'Sell Limit':
-      return liveBid !== null && entryPrice > liveBid;
+      return liveBid !== null && farEnough(entryPrice - liveBid);
     case 'Buy Stop':
-      return liveAsk !== null && entryPrice > liveAsk;
+      return liveAsk !== null && farEnough(entryPrice - liveAsk);
     case 'Sell Stop':
-      return liveBid !== null && entryPrice < liveBid;
+      return liveBid !== null && farEnough(liveBid - entryPrice);
     case 'Buy Stop Limit':
+      return liveAsk !== null && farEnough(entryPrice - liveAsk) && Number.isFinite(stopLimitPrice) && Number(stopLimitPrice) > 0;
     case 'Sell Stop Limit':
-      // The strict Gateway contract supports only limit and stop pending
-      // orders; stop-limit values must never become a frontend fallback.
-      void stopLimitPrice;
-      return false;
+      return liveBid !== null && farEnough(liveBid - entryPrice) && Number.isFinite(stopLimitPrice) && Number(stopLimitPrice) > 0;
     default:
       return false;
   }
@@ -248,6 +249,7 @@ export const resolveStablePendingChartTradeEnabled = ({
   ask,
   pointSize,
   previouslyEnabled,
+  minDistance,
 }: StablePendingChartTradeValidationInput) => {
   // UI stability must not invent a broker minimum distance. Re-evaluate the
   // same strict backend rule against the latest authoritative quote.
@@ -259,5 +261,6 @@ export const resolveStablePendingChartTradeEnabled = ({
     bid,
     ask,
     pointSize,
+    minDistance,
   });
 };

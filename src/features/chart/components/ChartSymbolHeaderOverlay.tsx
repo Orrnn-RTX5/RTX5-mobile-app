@@ -1,3 +1,4 @@
+import { useTranslation } from '../../../i18n/useTranslation';
 import { GDark, GLight } from '../../../ui/theme/glass';
 import { Ionicons } from '@expo/vector-icons';
 import React, { memo, useMemo } from 'react';
@@ -9,6 +10,7 @@ import {
   resolveChartSymbolFullName,
 } from '../chartSymbolMetadata';
 import { FastPressable as Pressable } from '../../../ui/components/FastPressable';
+import { formatBackendPrice } from '../../../utils/backendPrice';
 
 export const CHART_OHLC_HIGH_COLOR = GDark.trading.profit;
 export const CHART_OHLC_LOW_COLOR = '#F23645';
@@ -28,7 +30,6 @@ export type ChartSymbolHeaderOverlayProps = Readonly<{
 export const ChartSymbolHeaderOverlay = memo(function ChartSymbolHeaderOverlay({
   symbol,
   candle,
-  displayDecimals,
   isDark,
   showTicker,
   showOHLC,
@@ -36,15 +37,15 @@ export const ChartSymbolHeaderOverlay = memo(function ChartSymbolHeaderOverlay({
   onSymbolPress,
   testID = 'chart-symbol-header-overlay',
 }: ChartSymbolHeaderOverlayProps) {
+  const { t } = useTranslation();
   const displaySymbol = symbol.replace(/\//g, '');
   const fullName = useMemo(() => resolveChartSymbolFullName(symbol), [symbol]);
   const category = useMemo(() => resolveChartSymbolCategory(symbol), [symbol]);
-  const safeDisplayDecimals = Math.max(0, Math.min(10, Math.floor(displayDecimals)));
   const neutralColor = isDark ? '#FFFFFF' : '#0F172A';
   const mutedColor = isDark ? '#94A3B8' : '#64748B';
   const borderColor = isDark ? '#334155' : '#CBD5E1';
   const formatValue = (value: number | null | undefined) => (
-    Number.isFinite(value) ? Number(value).toFixed(safeDisplayDecimals) : '--'
+    formatBackendPrice(value)
   );
   const ohlcItems = [
     { label: 'O', value: formatValue(candle?.open), color: neutralColor },
@@ -59,7 +60,9 @@ export const ChartSymbolHeaderOverlay = memo(function ChartSymbolHeaderOverlay({
       onPress={onSymbolPress}
       disabled={!onSymbolPress}
       accessibilityRole={onSymbolPress ? 'button' : undefined}
-      accessibilityLabel={onSymbolPress ? `Select ${displaySymbol} symbol` : undefined}
+      accessible
+      accessibilityLabel={`${displaySymbol}. ${showOHLC && candle ? `${t('Open')} ${formatValue(candle.open)}, ${t('High')} ${formatValue(candle.high)}, ${t('Low')} ${formatValue(candle.low)}, ${t('Close')} ${formatValue(candle.close)}.` : t('No market data')}`}
+      accessibilityHint={onSymbolPress ? t('Select symbol') : undefined}
       testID={testID}
       activateOnPressIn
       hitSlop={8}
