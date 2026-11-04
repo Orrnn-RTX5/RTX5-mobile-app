@@ -8,6 +8,12 @@
 
 ## 0. Your task (read first)
 
+### Mobile demo password change (2026-10-07)
+
+The active demo form now accepts an editable Investor Password immediately before Master Password. `GuestFlowHost` registers through the selected public broker context's **extended API base**, `POST /api/v2/auth/register`, with `{name, email, username, password, investor_pass, broker_id}`. `password` remains the Master Password; `investor_pass` carries the exact user-entered Investor Password, without trimming either password. Both require at least eight characters, a letter and a digit. Master Password confirmation is validated locally and is not sent.
+
+**Backend verification required:** `investor_pass` follows the spelling in `docs/guide/API_CONTRACTS.md`'s historical demo-manager request. Acceptance of this added field by the active broker `/auth/register` route has not been verified against a running server. Confirm that registration uses it to set the investor credential (rather than ignoring it), or supply the supported field name. Return a validation error if it cannot be applied. The mobile request does not use the legacy `/public/demo-account` route. Successful registration still requires HTTP 201 and the existing broker-matched trading session response. Ordinary login requests and investor-role detection remain unchanged; the latter comes only from the server response. Never log either password or return them in session metadata.
+
 1. Read Sections 1–9. They describe **exactly** what the mobile app sends and what it accepts today.
 2. For every item, check the current backend and mark it one of:
    - ✅ **MATCHES**: the backend already behaves this way.

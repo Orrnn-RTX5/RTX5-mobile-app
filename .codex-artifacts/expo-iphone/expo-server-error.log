@@ -1,0 +1,7 @@
+The following packages should be updated for best compatibility with the installed expo version:
+  expo@54.0.36 - expected version: ~54.0.37
+  expo-constants@18.0.13 - expected version: ~18.0.14
+  expo-updates@29.0.19 - expected version: ~29.0.20
+Your project may not work correctly until you install the expected versions of the packages.
+Tunnel connection has been closed. This is often related to intermittent connection issues between the dev server and ngrok. Restart the dev server to try connecting to ngrok again.
+Check the Ngrok status page for outages: https://status.ngrok.com/

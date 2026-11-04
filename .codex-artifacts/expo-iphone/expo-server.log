@@ -1,0 +1,88 @@
+env: load .env.local .env
+env: export EXPO_PUBLIC_API_BASE_URL EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL EXPO_PUBLIC_ADDITIONAL_BROKER_DIRECTORY_BASE_URL EXPO_PUBLIC_ADDITIONAL_BROKER_IDS EXPO_PUBLIC_DEMO_API_BASE_URL EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER EXPO_PUBLIC_CANDLE_HISTORY_PATH EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES EXPO_PUBLIC_TERMS_URL EXPO_PUBLIC_PRIVACY_POLICY_URL EXPO_PUBLIC_SENTRY_DSN EXPO_UNSTABLE_TUNNEL_V2 EXPO_NO_REDIRECT_PAGE
+Starting project at C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\rtx5-app
+Starting Metro Bundler
+Tunnel connected.
+Tunnel ready.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+[ExpoGoManifest] platform=ios reqRuntime=null reqSdk=null -> runtime=exposdk:54.0.0 bundleUrl=http://a1eahdo-yoforex-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+[ExpoGoManifest] platform=ios reqRuntime=null reqSdk=null -> runtime=exposdk:54.0.0 bundleUrl=http://a1eahdo-yoforex-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+[ExpoGoManifest] platform=ios reqRuntime=exposdk:55.0.0 reqSdk=55.0.0 -> runtime=exposdk:54.0.0 bundleUrl=https://a1eahdo-yoforex-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+iOS node_modules\expo-router\entry.js ▓▓░░░░░░░░░░░░░░ 16.3% (132/327)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓░░░░░░░░░░ 42.5% ( 665/1064)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.2% (1022/1547)
+| (node:15020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.2% (1022/1547)
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:10272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:18508) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.2% (1050/1560)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 46.7% (1068/1563)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 47.3% (1077/1567)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 48.9% (1100/1573)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 49.4% (1108/1577)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 50.4% (1126/1587)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 51.5% (1147/1598)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.7% (1206/1683)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.7% (1264/1778)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.7% (1311/1819)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 55.2% (1407/1894)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 60.1% (1510/1948)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 61.0% (1528/1957)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 61.0% (1529/1957)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 63.5% (1580/1982)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.8% (1668/2030)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (1688/2051)
+[ExpoGoManifest] platform=ios reqRuntime=exposdk:58.0.0 reqSdk=null -> runtime=exposdk:54.0.0 bundleUrl=http://a1eahdo-yoforex-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (1692/2054)
+[ExpoGoManifest] platform=ios reqRuntime=exposdk:58.0.0 reqSdk=null -> runtime=exposdk:54.0.0 bundleUrl=http://a1eahdo-yoforex-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.0% (1694/2054)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.1% (1695/2054)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.2% (1733/2304)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.2% (1835/2340)
+Tunnel connected.
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.2% (1840/2341)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.2% (1853/2393)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.2% (1892/2423)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.2% (2014/2479)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.2% (2067/2503)
+[ExpoGoManifest] platform=ios reqRuntime=exposdk:58.0.0 reqSdk=null -> runtime=exposdk:54.0.0 bundleUrl=http://a1eahdo-yoforex-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 68.4% (2070/2503)
+ ERROR  Project is incompatible with this version of Expo Go
+
+• The installed version of Expo Go is for SDK 58.0.0.
+• The project you opened uses SDK 54.
+
+How to fix this error:
+
+Either upgrade this project to SDK 58.0.0, or launch it in an iOS simulator. It is not possible to install an older version of Expo Go for iOS devices, only the latest version is supported.
+
+[Learn how to upgrade to SDK 58.](https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/)
+
+[https://expo.dev/go?sdkVersion=54&platform=ios&device=false](Learn how to install Expo Go for SDK 54 in an iOS Simulator.)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 71.9% (2134/2517)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 78.4% (2252/2543)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 82.4% (2378/2653)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 83.2% (2557/2811)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.8% (2787/2991)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 87.6% (2909/3174)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.5% (3072/3229)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.7% (3263/3368)
+iOS Bundled 127805ms node_modules\expo-router\entry.js (3458 modules)
+iOS node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (3458/3458)
+[ExpoGoManifest] platform=ios reqRuntime=exposdk:58.0.0 reqSdk=null -> runtime=exposdk:54.0.0 bundleUrl=http://a1eahdo-yoforex-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+ ERROR  Project is incompatible with this version of Expo Go
+
+• The installed version of Expo Go is for SDK 58.0.0.
+• The project you opened uses SDK 54.
+
+How to fix this error:
+
+Either upgrade this project to SDK 58.0.0, or launch it in an iOS simulator. It is not possible to install an older version of Expo Go for iOS devices, only the latest version is supported.
+
+[Learn how to upgrade to SDK 58.](https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/)
+
+[https://expo.dev/go?sdkVersion=54&platform=ios&device=false](Learn how to install Expo Go for SDK 54 in an iOS Simulator.)

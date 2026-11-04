@@ -1,0 +1,11 @@
+{
+  "cli": { "appVersionSource": "local" },
+  "build": {
+    "connectedIphone": {
+      "distribution": "internal",
+      "credentialsSource": "remote",
+      "config": "expo-go54.yml",
+      "ios": { "image": "latest" }
+    }
+  }
+}

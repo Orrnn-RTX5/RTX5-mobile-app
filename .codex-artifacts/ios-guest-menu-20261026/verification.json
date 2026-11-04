@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-26",
+  "scope": "Logged-out iOS hamburger, authentication entry and native modal presentation",
+  "changes": [
+    "iOS hamburger, drawer navigation, guest login action and backdrop use completed taps instead of touch-down activation",
+    "iOS drawer commits interactive and global open state in the reveal turn",
+    "Repeated open requests refresh deferred bookkeeping instead of cancelling the only pending commit",
+    "Drawer input host explicitly retains its native view",
+    "iOS authentication entries defer modal presentation until the root host commits Quotes",
+    "Deferred presentations are revoked by Back, broker changes, unrelated navigation and newer authentication requests",
+    "Preserved concurrent dismissTo navigation changes that avoid duplicate tab stacks"
+  ],
+  "validation": {
+    "focusedRegressionTests": { "passed": 100, "failed": 0, "log": "rtx5-app/.codex-ios-auth-handoff-regression-final.log" },
+    "typecheck": { "exitCode": 0, "log": "rtx5-app/.codex-ios-auth-handoff-typecheck.log" },
+    "iosExport": { "exitCode": 0, "log": "rtx5-app/.codex-ios-auth-handoff-bundle.log", "directory": ".codex-artifacts/ios-guest-menu-20261026/export-ios-handoff" },
+    "physicalIphoneVerified": true,
+    "deviceTransport": "Metro LAN inspector; Windows separately detected the USB-connected Apple iPhone",
+    "physicalIphoneVerificationMethod": "Invoked existing navigation callbacks on the live iPhone through Hermes CDP and reviewed native screenshots. Physical finger input was not automated; user confirmation remains pending.",
+    "verifiedScreenshots": [
+      "live-device/verified-login-final.jpg",
+      "live-device/verified-create-account.jpg",
+      "live-device/verified-drawer-after-back.jpg"
+    ],
+    "screenshotMethod": "Existing Expo Go RNViewShot module, drawViewHierarchyInRect at native dimensions; no app dependency added. Earlier renderInContext trial captures can omit native layers and are not used as final visual evidence.",
+    "finalDeviceState": { "route": "/quotes", "authScreen": "guest", "sidebarOpen": false },
+    "physicalAndroidVerified": false
+  },
+  "sdkChanged": false,
+  "nativeDependenciesChangedByThisFix": false,
+  "runtimeConfigurationChanged": false,
+  "otaPublished": false,
+  "storeBuildCreated": false
+}

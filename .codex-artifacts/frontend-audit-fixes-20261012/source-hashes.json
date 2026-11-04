@@ -1,0 +1,70 @@
+[
+  {
+    "file": "src/api/economicCalendar.ts",
+    "sha256": "dfb8851c59e510465c9775944d0e1acb5bf5c97f921c6da222e011bfbd5cc501"
+  },
+  {
+    "file": "src/api/deals.ts",
+    "sha256": "f22403f40420624b94b0502ac663779b91e122b90efa0a883d76c6a27778adb4"
+  },
+  {
+    "file": "src/domain/tradingModels.ts",
+    "sha256": "107156f51275ec2855d5de311c468c9ec69edcdfc4c401769d2a37106f25badc"
+  },
+  {
+    "file": "src/query/deals.ts",
+    "sha256": "2feab3dbac4099474d5fec432e35662ae62f3086d00df7231b4274d4fc3ee693"
+  },
+  {
+    "file": "src/query/chartDealRefresh.ts",
+    "sha256": "409cdf971b1d7889bc177e97cdd2d8b54ec7eb71536013d5773117b6c7bf1f7b"
+  },
+  {
+    "file": "src/utils/coalescedWriter.ts",
+    "sha256": "3b831457a6660dd226195b955303b7ebe6e14d98b721c343cd8ba3fb5ffc766a"
+  },
+  {
+    "file": "src/utils/otaReload.ts",
+    "sha256": "eceb1f706f2f3d974e0ac7ef770cd56f6b3a168f79820d8aefcdba7a7e0ce3c7"
+  },
+  {
+    "file": "src/utils/otaUpdates.ts",
+    "sha256": "72193ed64c50ffae7f9ca5b69769b4b72a220d99ffcdf10e03ebd244d637cf95"
+  },
+  {
+    "file": "src/features/history/HistoryScreen.tsx",
+    "sha256": "6310045fe2ccb494995e08369413b46c303f422dda60c5b0f06d3868edea26cd"
+  },
+  {
+    "file": "src/features/history/HistoryNetProfitLossScreen.tsx",
+    "sha256": "e53733d1372130636c8d0fbae421d9b2e0d83e806e5f41fe04ba9f8ac557a6e7"
+  },
+  {
+    "file": "src/features/chart/chartWebViewBoundary.ts",
+    "sha256": "7c6c89c3dec80b22753439380cb992acbc3154ca57355433619c1869ce9147e2"
+  },
+  {
+    "file": "src/features/chart/ChartScreen.web.styles.ts",
+    "sha256": "240babc6d7c2cf86e58b83d9218cde0c14b5fd5c7ea0531a29ebb946c6cc9801"
+  },
+  {
+    "file": "src/features/chart/ChartScreen.native.tsx",
+    "sha256": "7675ad62d7b36c918d27653158d8b8d18559196ca0f214cef3f83649eb6bef78"
+  },
+  {
+    "file": "src/features/chart/preview/LiveChartPreview.native.tsx",
+    "sha256": "1f93c6c8b77cacee1bc52411f8ae0acf3977db2b0690fb0b1374c1f1e0f9d974"
+  },
+  {
+    "file": "src/features/settings/HelpScreen.tsx",
+    "sha256": "b65fd541f4eed6018315136596d8a720c8a318be485a2a60fc056c98b19724a7"
+  },
+  {
+    "file": "src/features/settings/EconomicCalendarScreen/EconomicCalendarScreen.tsx",
+    "sha256": "1aae444a31a37b920af3974746fa04d4a920c12753688b6b20052b4dbe6a9bf2"
+  },
+  {
+    "file": "src/ui/components/OtaUpdateModal.tsx",
+    "sha256": "9f735ab00ca037487df10e61a8bb05b0ead53195c90048b21f0c276422ee8c0f"
+  }
+]

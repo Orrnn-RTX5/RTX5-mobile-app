@@ -1,0 +1,104 @@
+{
+  "current": {
+    "expo": {
+      "requested": "~54.0.36",
+      "locked": "54.0.36"
+    },
+    "react": {
+      "requested": "19.1.0",
+      "locked": "19.1.0"
+    },
+    "react-native": {
+      "requested": "0.81.5",
+      "locked": "0.81.5"
+    },
+    "expo-updates": {
+      "requested": "~29.0.19",
+      "locked": "29.0.19"
+    },
+    "react-native-reanimated": {
+      "requested": "~4.1.1",
+      "locked": "4.1.6"
+    },
+    "react-native-worklets": {
+      "requested": "^0.5.1",
+      "locked": "0.5.1"
+    },
+    "@react-native-community/datetimepicker": {
+      "requested": "8.4.4",
+      "locked": "8.4.4"
+    }
+  },
+  "baseline": {
+    "expo": {
+      "requested": "~54.0.36",
+      "locked": "54.0.36"
+    },
+    "react": {
+      "requested": "19.1.0",
+      "locked": "19.1.0"
+    },
+    "react-native": {
+      "requested": "0.81.5",
+      "locked": "0.81.5"
+    },
+    "expo-updates": {
+      "requested": "~29.0.19",
+      "locked": "29.0.19"
+    },
+    "react-native-reanimated": {
+      "requested": "~4.1.1",
+      "locked": "4.1.6"
+    },
+    "react-native-worklets": {
+      "requested": "^0.5.1",
+      "locked": "0.5.1"
+    },
+    "@react-native-community/datetimepicker": {
+      "requested": null,
+      "locked": null
+    }
+  },
+  "dependencyChanges": [
+    {
+      "name": "@react-native-community/datetimepicker",
+      "current": "8.4.4",
+      "baseline": null
+    },
+    {
+      "name": "expo-clipboard",
+      "current": "~8.0.8",
+      "baseline": null
+    },
+    {
+      "name": "expo-document-picker",
+      "current": "~14.0.8",
+      "baseline": null
+    },
+    {
+      "name": "expo-file-system",
+      "current": "~19.0.23",
+      "baseline": null
+    },
+    {
+      "name": "expo-image-manipulator",
+      "current": "~14.0.8",
+      "baseline": null
+    },
+    {
+      "name": "expo-image-picker",
+      "current": "~17.0.11",
+      "baseline": null
+    },
+    {
+      "name": "expo-localization",
+      "current": "~17.0.9",
+      "baseline": null
+    },
+    {
+      "name": "expo-sensors",
+      "current": "~15.0.8",
+      "baseline": null
+    }
+  ]
+}

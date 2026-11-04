@@ -1,0 +1,83 @@
+{
+  "checkedAt": "2026-10-26T05:56:21.414Z",
+  "recent": [
+    {
+      "id": "01a13aa3-1499-7751-9235-72493db42406",
+      "group": "144526b3-6a4c-4d79-964e-8a3c12371c1e",
+      "platform": "ios",
+      "runtimeVersion": "ef38da275b765380037fc377f5c596de31690b7d",
+      "message": "iOS production OTA 1.1.54 current local application, chart position controls, calendar and trading UI fixes; reviewed legacy native compatibility",
+      "createdAt": "2026-10-14T13:38:48.601Z",
+      "branch": "production"
+    },
+    {
+      "id": "01a13aa1-f394-74a6-8961-7e1d186502cb",
+      "group": "5682837f-6abd-4906-b513-74d6854c6c67",
+      "platform": "android",
+      "runtimeVersion": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+      "message": "Android production OTA 1.1.54 current local application, chart position controls, calendar and trading UI fixes; reviewed legacy native compatibility",
+      "createdAt": "2026-10-14T13:37:34.612Z",
+      "branch": "production"
+    },
+    {
+      "id": "01a12f9c-ceeb-7908-a171-a49a0054e582",
+      "group": "ec8b46f8-72dc-41e0-9e87-5988c7312f1a",
+      "platform": "ios",
+      "runtimeVersion": "ef38da275b765380037fc377f5c596de31690b7d",
+      "message": "iOS production OTA 1.1.53 same-version shake-to-report fix using existing native sensor support; current local application; reviewed legacy native compatibility",
+      "createdAt": "2026-10-12T10:16:08.171Z",
+      "branch": "production"
+    },
+    {
+      "id": "01a12f9b-8272-7270-b234-65ef8d900a54",
+      "group": "7cff7e10-cd9f-474b-b477-516baa7d0d91",
+      "platform": "android",
+      "runtimeVersion": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+      "message": "Android production OTA 1.1.53 same-version shake-to-report fix using existing native sensor support; current local application; reviewed legacy native compatibility",
+      "createdAt": "2026-10-12T10:14:43.058Z",
+      "branch": "production"
+    },
+    {
+      "id": "01a12f6d-a2b6-7964-b0a6-019f0640c57a",
+      "group": "2105f73b-1355-4430-8197-9ba2dd85e59e",
+      "platform": "ios",
+      "runtimeVersion": "ef38da275b765380037fc377f5c596de31690b7d",
+      "message": "iOS production OTA 1.1.53 current local application, value-based price formatting, backend daily change and mobile UI fixes; reviewed legacy native compatibility",
+      "createdAt": "2026-10-12T09:24:36.662Z",
+      "branch": "production"
+    },
+    {
+      "id": "01a12f6b-c8c6-7010-9929-359e1596c143",
+      "group": "2d80c9a8-dd80-415b-a11c-841efbfe74c7",
+      "platform": "android",
+      "runtimeVersion": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+      "message": "Android production OTA 1.1.53 current local application, value-based price formatting, backend daily change and mobile UI fixes; reviewed legacy native compatibility",
+      "createdAt": "2026-10-12T09:22:35.334Z",
+      "branch": "production"
+    }
+  ],
+  "previous55": [
+    {
+      "error": "[GraphQL] Entity Not Found: Entity not found: UpdateEntity (id = 01a16d84-72b7-7440-b258-411fba39b5b1)"
+    },
+    {
+      "error": "[GraphQL] Entity Not Found: Entity not found: UpdateEntity (id = 01a16d85-df05-728a-97df-b917d57f1613)"
+    }
+  ],
+  "manifests": [
+    {
+      "platform": "android",
+      "runtimeVersion": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+      "httpStatus": 200,
+      "contentType": "multipart/mixed; boundary=-----ExpoManifestBoundary-AaE6ofOUdKaJYX4dGGUCyw",
+      "updateId": "01a13aa1-f394-74a6-8961-7e1d186502cb"
+    },
+    {
+      "platform": "ios",
+      "runtimeVersion": "ef38da275b765380037fc377f5c596de31690b7d",
+      "httpStatus": 200,
+      "contentType": "multipart/mixed; boundary=-----ExpoManifestBoundary-AaE6oxSZd1GSNXJJPbQkBg",
+      "updateId": "01a13aa3-1499-7751-9235-72493db42406"
+    }
+  ]
+}

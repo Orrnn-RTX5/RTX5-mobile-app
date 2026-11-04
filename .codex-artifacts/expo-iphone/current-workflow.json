@@ -1,0 +1,168 @@
+{
+  "id": "01a176a7-7c29-7c1c-8091-1b06f7169ee3",
+  "workflow": {
+    "id": "980eb8f0-6e3b-4a9e-842b-5b46e2220701",
+    "app": {
+      "id": "ba323d63-7e19-41a0-b88e-d20fda074505",
+      "name": "expogo",
+      "ownerAccount": {
+        "id": "ba163f89-ee40-4f58-a1d7-a07e24ec3c5a",
+        "name": "yoforex",
+        "__typename": "Account"
+      },
+      "__typename": "App"
+    },
+    "__typename": "Workflow",
+    "name": null,
+    "fileName": "eas-go.yml"
+  },
+  "jobs": [
+    {
+      "id": "01a176a7-7d26-7490-b359-f4213e6e3af0",
+      "key": "build",
+      "name": "Re-sign Expo Go",
+      "status": "SUCCESS",
+      "workflowRun": {
+        "id": "01a176a7-7c29-7c1c-8091-1b06f7169ee3",
+        "__typename": "WorkflowRun"
+      },
+      "type": "BUILD",
+      "turtleJobRun": null,
+      "turtleBuild": {
+        "id": "2d020c21-8487-4fa9-aba2-49d803dce50f",
+        "status": "FINISHED",
+        "platform": "IOS",
+        "error": null,
+        "artifacts": {
+          "buildUrl": "https://expo.dev/artifacts/eas/-jQD_rzhx38aP17kkfc5riAuL_mWM1mrN__cjdMxAjY.ipa",
+          "xcodeBuildLogsUrl": null,
+          "applicationArchiveUrl": "https://expo.dev/artifacts/eas/-jQD_rzhx38aP17kkfc5riAuL_mWM1mrN__cjdMxAjY.ipa",
+          "buildArtifactsUrl": null,
+          "__typename": "BuildArtifacts"
+        },
+        "fingerprint": {
+          "id": "01a176a8-b9f5-7906-834b-4308c7f39d60",
+          "hash": "ed5864556d6182321347774ac86acfbdbac6a37a",
+          "__typename": "Fingerprint"
+        },
+        "initiatingActor": {
+          "__typename": "User",
+          "id": "01739add-942f-4475-b85f-1309603786de",
+          "displayName": "yoforex"
+        },
+        "logFiles": [
+          "https://storage.googleapis.com/eas-workflows-production/logs/ba323d63-7e19-41a0-b88e-d20fda074505/2d020c21-8487-4fa9-aba2-49d803dce50f/2026-10-26T05%3A20%3A53Z-323d2e61-04ad-4b4f-b1db-630e8a4a11c5.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20261026%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20261026T052211Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=50495cb5a22c883f09bf321426a9d5784f7146be6f762834c4e4a9ce04568c207b9524ec426fcc85afa6f96f0e8f34921a57bbb296a2a40654a494bcb0262a3c088c19f7de2b26913584a3d2316da3b15e8daa91c877fc9e3aa638c0fcdcf26d7ce6b830f7929ee53ce4f7ab52046f98d42ebb83571260e7e7d6471e69f69c2d2a2ef20c506d38f6b6d6bbdb4888a89897b21da58666ee73e8140a4dfeeb27edd889516e6eec115d874bdba25cd0b46454835d63eac94693130075aa0ac72bc85cc693e356e33ca7405032c86c6ef174b1c030a3e2958529f4942b138c983cc11be3e202ae5f6584cbd5098f619683980e1524cfeca156fd520bfacb83c9c1e7"
+        ],
+        "project": {
+          "__typename": "App",
+          "id": "ba323d63-7e19-41a0-b88e-d20fda074505",
+          "name": "expogo",
+          "slug": "expogo",
+          "ownerAccount": {
+            "id": "ba163f89-ee40-4f58-a1d7-a07e24ec3c5a",
+            "name": "yoforex",
+            "__typename": "Account"
+          }
+        },
+        "channel": null,
+        "distribution": "STORE",
+        "iosEnterpriseProvisioning": null,
+        "buildProfile": "production",
+        "sdkVersion": "54.0.0",
+        "appVersion": "54.0.0",
+        "appBuildVersion": "1792992046",
+        "runtimeVersion": null,
+        "gitCommitHash": null,
+        "gitCommitMessage": null,
+        "initialQueuePosition": null,
+        "queuePosition": null,
+        "estimatedWaitTimeLeftSeconds": null,
+        "priority": "HIGH",
+        "createdAt": "2026-10-26T05:20:50.470Z",
+        "updatedAt": "2026-10-26T05:22:27.511Z",
+        "message": null,
+        "completedAt": "2026-10-26T05:22:27.295Z",
+        "expirationDate": "2026-11-25T05:20:50.614Z",
+        "isForIosSimulator": false,
+        "metrics": {
+          "buildWaitTime": 2762,
+          "buildQueueTime": 31168,
+          "buildDuration": 62895,
+          "__typename": "BuildMetrics"
+        },
+        "__typename": "Build"
+      },
+      "outputs": {
+        "channel": null,
+        "profile": "production",
+        "build_id": "2d020c21-8487-4fa9-aba2-49d803dce50f",
+        "platform": "ios",
+        "simulator": null,
+        "app_version": "54.0.0",
+        "sdk_version": "54.0.0",
+        "distribution": "store",
+        "app_identifier": "com.yoforex.expogo",
+        "git_commit_hash": null,
+        "runtime_version": null,
+        "fingerprint_hash": "ed5864556d6182321347774ac86acfbdbac6a37a",
+        "app_build_version": "1792992046"
+      },
+      "errors": [],
+      "createdAt": "2026-10-26T05:20:50.470Z",
+      "updatedAt": "2026-10-26T05:22:27.457Z",
+      "__typename": "WorkflowJob"
+    },
+    {
+      "id": "01a176a8-f852-7069-83ea-ae7b5e221b37",
+      "key": "submit",
+      "name": "Upload to TestFlight",
+      "status": "FAILURE",
+      "workflowRun": {
+        "id": "01a176a7-7c29-7c1c-8091-1b06f7169ee3",
+        "__typename": "WorkflowRun"
+      },
+      "type": "SUBMISSION",
+      "turtleJobRun": {
+        "id": "01a176a8-f8d8-7dfa-b410-5086267feceb",
+        "logFileUrls": [
+          "https://storage.googleapis.com/eas-workflows-production/logs/ba323d63-7e19-41a0-b88e-d20fda074505/01a176a8-f8d8-7dfa-b410-5086267feceb/2026-10-26T05%3A22%3A28Z-95ed9031-be90-4dad-a2bc-c62dbe8c2cc4.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20261026%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20261026T053053Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=29681acfb6980aa44ae2913122b082a4f89ca85d19c0dc23a3eded4072c1572f46c180d2a0d30ba09ed04eb1741382c24339245afd6e0ff91ebff67549acea3ad3be22ff8df38ce8a2032593d6cced852079bc0515ae464a550a50352f490b0d16edeaceba8ca312fab72f580d21c11b867c2d51df56819585b41e6583445e655dbabeb4cc30555506abab9c31d800e352a89b25a53781221706ed807f4697d81648ceabc796aeccf9400b2b385cfaba723a2497b0cec6a281215761b790a9af22ee7f93116529becaf9cdf0fc2ac882ee8a346027a0b52de257543191012ab90fe057e2eeb7232b553179fa99f900fc838e02e7636c6251089fc37145bc9d3c"
+        ],
+        "artifacts": [],
+        "errors": [
+          {
+            "errorCode": "UNKNOWN_ERROR",
+            "message": "Unknown error. See logs for more information.",
+            "__typename": "JobRunError"
+          }
+        ],
+        "__typename": "JobRun"
+      },
+      "turtleBuild": null,
+      "outputs": {
+        "apple_app_id": "6820412382",
+        "android_package_id": "",
+        "ios_bundle_identifier": "com.yoforex.expogo"
+      },
+      "errors": [],
+      "createdAt": "2026-10-26T05:22:27.538Z",
+      "updatedAt": "2026-10-26T05:23:54.423Z",
+      "__typename": "WorkflowJob"
+    }
+  ],
+  "status": "FAILURE",
+  "gitCommitMessage": null,
+  "gitCommitHash": null,
+  "requestedGitRef": null,
+  "actor": {
+    "id": "01739add-942f-4475-b85f-1309603786de",
+    "__typename": "User",
+    "username": "yoforex"
+  },
+  "triggeringLabelName": null,
+  "triggerEventType": "REPACK_EXPO_GO",
+  "triggeringSchedule": null,
+  "createdAt": "2026-10-26T05:20:50.217Z",
+  "updatedAt": "2026-10-26T05:23:54.489Z",
+  "errors": [],
+  "__typename": "WorkflowRun"
+}

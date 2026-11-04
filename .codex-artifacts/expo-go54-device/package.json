@@ -1,0 +1,10 @@
+{
+  "name": "expo-go-sdk54-device",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "expo": "54.0.36",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  }
+}

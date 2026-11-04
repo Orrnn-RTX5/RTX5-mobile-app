@@ -1,0 +1,64 @@
+{
+  "id": "0c7a3acb-b975-428d-aedb-6c2c27088346",
+  "status": "FINISHED",
+  "platform": "IOS",
+  "error": null,
+  "artifacts": {
+    "buildUrl": "https://expo.dev/artifacts/eas/jRNRPpinMPVH6rkhDJyKB2FD8mBtZj25vleRsUQ5MNw.ipa",
+    "xcodeBuildLogsUrl": null,
+    "applicationArchiveUrl": "https://expo.dev/artifacts/eas/jRNRPpinMPVH6rkhDJyKB2FD8mBtZj25vleRsUQ5MNw.ipa",
+    "buildArtifactsUrl": null,
+    "__typename": "BuildArtifacts"
+  },
+  "fingerprint": {
+    "id": "01a176be-decf-7ded-b4e4-318a3935eb7e",
+    "hash": "1397cddf732fc2a776ec594ea97a8f93acdec561",
+    "__typename": "Fingerprint"
+  },
+  "initiatingActor": {
+    "__typename": "User",
+    "id": "01739add-942f-4475-b85f-1309603786de",
+    "displayName": "yoforex"
+  },
+  "logFiles": [
+    "https://storage.googleapis.com/eas-workflows-production/logs/ba323d63-7e19-41a0-b88e-d20fda074505/0c7a3acb-b975-428d-aedb-6c2c27088346/2026-10-26T05%3A47%3A23Z-fd1feeac-96ce-4032-a56b-991483cc3369.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20261026%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20261026T054830Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=59fb42c22e159144bbb5f154a56cbe7952aae41a8fdf19b0c9f13d133b3ed398cc46dbf838b631437e4a33cdd5ee2c062689865debb5e40d569dc0d2ea9c0881d72fe1b5f150b5a691f6a341430d3957b7c3ef3dffe613ffc0b6aa9b18de61bfd15d083907a188213fb7dbd760203a3fe6143b695b3578477d9a2af37f6d578bdeb277fac5953a0d45522f34f62b73088b19567a2521f3ff972076f33aeea44be35496c2d4f63fa163028caedfdeaecd32a6fb0306af726abdf3abe01c1499d80575702f1e1a856edfc659d5a8bd5dcd285ca7a38b36cf4613bb7bb92dd964ddae89af2879375c4248ba9ee0ec3fb682adf0cff261f07dbb189093484bbcc603"
+  ],
+  "project": {
+    "__typename": "App",
+    "id": "ba323d63-7e19-41a0-b88e-d20fda074505",
+    "name": "expogo",
+    "slug": "expogo",
+    "ownerAccount": {
+      "id": "ba163f89-ee40-4f58-a1d7-a07e24ec3c5a",
+      "name": "yoforex",
+      "__typename": "Account"
+    }
+  },
+  "channel": null,
+  "distribution": "INTERNAL",
+  "iosEnterpriseProvisioning": null,
+  "buildProfile": "connectedIphone",
+  "sdkVersion": "54.0.0",
+  "appVersion": "54.0.0",
+  "appBuildVersion": "1792993037",
+  "runtimeVersion": null,
+  "gitCommitHash": null,
+  "gitCommitMessage": null,
+  "initialQueuePosition": null,
+  "queuePosition": null,
+  "estimatedWaitTimeLeftSeconds": null,
+  "priority": "NORMAL",
+  "createdAt": "2026-10-26T05:47:04.803Z",
+  "updatedAt": "2026-10-26T05:48:20.850Z",
+  "message": null,
+  "completedAt": "2026-10-26T05:48:20.699Z",
+  "expirationDate": "2026-11-09T05:47:04.850Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 18270,
+    "buildQueueTime": 30055,
+    "buildDuration": 27571,
+    "__typename": "BuildMetrics"
+  },
+  "__typename": "Build"
+}

@@ -1,0 +1,50 @@
+{
+  "checkedDate": "2026-10-26",
+  "mode": "read-only verification",
+  "expoGoInstaller": {
+    "version": "54.0.0",
+    "sdkVersion": "54.0.0",
+    "bundleIdentifier": "com.yoforex.expogo",
+    "easProjectId": "ba323d63-7e19-41a0-b88e-d20fda074505",
+    "productionChannel": null,
+    "isRtx5ProductionBinary": false
+  },
+  "rtx5": {
+    "easProjectId": "092a58db-dea9-469a-a383-f27300598812",
+    "channel": "production",
+    "branch": "production",
+    "channelPaused": false,
+    "sdkVersion": "54.0.0",
+    "nativeAppConfigVersion": "1.1.30",
+    "localDisplayVersion": "1.1.54",
+    "liveProductionReleaseLabel": "1.1.54",
+    "android": {
+      "servedUpdateId": "01a13aa1-f394-74a6-8961-7e1d186502cb",
+      "servedRuntime": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+      "currentLocalRuntime": "e1181330c9a543a8db95b446b7a669480b92891c",
+      "matchesCurrentLocalRuntime": false,
+      "httpManifestVerified": true
+    },
+    "ios": {
+      "servedUpdateId": "01a13aa3-1499-7751-9235-72493db42406",
+      "servedRuntime": "ef38da275b765380037fc377f5c596de31690b7d",
+      "currentLocalRuntime": "fd3729cabb2f748d4d1a7d937ea5eeac209daa1e",
+      "matchesCurrentLocalRuntime": false,
+      "httpManifestVerified": true
+    },
+    "nativeDependencyAddedSinceLegacyReleaseBaseline": "@react-native-community/datetimepicker@8.4.4",
+    "currentSourceNeedsNewNativeBuilds": true,
+    "installedRtx5DeviceRuntimeVerified": false
+  },
+  "saved155ReleaseEvidence": {
+    "referencedUpdateIdsFoundInCurrentEas": false,
+    "currentServerEvidenceTakesPrecedence": true
+  },
+  "publishedOrModifiedRemoteUpdates": false,
+  "evidenceFiles": [
+    "ota-current-context.log",
+    "ota-compatibility-check.json",
+    "live-ota-manifest-check.json",
+    "device-ipa-verification.json"
+  ]
+}

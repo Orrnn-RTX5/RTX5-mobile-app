@@ -1,0 +1,20 @@
+const path=require('node:path'),fs=require('node:fs');
+const root=path.resolve(__dirname,'../../tools/js-toolchain/node_modules/eas-cli/build');
+const load=p=>require(path.join(root,p));
+const {default:SessionManager}=load('user/SessionManager');
+const {createGraphqlClient}=load('commandUtils/context/contextUtils/createGraphqlClient');
+const {AppleDeviceQuery}=load('credentials/ios/api/graphql/queries/AppleDeviceQuery');
+const {AppleDeviceMutation}=load('credentials/ios/api/graphql/mutations/AppleDeviceMutation');
+const {normalizeUDID,isValidUDID}=load('devices/udids');
+const session=new SessionManager({setActor(){}});
+const client=createGraphqlClient({accessToken:session.getAccessToken(),sessionSecret:session.getSessionSecret()});
+(async()=>{
+ const phone=JSON.parse(fs.readFileSync(path.join(__dirname,'connected-iphone.json'),'utf8').replace(/^\uFEFF/,''));
+ const udid=normalizeUDID(phone.udid);
+ if(!isValidUDID(udid))throw new Error('Connected phone identifier is not a valid UDID.');
+ const devices=await AppleDeviceQuery.getAllByAppleTeamIdentifierAsync(client,'yoforex','FGVWUQA882',{useCache:false});
+ let registered=devices.find(device=>device.identifier.replace(/-/g,'').toUpperCase()===udid.replace(/-/g,'').toUpperCase());
+ if(!registered)registered=await AppleDeviceMutation.createAppleDeviceAsync(client,{appleTeamId:'4a45767a-9442-4618-a56b-a1d4df707ace',identifier:udid,name:'Connected iPhone',deviceClass:'IPHONE'},'ba163f89-ee40-4f58-a1d7-a07e24ec3c5a');
+ fs.writeFileSync(path.join(__dirname,'registered-connected-iphone.json'),JSON.stringify(registered,null,2));
+ console.log(JSON.stringify({registered:true,name:registered.name,deviceClass:registered.deviceClass,identifierSuffix:registered.identifier.slice(-4),alreadyRegistered:devices.some(device=>device.id===registered.id)},null,2));
+})().catch(error=>{console.error(error.message);process.exitCode=1;});

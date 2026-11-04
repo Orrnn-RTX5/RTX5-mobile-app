@@ -1,0 +1,21 @@
+const fs=require('node:fs'),path=require('node:path');
+const {Readable}=require('node:stream');
+const {pipeline}=require('node:stream/promises');
+const QRCode=require(path.resolve(__dirname,'../../rtx5-app/node_modules/qrcode'));
+const {getInternalDistributionInstallUrl}=require(path.resolve(__dirname,'../../tools/js-toolchain/node_modules/eas-cli/build/build/utils/url'));
+(async()=>{
+ const build=JSON.parse(fs.readFileSync(path.join(__dirname,'device-build-status.json'),'utf8'));
+ if(build.status!=='FINISHED'||build.distribution!=='INTERNAL'||!build.sdkVersion.startsWith('54.'))throw new Error('Expo Go 54 internal build is not ready.');
+ const url=`https://expo.dev/accounts/yoforex/projects/expogo/builds/${build.id}`;
+ const installUrl=getInternalDistributionInstallUrl(build);
+ await QRCode.toFile(path.join(__dirname,'expo-go54-install-qr.png'),url,{width:480,margin:4,errorCorrectionLevel:'M'});
+ fs.writeFileSync(path.join(__dirname,'device-install-links.json'),JSON.stringify({buildId:build.id,sdkVersion:build.sdkVersion,url,installUrl},null,2));
+ const manifestUrl=`https://api.expo.dev/v2/projects/${build.project.id}/builds/${build.id}/manifest.plist`;
+ const manifest=await fetch(manifestUrl,{signal:AbortSignal.timeout(20000)});
+ if(!manifest.ok)throw new Error(`Install manifest unavailable (${manifest.status}).`);
+ fs.writeFileSync(path.join(__dirname,'expo-go54-install-manifest.plist'),await manifest.text());
+ const response=await fetch(build.artifacts.applicationArchiveUrl,{signal:AbortSignal.timeout(180000)});
+ if(!response.ok)throw new Error(`Download failed (${response.status}).`);
+ await pipeline(Readable.fromWeb(response.body),fs.createWriteStream(path.join(__dirname,'expo-go54-connected-iphone.ipa')));
+ console.log(JSON.stringify({downloaded:true,url,qr:'expo-go54-install-qr.png',manifestAvailable:true},null,2));
+})().catch(error=>{console.error(error.message);process.exitCode=1;});

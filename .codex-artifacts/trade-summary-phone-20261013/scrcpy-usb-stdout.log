@@ -1,0 +1,7 @@
+scrcpy 4.1 <https://github.com/Genymobile/scrcpy>
+INFO: ADB device found:
+INFO:     -->   (usb)  d12f8cdf1220                    device  M2010J19CI
+INFO:         (tcpip)  192.168.1.107:5555              device  M2010J19CI
+[server] INFO: Device: [Xiaomi] POCO M2010J19CI (Android 12)
+INFO: Renderer: direct3d11
+INFO: Texture: 664x1440

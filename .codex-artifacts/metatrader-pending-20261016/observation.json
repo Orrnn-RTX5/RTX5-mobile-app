@@ -1,0 +1,71 @@
+{
+  "reference": "MetaTrader Android, EURUSD M1, USB-connected device",
+  "observedOn": "2026-10-16",
+  "reviewMethod": "Recorded device interactions; decoded MP4s with FFmpeg and visually inspected extracted contact sheets and full-resolution screenshots using view_image.",
+  "tradeSubmission": {
+    "performed": false,
+    "scope": "Order-type selection, draft-line interaction, editor expansion/collapse and visibility only; no Place, Buy or Sell submission was tested."
+  },
+  "recordings": [
+    {
+      "file": "02-six-order-selection.mp4",
+      "durationSeconds": 179.85,
+      "resolution": "720x1560",
+      "reviewFrames": ["02-review-contact.png", "02-review-drag-contact.png"]
+    },
+    {
+      "file": "03-panel-lifecycle.mp4",
+      "durationSeconds": 180.53,
+      "resolution": "720x1560",
+      "reviewFrames": ["03-review-contact.png"]
+    }
+  ],
+  "commonPendingOrderBehavior": {
+    "line": "Solid horizontal line across the chart plot, colored blue for buy and red for sell.",
+    "label": "Uppercase order type followed by volume, placed just above the line at the plot's left edge.",
+    "priceBadge": "White-filled rectangular badge at the right price axis; border and price text match the line color.",
+    "handle": "Hollow circular drag ring at the horizontal midpoint of the plot, with matching outline.",
+    "dragMagnifier": "A circular magnifier with the draft's outline color appears near the upper-left chart area while dragging; the pending title and right-axis value remain visible.",
+    "selection": "Selected type is emphasized in its buy/sell color; other types are gray in a horizontally scrolling selector.",
+    "defaultEntry": {
+      "observed": "Selecting the six pending types produced an entry line near the visible plot's vertical midpoint, generally 1.12289 during the first recording. Initial Buy Limit was 1.12286; later reopening produced 1.12288.",
+      "inference": "The entry draft appears initialized from the chart viewport midpoint. The precise rounding and default formula are not proven by the recording."
+    }
+  },
+  "orderTypes": [
+    {"type": "Buy Limit", "color": "blue", "label": "BUY LIMIT 0.01", "observedPrice": "1.12286", "evidence": ["06-buy-limit-start.png", "02-six-order-selection.mp4"]},
+    {"type": "Sell Limit", "color": "red", "label": "SELL LIMIT 0.01", "observedPrice": "1.12289", "evidence": ["07-sell-limit.png", "02-six-order-selection.mp4"]},
+    {"type": "Buy Stop", "color": "blue", "label": "BUY STOP 0.01", "observedPrice": "1.12289", "evidence": ["08-buy-stop.png", "02-six-order-selection.mp4"]},
+    {"type": "Sell Stop", "color": "red", "label": "SELL STOP 0.01", "observedPrice": "1.12289", "evidence": ["09-sell-stop.png", "02-six-order-selection.mp4"]},
+    {"type": "Buy Stop Limit", "color": "blue", "label": "BUY STOP LIMIT 0.01", "observedPrice": "1.12289", "secondaryLine": true, "evidence": ["10-buy-stop-limit.png", "13-switch-after-drag.png", "02-six-order-selection.mp4"]},
+    {"type": "Sell Stop Limit", "color": "red", "label": "SELL STOP LIMIT 0.01", "observedPrice": "1.12289", "secondaryLine": true, "evidence": ["11-sell-stop-limit.png", "12-sell-stop-limit-dragged.png", "02-six-order-selection.mp4"]}
+  ],
+  "dragAndSwitch": {
+    "observed": "Dragging the Sell Stop Limit entry ring downward moved its solid line and right-axis badge from 1.12289 to 1.12260. Switching afterward to Buy Stop Limit reset the entry to 1.12289.",
+    "evidence": ["11-sell-stop-limit.png", "12-sell-stop-limit-dragged.png", "13-switch-after-drag.png", "02-review-drag-contact.png"],
+    "limits": "Entry drag was directly tested on Sell Stop Limit; equivalent drag behavior for each other pending type was not independently tested."
+  },
+  "stopLimitSecondary": {
+    "appearance": "Separate black solid line, black hollow midpoint ring, outlined right-axis price badge and STOP LIMIT PRICE label.",
+    "outsideViewport": "When the secondary level is above the chart range, STOP LIMIT PRICE and an upward triangle appear at the plot's top-right edge.",
+    "observed": "Both initial stop-limit selections showed the above-viewport indicator; the later Buy Stop Limit screenshot showed a visible black secondary level at 1.12359.",
+    "defaultFormula": "unknown",
+    "reason": "The initial numeric secondary value is offscreen, and the recording does not establish how the later 1.12359 level was initialized or changed. Do not infer a fixed offset or side-dependent default from this sample.",
+    "evidence": ["10-buy-stop-limit.png", "11-sell-stop-limit.png", "13-switch-after-drag.png", "02-six-order-selection.mp4"]
+  },
+  "panelLifecycle": {
+    "entryPoint": "Clock-like toolbar icon immediately after timeframe M1 opens or hides the chart order editor.",
+    "collapsed": "Editor shows symbol, SL/TP buttons, right arrow, and horizontal order-type selector below the quote/volume strip.",
+    "hide": "Hiding removes the editor and draft entry/secondary lines and restores bottom navigation; quote/volume strip remains.",
+    "reopenAfterPending": "After hiding a pending-order editor, reopening showed Buy Limit with a fresh entry at 1.12288.",
+    "expanded": "Expanding Buy Limit opens a taller sheet over a dimmed chart. Price field equals the draft line value 1.12288; sheet includes volume, Add Stop Levels, expiration, comment and Place Buy Limit.",
+    "market": "Selecting Market Execution removes pending draft entry/secondary lines; normal live quote lines remain. Expanded market ticket has Sell and Buy actions, and collapsed selection is black.",
+    "evidence": ["14-hidden.png", "15-reopened.png", "16-expanded-buy-limit.png", "17-expanded-market.png", "18-collapsed-market.png", "19-market-hidden.png", "03-panel-lifecycle.mp4", "03-review-contact.png"]
+  },
+  "limitations": [
+    "MetaTrader connectivity dropped after screenshot 19; quotes and toolbar controls became gray. Market-to-hide-to-reopen behavior is therefore inconclusive and must not be treated as a successful reopen test.",
+    "No trade was submitted; broker acceptance, execution, and stop-limit API support were not verified.",
+    "Observed on one symbol, timeframe, volume and Android device; exact default-price formulas and behavior across other symbols or zoom levels remain unverified.",
+    "Reference SL/TP buttons were visible, but adding or dragging SL/TP levels was outside this recording's six-pending-order interaction coverage."
+  ]
+}

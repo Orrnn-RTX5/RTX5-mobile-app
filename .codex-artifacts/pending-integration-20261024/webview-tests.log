@@ -1,0 +1,42 @@
+✔ persisted pending labels send a scoped edit action and bypass chart gestures (270.719ms)
+✔ all six pending drafts render a side-colored solid line, centered ring and exact axis value (625.9375ms)
+✔ dragging and panning keep the ring, label and price box on the draft price (142.393ms)
+✔ stop-limit secondary shows a black handle in view and a direction label beyond the plot (91.1659ms)
+✔ draft axis eligibility excludes unrelated chart overlay IDs (91.4017ms)
+✔ persisted pending and protection levels cannot suppress same-price draft badges in either payload order (489.214ms)
+✔ pending drag magnifier follows the active entry or stop-limit while keeping their labels and values visible (151.3841ms)
+✔ the complete generated WebView document compiles, including all embedded bridge and gesture code (309.6122ms)
+✔ position bars keep their real price coordinate and hide rather than shift over the symbol/OHLC header (90.5134ms)
+✔ multiple position bars remain centered on their own entry prices without stacking them at different price levels (9.6808ms)
+✔ swiping the position buttons never detaches a bar from its entry level or submits a trade action (100.2812ms)
+✔ touch swipes also keep the position bar on its actual entry and suppress accidental modification (15.7635ms)
+✔ a tap still opens TP/SL; multitouch, cancellation and close-button swipes cannot relocate the bar (97.2636ms)
+✔ disabled TP/SL actions remain inert after pointer movement (21.336ms)
+✔ compact controls preserve side/profit colors, actual lots/currency, 48px targets, native details and close access (41.63ms)
+✔ panning over a control and cancelled touch cannot execute a position action; keyboard activation works (17.8487ms)
+✔ pending controls prevent double taps, exact request errors restore controls; stale scoped results do nothing (41.5415ms)
+✔ pinching across a close control cannot execute a trade, while deliberate accessible keyboard clicks remain usable (12.1749ms)
+✔ landscape exposes chips and secondary actions; disabled capabilities remain explained and inert (11.0618ms)
+✔ coincident entries stay at their exact level and preserve each ticket identity (20.4408ms)
+✔ context changes clear presentation pending state and reject old chart actions (17.0128ms)
+✔ scoped modification and trade state queues before overlay readiness, disables the exact ticket and recovers from failure (13.5695ms)
+✔ portrait TP and SL stay visible, have distinct chip colors, and send exact scoped ticket actions (71.1611ms)
+✔ narrow plots and large text retain accessible controls centered on the entry price (41.4928ms)
+✔ position TP/SL controls follow the price projection during pan, zoom and quote refreshes (37.9962ms)
+✔ reordered position payloads keep every ticket on its current projected price (12.0889ms)
+✔ pane resizing never clamps a bar away from its actual entry coordinate (33.8933ms)
+✔ position controls hide offscreen and reappear at the correct price when scrolled back (15.1759ms)
+✔ the gesture reposition pass keeps controls, entry lines and axis boxes aligned to the same price (15.6228ms)
+✔ broker formatter and every main-scale series use instrument precision and tick increment (33.9306ms)
+✔ entry lines and price boxes remain at actual coordinates; price pan uses RAF reposition and deliberate stop hold (17.3405ms)
+✔ starting a handle drag stops momentum and retains its viewport through new-bar shifts (156.1962ms)
+✔ dragging SL/TP updates only its price while the chart viewport stays still (26.6928ms)
+✔ live-edge following pauses only while a handle is owned; normal chart movement resumes on release (16.69ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11418.8421

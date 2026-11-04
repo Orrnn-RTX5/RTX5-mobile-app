@@ -1,0 +1,3606 @@
+TAP version 13
+# Subtest: drawing tools action sheet exposes the full supported tool set
+ok 1 - drawing tools action sheet exposes the full supported tool set
+  ---
+  duration_ms: 55.4539
+  type: 'test'
+  ...
+# Subtest: drawing-management options stay conditional on chart drawing state
+ok 2 - drawing-management options stay conditional on chart drawing state
+  ---
+  duration_ms: 109.3712
+  type: 'test'
+  ...
+# Subtest: blank drawing search keeps every tool directly selectable on the chart
+ok 3 - blank drawing search keeps every tool directly selectable on the chart
+  ---
+  duration_ms: 8.4152
+  type: 'test'
+  ...
+# Subtest: every drawing action dismisses the sheet before applying its selection
+ok 4 - every drawing action dismisses the sheet before applying its selection
+  ---
+  duration_ms: 7.8667
+  type: 'test'
+  ...
+# Subtest: quote symbol action sheets stay Quotes-private and open synchronously on confirmed taps
+ok 5 - quote symbol action sheets stay Quotes-private and open synchronously on confirmed taps
+  ---
+  duration_ms: 109.0523
+  type: 'test'
+  ...
+# Subtest: quote details paints an exact shell before mounting its focused heavy body
+ok 6 - quote details paints an exact shell before mounting its focused heavy body
+  ---
+  duration_ms: 246.5345
+  type: 'test'
+  ...
+# Subtest: quote details specification shows point and account leverage
+ok 7 - quote details specification shows point and account leverage
+  ---
+  duration_ms: 2.9588
+  type: 'test'
+  ...
+# Subtest: quote details keeps real swap values visible and hides absent swaps (contract v3)
+ok 8 - quote details keeps real swap values visible and hides absent swaps (contract v3)
+  ---
+  duration_ms: 1.956
+  type: 'test'
+  ...
+# Subtest: market statistics paints an exact shell before mounting its focused heavy body
+ok 9 - market statistics paints an exact shell before mounting its focused heavy body
+  ---
+  duration_ms: 4.4605
+  type: 'test'
+  ...
+# Subtest: broker logo URLs normalize explicit origins without fabricating an unconfigured directory host
+ok 10 - broker logo URLs normalize explicit origins without fabricating an unconfigured directory host
+  ---
+  duration_ms: 3.3578
+  type: 'test'
+  ...
+# Subtest: broker logo resolver honors direct and nested backend fields
+ok 11 - broker logo resolver honors direct and nested backend fields
+  ---
+  duration_ms: 11.9479
+  type: 'test'
+  ...
+# Subtest: raw v2 hides TEST-NET rows and keeps exact valid server_url selectable
+ok 12 - raw v2 hides TEST-NET rows and keeps exact valid server_url selectable
+  ---
+  duration_ms: 12.0695
+  type: 'test'
+  ...
+# Subtest: supported rich envelope produces a selectable row with exact approved authority
+ok 13 - supported rich envelope produces a selectable row with exact approved authority
+  ---
+  duration_ms: 1.985
+  type: 'test'
+  ...
+# Subtest: runtime row refuses an approved entry whose server_url differs from its resolved API base
+ok 14 - runtime row refuses an approved entry whose server_url differs from its resolved API base
+  ---
+  duration_ms: 1.2013
+  type: 'test'
+  ...
+# Subtest: dedupe by broker ID always promotes the approved entry over identity-only data
+ok 15 - dedupe by broker ID always promotes the approved entry over identity-only data
+  ---
+  duration_ms: 1.1771
+  type: 'test'
+  ...
+# Subtest: shared broker ordering pins MetaQuotes then sorts names
+ok 16 - shared broker ordering pins MetaQuotes then sorts names
+  ---
+  duration_ms: 31.9239
+  type: 'test'
+  ...
+# Subtest: broker rows render a plain chevron without a circular shell
+ok 17 - broker rows render a plain chevron without a circular shell
+  ---
+  duration_ms: 64.4972
+  type: 'test'
+  ...
+# Subtest: broker rows resolve real broker logos before falling back to initials
+ok 18 - broker rows resolve real broker logos before falling back to initials
+  ---
+  duration_ms: 8.8714
+  type: 'test'
+  ...
+# Subtest: each broker card probes only its own validated feed status endpoint
+ok 19 - each broker card probes only its own validated feed status endpoint
+  ---
+  duration_ms: 10.7062
+  type: 'test'
+  ...
+# Subtest: broker health badges refresh while focused, expire stale results, and clean up
+ok 20 - broker health badges refresh while focused, expire stale results, and clean up
+  ---
+  duration_ms: 2.3305
+  type: 'test'
+  ...
+# Subtest: identity-only directory rows are visible but cannot authorize broker actions
+ok 21 - identity-only directory rows are visible but cannot authorize broker actions
+  ---
+  duration_ms: 10.9628
+  type: 'test'
+  ...
+# Subtest: the mounted route removes the retained cover even while the directory is loading
+ok 22 - the mounted route removes the retained cover even while the directory is loading
+  ---
+  duration_ms: 3.4673
+  type: 'test'
+  ...
+# Subtest: every broker picker entry waits for exact selected-server health before opening login
+ok 23 - every broker picker entry waits for exact selected-server health before opening login
+  ---
+  duration_ms: 21.087
+  type: 'test'
+  ...
+# Subtest: connected account status requires a completed authenticated session
+ok 24 - connected account status requires a completed authenticated session
+  ---
+  duration_ms: 1.3741
+  type: 'test'
+  ...
+# Subtest: settings screens gate connected account UI behind authenticated session state
+ok 25 - settings screens gate connected account UI behind authenticated session state
+  ---
+  duration_ms: 21.1765
+  type: 'test'
+  ...
+# Subtest: saved account switch promotes the selected account and refreshes account-scoped state
+ok 26 - saved account switch promotes the selected account and refreshes account-scoped state
+  ---
+  duration_ms: 149.0677
+  type: 'test'
+  ...
+# Subtest: saved account switch removes stale entries when the broker reports a missing account
+ok 27 - saved account switch removes stale entries when the broker reports a missing account
+  ---
+  duration_ms: 2.6441
+  type: 'test'
+  ...
+# Subtest: accounts screen uses broker branding and opens long-press delete for other accounts
+ok 28 - accounts screen uses broker branding and opens long-press delete for other accounts
+  ---
+  duration_ms: 179.8888
+  type: 'test'
+  ...
+# Subtest: expanded other account cards reuse the live account card shell
+ok 29 - expanded other account cards reuse the live account card shell
+  ---
+  duration_ms: 2.2218
+  type: 'test'
+  ...
+# Subtest: accounts screen backfill normalizes optional metadata before saved-account upsert
+ok 30 - accounts screen backfill normalizes optional metadata before saved-account upsert
+  ---
+  duration_ms: 3.0305
+  type: 'test'
+  ...
+# Subtest: auth login errors preserve HTTP status for account switch decisions
+ok 31 - auth login errors preserve HTTP status for account switch decisions
+  ---
+  duration_ms: 4.0392
+  type: 'test'
+  ...
+# Subtest: broker-detail launch keeps the exact prepared live broker and reveals synchronously
+ok 32 - broker-detail launch keeps the exact prepared live broker and reveals synchronously
+  ---
+  duration_ms: 2.9447
+  type: 'test'
+  ...
+# Subtest: broker-detail return launch is immediately marked committed for a chained Back
+ok 33 - broker-detail return launch is immediately marked committed for a chained Back
+  ---
+  duration_ms: 0.5326
+  type: 'test'
+  ...
+# Subtest: scheduled broker-detail cover removal waits for two paints and cannot hide a newer launch
+ok 34 - scheduled broker-detail cover removal waits for two paints and cannot hide a newer launch
+  ---
+  duration_ms: 190.0645
+  type: 'test'
+  ...
+# Subtest: scheduled broker-detail navigation waits for two preview paint frames
+ok 35 - scheduled broker-detail navigation waits for two preview paint frames
+  ---
+  duration_ms: 16.9489
+  type: 'test'
+  ...
+# Subtest: closing a broker-detail preview cancels its stale scheduled navigation
+ok 36 - closing a broker-detail preview cancels its stale scheduled navigation
+  ---
+  duration_ms: 15.9026
+  type: 'test'
+  ...
+# Subtest: hiding broker-detail launch forces the visual layer down even after the snapshot is hidden
+ok 37 - hiding broker-detail launch forces the visual layer down even after the snapshot is hidden
+  ---
+  duration_ms: 0.8757
+  type: 'test'
+  ...
+# Subtest: broker-detail preview has a five-second failure fallback
+ok 38 - broker-detail preview has a five-second failure fallback
+  ---
+  duration_ms: 0.5933
+  type: 'test'
+  ...
+# Subtest: brokers launch controller reveals, starts navigation, and hides synchronously
+ok 39 - brokers launch controller reveals, starts navigation, and hides synchronously
+  ---
+  duration_ms: 4.7176
+  type: 'test'
+  ...
+# Subtest: Brokers return launch is immediately marked committed for a chained Back
+ok 40 - Brokers return launch is immediately marked committed for a chained Back
+  ---
+  duration_ms: 2.8119
+  type: 'test'
+  ...
+# Subtest: scheduled Brokers cover removal waits for two paints and cannot hide a newer launch
+ok 41 - scheduled Brokers cover removal waits for two paints and cannot hide a newer launch
+  ---
+  duration_ms: 167.8836
+  type: 'test'
+  ...
+# Subtest: scheduled Brokers navigation waits for two preview paint frames
+ok 42 - scheduled Brokers navigation waits for two preview paint frames
+  ---
+  duration_ms: 27.9396
+  type: 'test'
+  ...
+# Subtest: scheduled Brokers navigation is cancelled when the shell closes
+ok 43 - scheduled Brokers navigation is cancelled when the shell closes
+  ---
+  duration_ms: 23.493
+  type: 'test'
+  ...
+# Subtest: hiding Brokers launch always forces its native visual layer down
+ok 44 - hiding Brokers launch always forces its native visual layer down
+  ---
+  duration_ms: 1.2701
+  type: 'test'
+  ...
+# Subtest: Brokers shell has a five-second safety fallback
+ok 45 - Brokers shell has a five-second safety fallback
+  ---
+  duration_ms: 0.649
+  type: 'test'
+  ...
+# Subtest: register launch reveals, navigates single-flight, and hides with revision guards
+ok 46 - register launch reveals, navigates single-flight, and hides with revision guards
+  ---
+  duration_ms: 30.607
+  type: 'test'
+  ...
+# Subtest: requesting Back before register navigation starts cancels the preview intent
+ok 47 - requesting Back before register navigation starts cancels the preview intent
+  ---
+  duration_ms: 0.4419
+  type: 'test'
+  ...
+# Subtest: Back after navigation starts waits for mount and duplicate Back is handled once
+ok 48 - Back after navigation starts waits for mount and duplicate Back is handled once
+  ---
+  duration_ms: 0.3388
+  type: 'test'
+  ...
+# Subtest: Back requests pop immediately after the register route is mounted
+ok 49 - Back requests pop immediately after the register route is mounted
+  ---
+  duration_ms: 0.2421
+  type: 'test'
+  ...
+# Subtest: scheduled register navigation waits for two paints and cancels stale work
+ok 50 - scheduled register navigation waits for two paints and cancels stale work
+  ---
+  duration_ms: 339.2087
+  type: 'test'
+  ...
+# Subtest: scheduled register cover removal cannot hide a newer launch
+ok 51 - scheduled register cover removal cannot hide a newer launch
+  ---
+  duration_ms: 44.6561
+  type: 'test'
+  ...
+# Subtest: hiding register launch always forces its native visual layer down
+ok 52 - hiding register launch always forces its native visual layer down
+  ---
+  duration_ms: 1.536
+  type: 'test'
+  ...
+# Subtest: register preview keeps its five-second route-commit watchdog after navigation starts
+ok 53 - register preview keeps its five-second route-commit watchdog after navigation starts
+  ---
+  duration_ms: 0.7688
+  type: 'test'
+  ...
+# Subtest: saved-account switch reuses an in-flight exact-server health warm-up
+ok 54 - saved-account switch reuses an in-flight exact-server health warm-up
+  ---
+  duration_ms: 2.7604
+  type: 'test'
+  ...
+# Subtest: successful saved-account health is reused only within its TTL
+ok 55 - successful saved-account health is reused only within its TTL
+  ---
+  duration_ms: 0.712
+  type: 'test'
+  ...
+# Subtest: failed saved-account health is evicted so the next switch retries
+ok 56 - failed saved-account health is evicted so the next switch retries
+  ---
+  duration_ms: 1.1392
+  type: 'test'
+  ...
+# Subtest: saved-account health warm-ups never cross broker server URLs
+ok 57 - saved-account health warm-ups never cross broker server URLs
+  ---
+  duration_ms: 1.4725
+  type: 'test'
+  ...
+# Subtest: clearing saved-account health ignores late warm-up completions
+ok 58 - clearing saved-account health ignores late warm-up completions
+  ---
+  duration_ms: 0.6495
+  type: 'test'
+  ...
+# Subtest: all guest trading entry points share one root authentication modal
+ok 59 - all guest trading entry points share one root authentication modal
+  ---
+  duration_ms: 79.3413
+  type: 'test'
+  ...
+# Subtest: active login and demo routes delegate to the modal and only return one reviewed draft
+ok 60 - active login and demo routes delegate to the modal and only return one reviewed draft
+  ---
+  duration_ms: 8.7745
+  type: 'test'
+  ...
+# Subtest: retained authentication entries cannot redirect Settings or reopen dismissed forms
+ok 61 - retained authentication entries cannot redirect Settings or reopen dismissed forms
+  ---
+  duration_ms: 3.5471
+  type: 'test'
+  ...
+# Subtest: Login responds on press-in and starts optional password storage only after secure commit
+ok 62 - Login responds on press-in and starts optional password storage only after secure commit
+  ---
+  duration_ms: 4.2263
+  type: 'test'
+  ...
+# Subtest: primary trade entry points guard before navigation, prefetch, or execution
+ok 63 - primary trade entry points guard before navigation, prefetch, or execution
+  ---
+  duration_ms: 19.319
+  type: 'test'
+  ...
+# Subtest: order ticket and position mutations guard before validation or API calls
+ok 64 - order ticket and position mutations guard before validation or API calls
+  ---
+  duration_ms: 24.7733
+  type: 'test'
+  ...
+# Subtest: plain login navigates after secure commit; a pending draft still awaits account hydration
+ok 65 - plain login navigates after secure commit; a pending draft still awaits account hydration
+  ---
+  duration_ms: 3.2449
+  type: 'test'
+  ...
+# Subtest: the accepted Quotes tap atomically outranks hidden preloaded content
+ok 66 - the accepted Quotes tap atomically outranks hidden preloaded content
+  ---
+  duration_ms: 4.3593
+  type: 'test'
+  ...
+# Subtest: an inactive Quotes preload replaces a retained Chart preload scope
+ok 67 - an inactive Quotes preload replaces a retained Chart preload scope
+  ---
+  duration_ms: 0.7658
+  type: 'test'
+  ...
+# Subtest: identical chart menu reopens publish a fresh request without changing retained content
+ok 68 - identical chart menu reopens publish a fresh request without changing retained content
+  ---
+  duration_ms: 1.0759
+  type: 'test'
+  ...
+# Subtest: every shared menu opener advances its request while dismissals preserve it
+ok 69 - every shared menu opener advances its request while dismissals preserve it
+  ---
+  duration_ms: 1.2288
+  type: 'test'
+  ...
+# Subtest: shared ActionSheet surfaces use the instant host contract
+not ok 70 - shared ActionSheet surfaces use the instant host contract
+  ---
+  duration_ms: 16836.9178
+  type: 'test'
+  location: 'C:\\Users\\S S LAPTOP BAZAAR\\Desktop\\RTX-5Mobile-App\\rtx5-app\\src\\ui\\components\\ActionSheet\\actionSheetParityContract.test.ts:2:1941'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    22 !== 21
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 21
+  actual: 22
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\rtx5-app\src\ui\components\ActionSheet\actionSheetParityContract.test.ts:46:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: opening the next sheet restores a shared host hidden by an MT5 close
+ok 71 - opening the next sheet restores a shared host hidden by an MT5 close
+  ---
+  duration_ms: 98.8019
+  type: 'test'
+  ...
+# Subtest: an open MT5 sheet runs its entry animation only once per visibility transition
+ok 72 - an open MT5 sheet runs its entry animation only once per visibility transition
+  ---
+  duration_ms: 127.122
+  type: 'test'
+  ...
+# Subtest: the Quotes symbol sheet stays outside the shared ActionSheet host
+ok 73 - the Quotes symbol sheet stays outside the shared ActionSheet host
+  ---
+  duration_ms: 135.9999
+  type: 'test'
+  ...
+# Subtest: high-traffic shared action sheets open through immediate action wrappers
+ok 74 - high-traffic shared action sheets open through immediate action wrappers
+  ---
+  duration_ms: 271.0281
+  type: 'test'
+  ...
+# Subtest: a logically hidden retained host cannot expose stale backdrop pixels
+ok 75 - a logically hidden retained host cannot expose stale backdrop pixels
+  ---
+  duration_ms: 9.1888
+  type: 'test'
+  ...
+# Subtest: instant action sheets start from the visible window height
+ok 76 - instant action sheets start from the visible window height
+  ---
+  duration_ms: 0.3527
+  type: 'test'
+  ...
+# Subtest: MT5 entry uses the resolved capped body instead of a stale or full-list measurement
+ok 77 - MT5 entry uses the resolved capped body instead of a stale or full-list measurement
+  ---
+  duration_ms: 0.3094
+  type: 'test'
+  ...
+# Subtest: animated action sheets start from the visible window height to match overlay layout
+ok 78 - animated action sheets start from the visible window height to match overlay layout
+  ---
+  duration_ms: 0.1937
+  type: 'test'
+  ...
+# Subtest: android action sheets ignore transient oversized bottom safe-area values
+ok 79 - android action sheets ignore transient oversized bottom safe-area values
+  ---
+  duration_ms: 0.3126
+  type: 'test'
+  ...
+# Subtest: ios action sheets preserve native bottom safe-area values
+ok 80 - ios action sheets preserve native bottom safe-area values
+  ---
+  duration_ms: 0.2525
+  type: 'test'
+  ...
+# Subtest: adaptive action sheets keep a stable minimum height instead of shrinking to short content
+ok 81 - adaptive action sheets keep a stable minimum height instead of shrinking to short content
+  ---
+  duration_ms: 0.2617
+  type: 'test'
+  ...
+# Subtest: large and searchable action sheet floors preserve their existing detents
+ok 82 - large and searchable action sheet floors preserve their existing detents
+  ---
+  duration_ms: 0.2123
+  type: 'test'
+  ...
+# Subtest: instant action sheets do not reset downward on reopen
+ok 83 - instant action sheets do not reset downward on reopen
+  ---
+  duration_ms: 0.5108
+  type: 'test'
+  ...
+# Subtest: instant action sheet reopen height is capped to the current device height
+ok 84 - instant action sheet reopen height is capped to the current device height
+  ---
+  duration_ms: 35.9116
+  type: 'test'
+  ...
+# Subtest: animated action sheets reset to the visible window height on open
+ok 85 - animated action sheets reset to the visible window height on open
+  ---
+  duration_ms: 0.4501
+  type: 'test'
+  ...
+# Subtest: initial action sheet height falls back to screen height when window height is unavailable
+ok 86 - initial action sheet height falls back to screen height when window height is unavailable
+  ---
+  duration_ms: 0.1778
+  type: 'test'
+  ...
+# Subtest: instant action sheets keep the first visible height when overlay layout is shorter
+ok 87 - instant action sheets keep the first visible height when overlay layout is shorter
+  ---
+  duration_ms: 0.2305
+  type: 'test'
+  ...
+# Subtest: animated action sheets do not shrink when the first overlay layout is shorter than the screen
+ok 88 - animated action sheets do not shrink when the first overlay layout is shorter than the screen
+  ---
+  duration_ms: 0.1685
+  type: 'test'
+  ...
+# Subtest: after first layout action sheets only ratchet upward
+ok 89 - after first layout action sheets only ratchet upward
+  ---
+  duration_ms: 0.4643
+  type: 'test'
+  ...
+# Subtest: MT5 entry stays on the Reanimated UI runtime with capped body geometry
+ok 90 - MT5 entry stays on the Reanimated UI runtime with capped body geometry
+  ---
+  duration_ms: 30.8157
+  type: 'test'
+  ...
+# Subtest: an alternating MT5 config is parked before React can paint replacement rows
+ok 91 - an alternating MT5 config is parked before React can paint replacement rows
+  ---
+  duration_ms: 44.3195
+  type: 'test'
+  ...
+# Subtest: android instant sheets keep final-frame opening while MT5 sheets snap the whole host closed
+ok 92 - android instant sheets keep final-frame opening while MT5 sheets snap the whole host closed
+  ---
+  duration_ms: 130.6068
+  type: 'test'
+  ...
+# Subtest: android searchable sheets clamp to live overlay height during keyboard focus
+ok 93 - android searchable sheets clamp to live overlay height during keyboard focus
+  ---
+  duration_ms: 27.6504
+  type: 'test'
+  ...
+# Subtest: backdrop ignores the opening tap that created the action sheet
+ok 94 - backdrop ignores the opening tap that created the action sheet
+  ---
+  duration_ms: 25.7128
+  type: 'test'
+  ...
+# Subtest: action sheet can center opt-in MT5 plain sheet titles
+ok 95 - action sheet can center opt-in MT5 plain sheet titles
+  ---
+  duration_ms: 53.5292
+  type: 'test'
+  ...
+# Subtest: muted action sheet rows look disabled while remaining tappable
+ok 96 - muted action sheet rows look disabled while remaining tappable
+  ---
+  duration_ms: 54.0685
+  type: 'test'
+  ...
+# Subtest: a matching retained preparation reveals only after the tap is committed
+ok 97 - a matching retained preparation reveals only after the tap is committed
+  ---
+  duration_ms: 2.2032
+  type: 'test'
+  ...
+# Subtest: stale gestures cannot commit or cancel a newer symbol preview
+ok 98 - stale gestures cannot commit or cancel a newer symbol preview
+  ---
+  duration_ms: 1.4981
+  type: 'test'
+  ...
+# Subtest: a drag cancellation is retained when the native applier registers late
+ok 99 - a drag cancellation is retained when the native applier registers late
+  ---
+  duration_ms: 1.9267
+  type: 'test'
+  ...
+# Subtest: an exact pending preview can be synchronized after its content commits
+ok 100 - an exact pending preview can be synchronized after its content commits
+  ---
+  duration_ms: 3.2427
+  type: 'test'
+  ...
+# Subtest: commit reports false when no mounted sheet owns the exact visual key
+ok 101 - commit reports false when no mounted sheet owns the exact visual key
+  ---
+  duration_ms: 1.3116
+  type: 'test'
+  ...
+# Subtest: multiple mounted ActionSheets keep their appliers until each one unregisters
+ok 102 - multiple mounted ActionSheets keep their appliers until each one unregisters
+  ---
+  duration_ms: 0.8192
+  type: 'test'
+  ...
+# Subtest: a config swap parks only the mounted host that owns the outgoing visual key
+ok 103 - a config swap parks only the mounted host that owns the outgoing visual key
+  ---
+  duration_ms: 0.9912
+  type: 'test'
+  ...
+# Subtest: action sheet search matches raw, localized, and subtitle text
+ok 104 - action sheet search matches raw, localized, and subtitle text
+  ---
+  duration_ms: 2.5821
+  type: 'test'
+  ...
+# Subtest: country identity survives filtering while deferred search frames reset on each query
+ok 105 - country identity survives filtering while deferred search frames reset on each query
+  ---
+  duration_ms: 0.4238
+  type: 'test'
+  ...
+# Subtest: search resets committed list offsets and preserves the keyboard when the input is in its header
+ok 106 - search resets committed list offsets and preserves the keyboard when the input is in its header
+  ---
+  duration_ms: 5.7586
+  type: 'test'
+  ...
+# Subtest: action sheet search trims whitespace and preserves the full list for a blank query
+ok 107 - action sheet search trims whitespace and preserves the full list for a blank query
+  ---
+  duration_ms: 0.527
+  type: 'test'
+  ...
+# Subtest: sanitizeApiLatencyEndpoint strips host and redacts sensitive query values
+ok 108 - sanitizeApiLatencyEndpoint strips host and redacts sensitive query values
+  ---
+  duration_ms: 27.8673
+  type: 'test'
+  ...
+# Subtest: recordApiLatency redacts credential-bearing URLs from error messages
+ok 109 - recordApiLatency redacts credential-bearing URLs from error messages
+  ---
+  duration_ms: 2.7846
+  type: 'test'
+  ...
+# Subtest: recordApiLatency stores newest samples first and caps the in-memory buffer
+ok 110 - recordApiLatency stores newest samples first and caps the in-memory buffer
+  ---
+  duration_ms: 7.8506
+  type: 'test'
+  ...
+# Subtest: timedFetch records status, method, endpoint, and source for successful responses
+ok 111 - timedFetch records status, method, endpoint, and source for successful responses
+  ---
+  duration_ms: 108.4258
+  type: 'test'
+  ...
+# Subtest: timedFetch records rejected network calls before rethrowing
+ok 112 - timedFetch records rejected network calls before rethrowing
+  ---
+  duration_ms: 4.273
+  type: 'test'
+  ...
+# Subtest: timedFetch aborts requests that exceed the frontend timeout
+ok 113 - timedFetch aborts requests that exceed the frontend timeout
+  ---
+  duration_ms: 46.3464
+  type: 'test'
+  ...
+# Subtest: timedFetch rejects on timeout even when native fetch ignores abort
+ok 114 - timedFetch rejects on timeout even when native fetch ignores abort
+  ---
+  duration_ms: 142.031
+  type: 'test'
+  ...
+# Subtest: REST API calls are routed through the backend latency recorder
+ok 115 - REST API calls are routed through the backend latency recorder
+  ---
+  duration_ms: 394.4916
+  type: 'test'
+  ...
+# Subtest: trade and registration paths record backend response latency
+ok 116 - trade and registration paths record backend response latency
+  ---
+  duration_ms: 200.3361
+  type: 'test'
+  ...
+# Subtest: expired broker sessions fail fast and do not keep stale secure tokens alive
+ok 117 - expired broker sessions fail fast and do not keep stale secure tokens alive
+  ---
+  duration_ms: 175.9384
+  type: 'test'
+  ...
+# Subtest: perf monitors are dev-only and warn only above a user-perceptible threshold
+ok 118 - perf monitors are dev-only and warn only above a user-perceptible threshold
+  ---
+  duration_ms: 39.4263
+  type: 'test'
+  ...
+# Subtest: shared press action budget is capped without touch-down activation by default
+ok 119 - shared press action budget is capped without touch-down activation by default
+  ---
+  duration_ms: 2.3539
+  type: 'test'
+  ...
+# Subtest: screen and shared UI pressables use the immediate fast press component
+ok 120 - screen and shared UI pressables use the immediate fast press component
+  ---
+  duration_ms: 2100.6332
+  type: 'test'
+  ...
+# Subtest: buy and sell actions use the stricter critical trade budget
+ok 121 - buy and sell actions use the stricter critical trade budget
+  ---
+  duration_ms: 65.2909
+  type: 'test'
+  ...
+# Subtest: chart trade one-click and ticket paths keep heavy work out of the tap paint
+ok 122 - chart trade one-click and ticket paths keep heavy work out of the tap paint
+  ---
+  duration_ms: 134.5238
+  type: 'test'
+  ...
+# Subtest: trade buy/sell success feedback uses the shared popup without device vibration
+ok 123 - trade buy/sell success feedback uses the shared popup without device vibration
+  ---
+  duration_ms: 111.8361
+  type: 'test'
+  ...
+# Subtest: action destination modules warm without boot-time route prefetch
+ok 124 - action destination modules warm without boot-time route prefetch
+  ---
+  duration_ms: 530.3915
+  type: 'test'
+  ...
+# Subtest: global action sheet actions avoid selecting rows while scrolling
+not ok 125 - global action sheet actions avoid selecting rows while scrolling
+  ---
+  duration_ms: 265.7433
+  type: 'test'
+  location: 'C:\\Users\\S S LAPTOP BAZAAR\\Desktop\\RTX-5Mobile-App\\rtx5-app\\src\\utils\\appActionLatencyContract.test.ts:2:55457'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /showActionSheet: \(config\) => set\(\{ actionSheet: withInstantActionSheetOpen\(config\) \}\)/. Input:
+    
+    '/**\n' +
+      ' * Core module: uiState.ts\n' +
+      ' */\n' +
+      '\n' +
+      "import React from 'react';\n" +
+      "import type { TextStyle } from 'react-native';\n" +
+      "import { create } from 'zustand';\n" +
+      "import type { ChartDrawingKind } from '../features/chart/drawingPersistence';\n" +
+      '\n' +
+      "export type PendingChartCommand = 'scrollToLastBar' | 'resetVerticalScale';\n" +
+      '\n' +
+      '/** Represents a single interactive button in an ActionSheet */\n' +
+      'type ActionSheetAction = {\n' +
+      '  /** Display label for the button */\n' +
+      '  label: string;\n' +
+      '  /** Optional secondary line below the main label */\n' +
+      '  subtitle?: string;\n' +
+      '  /** If true, styles the current choice with the active brand color */\n' +
+      '  selected?: boolean;\n' +
+      '  /** If true, renders text like a disabled row while keeping the action tappable */\n' +
+      '  muted?: boolean;\n' +
+      '  /** If true, styles the button as a destructive/danger action */\n' +
+      '  danger?: boolean;\n' +
+      '  /** Optional override for the primary label color */\n' +
+      '  textColor?: string;\n' +
+      '  /** Optional override for the primary label font weight */\n' +
+      "  textFontWeight?: TextStyle['fontWeight'];\n" +
+      '  /** If true, the action appears greyed-out and is not interactive */\n' +
+      '  disabled?: boolean;\n' +
+      '  /** If true, fires on press-in for tiny non-scroll action groups */\n' +
+      '  activateOnPressIn?: boolean;\n' +
+      '  /** Let a retained destination paint before React reconciles the hidden sheet. */\n' +
+      '  deferCloseCommitForVisualHandoff?: boolean;\n' +
+      '  /** Callback fired when the user taps this action */\n' +
+      '  onPress?: () => void;\n' +
+      '  /** Optional leading icon element */\n' +
+      '  icon?: React.ReactNode;\n' +
+      '};\n' +
+      '\n' +
+      '/** Configuration object for triggering the global ActionSheet component */\n' +
+      'export type ActionSheetConfig = {\n' +
+      '  /** Optional title to display at the top of the sheet */\n' +
+      '  title?: string;\n' +
+      '  /** Optional title alignment override for sheets that need centered headers */\n' +
+      "  titleAlign?: 'left' | 'center';\n" +
+      '  /** Use compact text sizing for dense picker rows */\n' +
+      '  compactText?: boolean;\n' +
+      '  /** Optional visual treatment for feature-specific native parity sheets */\n' +
+      "  presentation?: 'default' | 'mt5Plain' | 'mt5TimeframeGrid';\n" +
+      '  /** Keep leading action icons visible even in plain presentations */\n' +
+      '  showActionIcons?: boolean;\n' +
+      '  /** For long sheets, mount only the opening viewport and render more rows while scrolling. */\n' +
+      '  deferOffscreenActions?: boolean;\n' +
+      '  /** Optional cap for how many fixed-height action rows are visible at once. */\n' +
+      '  maximumVisibleActionRows?: number;\n' +
+      '  /** List of buttons to render */\n' +
+      '  actions: ActionSheetAction[];\n' +
+      '  /** Enable search filtering in the sheet */\n' +
+      '  searchable?: boolean;\n' +
+      '  /** Optional placeholder for searchable sheets */\n' +
+      '  searchPlaceholder?: string;\n' +
+      '  /** Sheet sizing detent */\n' +
+      "  detent?: 'auto' | 'adaptive' | 'large';\n" +
+      '  /** Minimum distance from the top of the screen */\n' +
+      '  minimumTopInset?: number;\n' +
+      '  /** If true, mounts the sheet visible immediately without the entry delay */\n' +
+      '  instantOpen?: boolean;\n' +
+      '  /** Optional entry motion; MT5 slide keeps first-pixel response immediate while animating native values. */\n' +
+      "  entryMotion?: 'instant' | 'mt5Slide' | 'standard';\n" +
+      '  /** Hide the retained host synchronously on close without changing the entry animation. */\n' +
+      '  immediateHostHideOnClose?: boolean;\n' +
+      '  /** Opaque identity used to reveal an exact retained sheet before React adopts visibility. */\n' +
+      '  visualKey?: string;\n' +
+      '  /** If true, defers action execution until after sheet dismiss animation */\n' +
+      '  runActionAfterClose?: boolean;\n' +
+      '  /** Android keyboard avoidance mode for searchable sheets */\n' +
+      "  androidKeyboardAvoidance?: 'event' | 'resize';\n" +
+      '  /**\n' +
+      '   * Opt-in for fixed-height searchable lists such as Symbol Picker and Drawing\n' +
+      '   * Tools. The search box and top results stay put while the keyboard overlays\n' +
+      '   * the lower part of the list. Other sheets keep their existing avoidance.\n' +
+      '   */\n' +
+      '  keepFullHeightOnKeyboard?: boolean;\n' +
+      '};\n' +
+      '\n' +
+      'export type ActionSheetScope =\n' +
+      "  | 'quotes'\n" +
+      "  | 'chart'\n" +
+      "  | 'trade'\n" +
+      "  | 'history'\n" +
+      "  | 'settingsAccounts'\n" +
+      "  | 'settingsBrokerDetail';\n" +
+      'type ScopedActionSheetState = Record<ActionSheetScope, ActionSheetConfig | null>;\n' +
+      '\n' +
+      'const ACTION_SHEET_SCOPES: ActionSheetScope[] = [\n' +
+      "  'quotes',\n" +
+      "  'chart',\n" +
+      "  'trade',\n" +
+      "  'history',\n" +
+      "  'settingsAccounts',\n" +
+      "  'settingsBrokerDetail',\n" +
+      '];\n' +
+      '\n' +
+      'const createEmptyScopedActionSheets = (): ScopedActionSheetState => ({\n' +
+      '  quotes: null,\n' +
+      '  chart: null,\n' +
+      '  trade: null,\n' +
+      '  history: null,\n' +
+      '  settingsAccounts: null,\n' +
+      '  settingsBrokerDetail: null,\n' +
+      '});\n' +
+      '\n' +
+      'const hasScopedActionSheet = (sheets: ScopedActionSheetState) =>\n' +
+      '  ACTION_SHEET_SCOPES.some((scope) => sheets[scope] !== null);\n' +
+      '\n' +
+      'const withInstantActionSheetOpen = (config: ActionSheetConfig): ActionSheetConfig => (\n' +
+      '  config.instantOpen === true ? config : { ...config, instantOpen: true }\n' +
+      ');\n' +
+      '\n' +
+      'const openScopedActionSheet = (\n' +
+      '  sheets: ScopedActionSheetState,\n' +
+      '  scope: ActionSheetScope,\n' +
+      '  config: ActionSheetConfig,\n' +
+      '): ScopedActionSheetState => {\n' +
+      '  const nextConfig = withInstantActionSheetOpen(config);\n' +
+      '  // Re-publishing an already-held config must not re-render the giant sheet\n' +
+      '  // host — focus effects re-preload the same object on every dependency tick,\n' +
+      "  // and sheet openers preload synchronously on the tap's critical path.\n" +
+      '  return sheets[scope] === nextConfig ? sheets : { ...sheets, [scope]: nextConfig };\n' +
+      '};\n' +
+      '\n' +
+      'const hideScopedActionSheetState = (\n' +
+      '  sheets: ScopedActionSheetState,\n' +
+      '  scope: ActionSheetScope,\n' +
+      '): ScopedActionSheetState => (\n' +
+      '  sheets[scope] === null ? sheets : { ...sheets, [scope]: null }\n' +
+      ');\n' +
+      '\n' +
+      'const closeScopedActionSheet = (\n' +
+      '  state: {\n' +
+      '    actionSheetScope: ActionSheetScope | null;\n' +
+      '    scopedActionSheets: ScopedActionSheetState;\n' +
+      '    preloadedScopedActionSheets: ScopedActionSheetState;\n' +
+      '  },\n' +
+      '  scope: ActionSheetScope,\n' +
+      ') => {\n' +
+      '  const nextSheets = hideScopedActionSheetState(state.scopedActionSheets, scope);\n' +
+      '  const nextScope = state.actionSheetScope === scope\n' +
+      '    ? (state.preloadedScopedActionSheets[scope] ? scope : null)\n' +
+      '    : state.actionSheetScope;\n' +
+      '  if (nextSheets === state.scopedActionSheets && nextScope === state.actionSheetScope) {\n' +
+      '    return state;\n' +
+      '  }\n' +
+      '\n' +
+      '  return {\n' +
+      '    actionSheetScope: nextScope,\n' +
+      '    scopedActionSheets: nextSheets,\n' +
+      '  };\n' +
+      '};\n' +
+      '\n' +
+      '/**\n' +
+      " * Zustand interface for ephemereal, pure UI states that don't need persistence.\n" +
+      ' */\n' +
+      'type UIState = {\n' +
+      '  /** Controls visibility of the main app sidebar/drawer */\n' +
+      '  sidebarOpen: boolean;\n' +
+      '  setSidebarOpen: (open: boolean) => void;\n' +
+      '\n' +
+      '  /** Controls whether the chart view is expanded to conceal the trade panels */\n' +
+      '  isChartFullscreen: boolean;\n' +
+      '  setChartFullscreen: (open: boolean) => void;\n' +
+      '\n' +
+      '  /** Tracks if a global search modal/input is active */\n' +
+      '  isSearchActive: boolean;\n' +
+      '  setSearchActive: (active: boolean) => void;\n' +
+      '\n' +
+      '  /** Tracks whether the chart is running an inline text-entry flow */\n' +
+      '  isChartInlineInputActive: boolean;\n' +
+      '  setChartInlineInputActive: (active: boolean) => void;\n' +
+      '\n' +
+      '  /** Lifts the chart tab bar above Android keyboards when the host app does not resize */\n' +
+      '  chartTabBarKeyboardLift: number;\n' +
+      '  setChartTabBarKeyboardLift: (height: number) => void;\n' +
+      '\n' +
+      '  /** Tool selection requested from the objects screen and consumed by the chart */\n' +
+      '  pendingChartDrawingTool: ChartDrawingKind | null;\n' +
+      '  queueChartDrawingTool: (tool: ChartDrawingKind) => void;\n' +
+      '  clearPendingChartDrawingTool: () => void;\n' +
+      '\n' +
+      '  /** One-shot chart viewport command requested from another chart screen. */\n' +
+      '  pendingChartCommand: PendingChartCommand | null;\n' +
+      '  queueChartCommand: (command: PendingChartCommand) => void;\n' +
+      '  clearPendingChartCommand: () => void;\n' +
+      '\n' +
+      '  /** Current active action sheet config. Null means closed. */\n' +
+      '  actionSheet: ActionSheetConfig | null;\n' +
+      '  /** Identifies each open request, including a batched close/reopen of the same config. */\n' +
+      '  actionSheetOpenRevision: number;\n' +
+      '  /** Action sheet config to render invisibly in the background to pre-warm the layout engine */\n' +
+      '  preloadedActionSheet: ActionSheetConfig | null;\n' +
+      '  /** Independent action sheet configs for feature-owned dropdowns. */\n' +
+      '  scopedActionSheets: ScopedActionSheetState;\n' +
+      '  /** Feature-owned preloaded configs for local dropdown warmup. */\n' +
+      '  preloadedScopedActionSheets: ScopedActionSheetState;\n' +
+      '  /** Scope currently rendered by the shared host. */\n' +
+      '  actionSheetScope: ActionSheetScope | null;\n' +
+      '  /** Opens the global action sheet with the provided config */\n' +
+      '  showActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  /** Pre-loads a config into the hidden action sheet to trigger Native UI measurement */\n' +
+      '  preloadActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  /** Closes/hides the active action sheet */\n' +
+      '  hideActionSheet: () => void;\n' +
+      '  showScopedActionSheet: (scope: ActionSheetScope, config: ActionSheetConfig) => void;\n' +
+      '  preloadScopedActionSheet: (scope: ActionSheetScope, config: ActionSheetConfig) => void;\n' +
+      '  hideScopedActionSheet: (scope: ActionSheetScope) => void;\n' +
+      '  showQuotesActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  preloadQuotesActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  hideQuotesActionSheet: () => void;\n' +
+      '  showChartActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  hideChartActionSheet: () => void;\n' +
+      '  showTradeActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  hideTradeActionSheet: () => void;\n' +
+      '  showHistoryActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  hideHistoryActionSheet: () => void;\n' +
+      '  showAccountsActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  hideAccountsActionSheet: () => void;\n' +
+      '  showBrokerDetailActionSheet: (config: ActionSheetConfig) => void;\n' +
+      '  hideBrokerDetailActionSheet: () => void;\n' +
+      '};\n' +
+      '\n' +
+      '/**\n' +
+      ' * Global store for ephemeral UI state (modals, overlays, toggles).\n' +
+      ' * State is not persisted between app launches.\n' +
+      ' */\n' +
+      'export const useUIState = create<UIState>((set) => ({\n' +
+      '  sidebarOpen: false,\n' +
+      '  setSidebarOpen: (open) => set((state) => (state.sidebarOpen === open ? state : { sidebarOpen: open })),\n' +
+      '\n' +
+      '  isChartFullscreen: false,\n' +
+      '  setChartFullscreen: (open) => set({ isChartFullscreen: open }),\n' +
+      '\n' +
+      '  isSearchActive: false,\n' +
+      '  setSearchActive: (active) => set({ isSearchActive: active }),\n' +
+      '\n' +
+      '  isChartInlineInputActive: false,\n' +
+      '  setChartInlineInputActive: (active) => set({ isChartInlineInputActive: active }),\n' +
+      '\n' +
+      '  chartTabBarKeyboardLift: 0,\n' +
+      '  setChartTabBarKeyboardLift: (height) => set({ chartTabBarKe'... 4536 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    /**
+     * Core module: uiState.ts
+     */
+    
+    import React from 'react';
+    import type { TextStyle } from 'react-native';
+    import { create } from 'zustand';
+    import type { ChartDrawingKind } from '../features/chart/drawingPersistence';
+    
+    export type PendingChartCommand = 'scrollToLastBar' | 'resetVerticalScale';
+    
+    /** Represents a single interactive button in an ActionSheet */
+    type ActionSheetAction = {
+      /** Display label for the button */
+      label: string;
+      /** Optional secondary line below the main label */
+      subtitle?: string;
+      /** If true, styles the current choice with the active brand color */
+      selected?: boolean;
+      /** If true, renders text like a disabled row while keeping the action tappable */
+      muted?: boolean;
+      /** If true, styles the button as a destructive/danger action */
+      danger?: boolean;
+      /** Optional override for the primary label color */
+      textColor?: string;
+      /** Optional override for the primary label font weight */
+      textFontWeight?: TextStyle['fontWeight'];
+      /** If true, the action appears greyed-out and is not interactive */
+      disabled?: boolean;
+      /** If true, fires on press-in for tiny non-scroll action groups */
+      activateOnPressIn?: boolean;
+      /** Let a retained destination paint before React reconciles the hidden sheet. */
+      deferCloseCommitForVisualHandoff?: boolean;
+      /** Callback fired when the user taps this action */
+      onPress?: () => void;
+      /** Optional leading icon element */
+      icon?: React.ReactNode;
+    };
+    
+    /** Configuration object for triggering the global ActionSheet component */
+    export type ActionSheetConfig = {
+      /** Optional title to display at the top of the sheet */
+      title?: string;
+      /** Optional title alignment override for sheets that need centered headers */
+      titleAlign?: 'left' | 'center';
+      /** Use compact text sizing for dense picker rows */
+      compactText?: boolean;
+      /** Optional visual treatment for feature-specific native parity sheets */
+      presentation?: 'default' | 'mt5Plain' | 'mt5TimeframeGrid';
+      /** Keep leading action icons visible even in plain presentations */
+      showActionIcons?: boolean;
+      /** For long sheets, mount only the opening viewport and render more rows while scrolling. */
+      deferOffscreenActions?: boolean;
+      /** Optional cap for how many fixed-height action rows are visible at once. */
+      maximumVisibleActionRows?: number;
+      /** List of buttons to render */
+      actions: ActionSheetAction[];
+      /** Enable search filtering in the sheet */
+      searchable?: boolean;
+      /** Optional placeholder for searchable sheets */
+      searchPlaceholder?: string;
+      /** Sheet sizing detent */
+      detent?: 'auto' | 'adaptive' | 'large';
+      /** Minimum distance from the top of the screen */
+      minimumTopInset?: number;
+      /** If true, mounts the sheet visible immediately without the entry delay */
+      instantOpen?: boolean;
+      /** Optional entry motion; MT5 slide keeps first-pixel response immediate while animating native values. */
+      entryMotion?: 'instant' | 'mt5Slide' | 'standard';
+      /** Hide the retained host synchronously on close without changing the entry animation. */
+      immediateHostHideOnClose?: boolean;
+      /** Opaque identity used to reveal an exact retained sheet before React adopts visibility. */
+      visualKey?: string;
+      /** If true, defers action execution until after sheet dismiss animation */
+      runActionAfterClose?: boolean;
+      /** Android keyboard avoidance mode for searchable sheets */
+      androidKeyboardAvoidance?: 'event' | 'resize';
+      /**
+       * Opt-in for fixed-height searchable lists such as Symbol Picker and Drawing
+       * Tools. The search box and top results stay put while the keyboard overlays
+       * the lower part of the list. Other sheets keep their existing avoidance.
+       */
+      keepFullHeightOnKeyboard?: boolean;
+    };
+    
+    export type ActionSheetScope =
+      | 'quotes'
+      | 'chart'
+      | 'trade'
+      | 'history'
+      | 'settingsAccounts'
+      | 'settingsBrokerDetail';
+    type ScopedActionSheetState = Record<ActionSheetScope, ActionSheetConfig | null>;
+    
+    const ACTION_SHEET_SCOPES: ActionSheetScope[] = [
+      'quotes',
+      'chart',
+      'trade',
+      'history',
+      'settingsAccounts',
+      'settingsBrokerDetail',
+    ];
+    
+    const createEmptyScopedActionSheets = (): ScopedActionSheetState => ({
+      quotes: null,
+      chart: null,
+      trade: null,
+      history: null,
+      settingsAccounts: null,
+      settingsBrokerDetail: null,
+    });
+    
+    const hasScopedActionSheet = (sheets: ScopedActionSheetState) =>
+      ACTION_SHEET_SCOPES.some((scope) => sheets[scope] !== null);
+    
+    const withInstantActionSheetOpen = (config: ActionSheetConfig): ActionSheetConfig => (
+      config.instantOpen === true ? config : { ...config, instantOpen: true }
+    );
+    
+    const openScopedActionSheet = (
+      sheets: ScopedActionSheetState,
+      scope: ActionSheetScope,
+      config: ActionSheetConfig,
+    ): ScopedActionSheetState => {
+      const nextConfig = withInstantActionSheetOpen(config);
+      // Re-publishing an already-held config must not re-render the giant sheet
+      // host — focus effects re-preload the same object on every dependency tick,
+      // and sheet openers preload synchronously on the tap's critical path.
+      return sheets[scope] === nextConfig ? sheets : { ...sheets, [scope]: nextConfig };
+    };
+    
+    const hideScopedActionSheetState = (
+      sheets: ScopedActionSheetState,
+      scope: ActionSheetScope,
+    ): ScopedActionSheetState => (
+      sheets[scope] === null ? sheets : { ...sheets, [scope]: null }
+    );
+    
+    const closeScopedActionSheet = (
+      state: {
+        actionSheetScope: ActionSheetScope | null;
+        scopedActionSheets: ScopedActionSheetState;
+        preloadedScopedActionSheets: ScopedActionSheetState;
+      },
+      scope: ActionSheetScope,
+    ) => {
+      const nextSheets = hideScopedActionSheetState(state.scopedActionSheets, scope);
+      const nextScope = state.actionSheetScope === scope
+        ? (state.preloadedScopedActionSheets[scope] ? scope : null)
+        : state.actionSheetScope;
+      if (nextSheets === state.scopedActionSheets && nextScope === state.actionSheetScope) {
+        return state;
+      }
+    
+      return {
+        actionSheetScope: nextScope,
+        scopedActionSheets: nextSheets,
+      };
+    };
+    
+    /**
+     * Zustand interface for ephemereal, pure UI states that don't need persistence.
+     */
+    type UIState = {
+      /** Controls visibility of the main app sidebar/drawer */
+      sidebarOpen: boolean;
+      setSidebarOpen: (open: boolean) => void;
+    
+      /** Controls whether the chart view is expanded to conceal the trade panels */
+      isChartFullscreen: boolean;
+      setChartFullscreen: (open: boolean) => void;
+    
+      /** Tracks if a global search modal/input is active */
+      isSearchActive: boolean;
+      setSearchActive: (active: boolean) => void;
+    
+      /** Tracks whether the chart is running an inline text-entry flow */
+      isChartInlineInputActive: boolean;
+      setChartInlineInputActive: (active: boolean) => void;
+    
+      /** Lifts the chart tab bar above Android keyboards when the host app does not resize */
+      chartTabBarKeyboardLift: number;
+      setChartTabBarKeyboardLift: (height: number) => void;
+    
+      /** Tool selection requested from the objects screen and consumed by the chart */
+      pendingChartDrawingTool: ChartDrawingKind | null;
+      queueChartDrawingTool: (tool: ChartDrawingKind) => void;
+      clearPendingChartDrawingTool: () => void;
+    
+      /** One-shot chart viewport command requested from another chart screen. */
+      pendingChartCommand: PendingChartCommand | null;
+      queueChartCommand: (command: PendingChartCommand) => void;
+      clearPendingChartCommand: () => void;
+    
+      /** Current active action sheet config. Null means closed. */
+      actionSheet: ActionSheetConfig | null;
+      /** Identifies each open request, including a batched close/reopen of the same config. */
+      actionSheetOpenRevision: number;
+      /** Action sheet config to render invisibly in the background to pre-warm the layout engine */
+      preloadedActionSheet: ActionSheetConfig | null;
+      /** Independent action sheet configs for feature-owned dropdowns. */
+      scopedActionSheets: ScopedActionSheetState;
+      /** Feature-owned preloaded configs for local dropdown warmup. */
+      preloadedScopedActionSheets: ScopedActionSheetState;
+      /** Scope currently rendered by the shared host. */
+      actionSheetScope: ActionSheetScope | null;
+      /** Opens the global action sheet with the provided config */
+      showActionSheet: (config: ActionSheetConfig) => void;
+      /** Pre-loads a config into the hidden action sheet to trigger Native UI measurement */
+      preloadActionSheet: (config: ActionSheetConfig) => void;
+      /** Closes/hides the active action sheet */
+      hideActionSheet: () => void;
+      showScopedActionSheet: (scope: ActionSheetScope, config: ActionSheetConfig) => void;
+      preloadScopedActionSheet: (scope: ActionSheetScope, config: ActionSheetConfig) => void;
+      hideScopedActionSheet: (scope: ActionSheetScope) => void;
+      showQuotesActionSheet: (config: ActionSheetConfig) => void;
+      preloadQuotesActionSheet: (config: ActionSheetConfig) => void;
+      hideQuotesActionSheet: () => void;
+      showChartActionSheet: (config: ActionSheetConfig) => void;
+      hideChartActionSheet: () => void;
+      showTradeActionSheet: (config: ActionSheetConfig) => void;
+      hideTradeActionSheet: () => void;
+      showHistoryActionSheet: (config: ActionSheetConfig) => void;
+      hideHistoryActionSheet: () => void;
+      showAccountsActionSheet: (config: ActionSheetConfig) => void;
+      hideAccountsActionSheet: () => void;
+      showBrokerDetailActionSheet: (config: ActionSheetConfig) => void;
+      hideBrokerDetailActionSheet: () => void;
+    };
+    
+    /**
+     * Global store for ephemeral UI state (modals, overlays, toggles).
+     * State is not persisted between app launches.
+     */
+    export const useUIState = create<UIState>((set) => ({
+      sidebarOpen: false,
+      setSidebarOpen: (open) => set((state) => (state.sidebarOpen === open ? state : { sidebarOpen: open })),
+    
+      isChartFullscreen: false,
+      setChartFullscreen: (open) => set({ isChartFullscreen: open }),
+    
+      isSearchActive: false,
+      setSearchActive: (active) => set({ isSearchActive: active }),
+    
+      isChartInlineInputActive: false,
+      setChartInlineInputActive: (active) => set({ isChartInlineInputActive: active }),
+    
+      chartTabBarKeyboardLift: 0,
+      setChartTabBarKeyboardLift: (height) => set({ chartTabBarKeyboardLift: Math.max(0, Math.round(height)) }),
+    
+      pendingChartDrawingTool: null,
+      queueChartDrawingTool: (tool) => set({ pendingChartDrawingTool: tool }),
+      clearPendingChartDrawingTool: () => set({ pendingChartDrawingTool: null }),
+      pendingChartCommand: null,
+      queueChartCommand: (command) => set({ pendingChartCommand: command }),
+      clearPendingChartCommand: () => set({ pendingChartCommand: null }),
+    
+      actionSheet: null,
+      actionSheetOpenRevision: 0,
+      preloadedActionSheet: null,
+      scopedActionSheets: createEmptyScopedActionSheets(),
+      preloadedScopedActionSheets: createEmptyScopedActionSheets(),
+      actionSheetScope: null,
+      showActionSheet: (config) => set((state) => ({
+        actionSheet: withInstantActionSheetOpen(config),
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+      })),
+      preloadActionSheet: (config) => set({ preloadedActionSheet: withInstantActionSheetOpen(config) }),
+      hideActionSheet: () => set((state) => {
+        if (
+          state.actionSheet === null &&
+          state.actionSheetScope === null &&
+          !hasScopedActionSheet(state.scopedActionSheets)
+        ) {
+          return state;
+        }
+    
+        return {
+          actionSheet: null,
+          actionSheetScope: null,
+          scopedActionSheets: createEmptyScopedActionSheets(),
+        };
+      }),
+      showScopedActionSheet: (scope, config) => set((state) => ({
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+        actionSheet: null,
+        actionSheetScope: scope,
+        scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, scope, config),
+      })),
+      preloadScopedActionSheet: (scope, config) => set((state) => ({
+        actionSheetScope: hasScopedActionSheet(state.scopedActionSheets)
+          ? (state.actionSheetScope ?? scope)
+          : scope,
+        preloadedScopedActionSheets: openScopedActionSheet(
+          state.preloadedScopedActionSheets,
+          scope,
+          config,
+        ),
+      })),
+      hideScopedActionSheet: (scope) => set((state) => closeScopedActionSheet(state, scope)),
+      showQuotesActionSheet: (config) => set((state) => ({
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+        actionSheet: null,
+        actionSheetScope: 'quotes',
+        scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'quotes', config),
+      })),
+      preloadQuotesActionSheet: (config) => set((state) => ({
+        actionSheetScope: hasScopedActionSheet(state.scopedActionSheets)
+          ? (state.actionSheetScope ?? 'quotes')
+          : 'quotes',
+        preloadedScopedActionSheets: openScopedActionSheet(
+          state.preloadedScopedActionSheets,
+          'quotes',
+          config,
+        ),
+      })),
+      hideQuotesActionSheet: () => set((state) => closeScopedActionSheet(state, 'quotes')),
+      showChartActionSheet: (config) => set((state) => ({
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+        actionSheet: null,
+        actionSheetScope: 'chart',
+        scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'chart', config),
+      })),
+      hideChartActionSheet: () => set((state) => closeScopedActionSheet(state, 'chart')),
+      showTradeActionSheet: (config) => set((state) => ({
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+        actionSheet: null,
+        actionSheetScope: 'trade',
+        scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'trade', config),
+      })),
+      hideTradeActionSheet: () => set((state) => closeScopedActionSheet(state, 'trade')),
+      showHistoryActionSheet: (config) => set((state) => ({
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+        actionSheet: null,
+        actionSheetScope: 'history',
+        scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'history', config),
+      })),
+      hideHistoryActionSheet: () => set((state) => closeScopedActionSheet(state, 'history')),
+      showAccountsActionSheet: (config) => set((state) => ({
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+        actionSheet: null,
+        actionSheetScope: 'settingsAccounts',
+        scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'settingsAccounts', config),
+      })),
+      hideAccountsActionSheet: () => set((state) => closeScopedActionSheet(state, 'settingsAccounts')),
+      showBrokerDetailActionSheet: (config) => set((state) => ({
+        actionSheetOpenRevision: state.actionSheetOpenRevision + 1,
+        actionSheet: null,
+        actionSheetScope: 'settingsBrokerDetail',
+        scopedActionSheets: openScopedActionSheet(state.scopedActionSheets, 'settingsBrokerDetail', config),
+      })),
+      hideBrokerDetailActionSheet: () => set((state) => closeScopedActionSheet(state, 'settingsBrokerDetail')),
+    }));
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\rtx5-app\src\utils\appActionLatencyContract.test.ts:766:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: bottom-sheet style dropdowns avoid native slide animations on open
+ok 126 - bottom-sheet style dropdowns avoid native slide animations on open
+  ---
+  duration_ms: 103.0601
+  type: 'test'
+  ...
+# Subtest: chart properties color picker keeps readouts live and commits chart colors after gestures
+ok 127 - chart properties color picker keeps readouts live and commits chart colors after gestures
+  ---
+  duration_ms: 46.7813
+  type: 'test'
+  ...
+# Subtest: chart properties show controls moved to the chart settings action sheet
+ok 128 - chart properties show controls moved to the chart settings action sheet
+  ---
+  duration_ms: 189.1336
+  type: 'test'
+  ...
+# Subtest: chart properties keeps line color under candles and links candle colors to hidden bar colors
+ok 129 - chart properties keeps line color under candles and links candle colors to hidden bar colors
+  ---
+  duration_ms: 47.8186
+  type: 'test'
+  ...
+# Subtest: chart properties dark chrome matches the Settings dark palette
+ok 130 - chart properties dark chrome matches the Settings dark palette
+  ---
+  duration_ms: 49.3369
+  type: 'test'
+  ...
+# Subtest: shared scroll containers keep taps active while keyboard or scroll responders are present
+not ok 131 - shared scroll containers keep taps active while keyboard or scroll responders are present
+  ---
+  duration_ms: 5808.601
+  type: 'test'
+  location: 'C:\\Users\\S S LAPTOP BAZAAR\\Desktop\\RTX-5Mobile-App\\rtx5-app\\src\\utils\\appActionLatencyContract.test.ts:2:74783'
+  failureType: 'testCodeFailure'
+  error: 'src/features/trade/PendingOrderScreen.tsx must keep taps active instead of swallowing the first tap while keyboard is open'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    import { useCallback, useEffect, useRef, useState } from 'react';
+    import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+    import { Stack, router, useLocalSearchParams } from 'expo-router';
+    import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
+    import { useQueryClient } from '@tanstack/react-query';
+    import { usePendingOrdersQuery } from '../../query/pendingOrders';
+    import { useActiveBrokerQuerySession, invalidateSessionQueryRoots } from '../../query/authenticatedQueryScope';
+    import { captureActiveBrokerSessionOwnerStamp, isActiveBrokerSessionOwnerStampCurrent } from '../../state/activeBrokerSession';
+    import { useInstrumentMeta } from '../../query/instruments';
+    import { useExecutableQuote } from '../quotes/useExecutableQuote';
+    import { cancelPendingOrder, modifyPendingOrder } from '../../api/orders/pendingOrders';
+    import { pendingExpiry, pendingPriceRulesReady, roundPendingPrice, validatePendingOrder, type PendingTimeInForce } from '../../domain/pendingOrders';
+    import { PendingOrderFields } from './PendingOrderFields';
+    import { useTheme } from '../../ui/theme/useTheme';
+    import { FastPressable } from '../../ui/components/FastPressable';
+    import { Screen } from '../../ui/components/Screen';
+    import { blockInvestorTradeAction, useInvestorReadOnlySession } from '../../hooks/useInvestorReadOnlySession';
+    import { classifyTradingError } from '../../api/tradingErrors';
+    import { safeRouterBack } from '../../utils/navigation';
+    
+    export function PendingOrderScreen() {
+      const params = useLocalSearchParams<{ ticket: string; accountScope?: string }>();
+      const T = useTheme();
+      const focused = useIsFocused();
+      const navigation = useNavigation();
+      const focusVisit = useRef(0);
+      useFocusEffect(useCallback(() => {
+        focusVisit.current += 1;
+        // Leaving and returning must not revive an earlier request's navigation.
+        return () => { focusVisit.current += 1; };
+      }, []));
+      const session = useActiveBrokerQuerySession();
+      const initialScope = useRef(params.accountScope ?? session?.cacheNamespace);
+      const scopeCurrent = Boolean(session && initialScope.current === session.cacheNamespace);
+      const { data: orders, isError, refetch } = usePendingOrdersQuery(focused && scopeCurrent);
+      const order = scopeCurrent ? orders.find(row => String(row.ticket) === params.ticket) : undefined;
+      const { data: meta } = useInstrumentMeta(order?.symbol ?? '', focused && scopeCurrent);
+      const { quote, getCurrentAvailability } = useExecutableQuote(order?.symbol ?? '', focused && scopeCurrent, 100);
+      const queryClient = useQueryClient();
+      const investorReadOnly = useInvestorReadOnlySession();
+      const [price, setPrice] = useState(0);
+      const [priceLimit, setPriceLimit] = useState(0);
+      const [sl, setSl] = useState(0);
+      const [tp, setTp] = useState(0);
+      const [timeInForce, setTimeInForce] = useState<PendingTimeInForce>('GTC');
+      const [expiry, setExpiry] = useState<number | null>(null);
+      const [busy, setBusy] = useState(false);
+      const submitLock = useRef(false);
+      const [error, setError] = useState('');
+      const seeded = useRef(false);
+      useEffect(() => {
+        if (!order || seeded.current) return;
+        seeded.current = true;
+        setPrice(Number(order.price)); setPriceLimit(Number(order.priceLimit));
+        setTimeInForce(order.timeInForce ?? 'GTC'); setExpiry(order.expiry);
+        // Pending protection starts blank, never from a market quote.
+        setSl(0); setTp(0);
+      }, [order]);
+      const rules = { digits: meta?.digits, tickSize: meta?.tickSize, stopsLevel: meta?.stopsLevel };
+      const submit = async (cancel: boolean) => {
+        if (!navigation.isFocused() || !order || busy || submitLock.current || !scopeCurrent || blockInvestorTradeAction()) return;
+        const visit = focusVisit.current;
+        const ownsScreen = () => navigation.isFocused() && focusVisit.current === visit;
+        const owner = captureActiveBrokerSessionOwnerStamp();
+        if (!owner || owner.cacheNamespace !== initialScope.current || Number(owner.accountLogin) !== order.accountLogin) return;
+        const roundedPrice = roundPendingPrice(price, rules);
+        const roundedLimit = priceLimit > 0 ? roundPendingPrice(priceLimit, rules) : 0;
+        const roundedSl = sl > 0 ? roundPendingPrice(sl, rules) : null;
+        const roundedTp = tp > 0 ? roundPendingPrice(tp, rules) : null;
+        if (!cancel) {
+          if (!pendingPriceRulesReady(rules)) { setError('Wait for the symbol price precision and stop distance to load.'); return; }
+          const quoteState = getCurrentAvailability();
+          const changesTrigger = roundedPrice !== Number(order.price);
+          if (changesTrigger && !quoteState.allowed) { setError('Wait for a fresh live Bid/Ask quote before changing the trigger price.'); return; }
+          const validation = validatePendingOrder({ ...rules, type: order.type, price: roundedPrice, priceLimit: roundedLimit,
+            sl: roundedSl, tp: roundedTp, bid: quoteState.allowed ? quoteState.bid : undefined,
+            ask: quoteState.allowed ? quoteState.ask : undefined, validateTrigger: changesTrigger });
+          if (validation) { setError(validation); return; }
+        }
+        submitLock.current = true;
+        setError(''); setBusy(true);
+        try {
+          if (cancel) await cancelPendingOrder(order.ticket);
+          else await modifyPendingOrder(order.ticket, {
+            price: roundedPrice, ...(order.type.endsWith('_stop_limit') ? { price_limit: roundedLimit } : {}),
+            sl: roundedSl, tp: roundedTp, time_in_force: timeInForce, expiry: pendingExpiry(timeInForce, expiry),
+          });
+          if (!isActiveBrokerSessionOwnerStampCurrent(owner)) return;
+          void invalidateSessionQueryRoots(queryClient, owner.cacheNamespace, ['pendingOrders', 'ordersByLogin', 'accountOrders']);
+          if (ownsScreen()) safeRouterBack(router, '/(tabs)/trade');
+        } catch (failure) {
+          if (ownsScreen() && isActiveBrokerSessionOwnerStampCurrent(owner)) setError(classifyTradingError(failure, { action: 'place-order' }).message);
+        } finally { submitLock.current = false; setBusy(false); }
+      };
+      return <Screen>
+        <Stack.Screen options={{ title: `Pending Order #${params.ticket}` }} />
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, gap: 12 }}>
+          {!scopeCurrent ? <Text style={{ color: T.text }}>The active account changed. Open this order from the current account.</Text>
+            : !order ? <View style={{ gap: 12 }}><Text style={{ color: T.text }}>{isError ? 'Could not load pending orders.' : 'This order is no longer active.'}</Text>
+              <FastPressable onPress={() => { void refetch(); }}><Text style={{ color: T.accent }}>Refresh</Text></FastPressable></View>
+              : <>
+                <Text style={{ color: T.text, fontSize: 18, fontWeight: '600' }}>{order.symbol} · {order.type.replace(/_/g, ' ').toUpperCase()} · {order.volume} lots</Text>
+                <Text style={{ color: T.textMuted }}>Current SL: {order.sl ?? 'not set'} · TP: {order.tp ?? 'not set'}. Blank fields below clear these values when you save.</Text>
+                <PendingOrderFields type={order.type} price={price} priceLimit={priceLimit} sl={sl} tp={tp}
+                  onPrice={setPrice} onPriceLimit={setPriceLimit} onSl={setSl} onTp={setTp} rules={rules}
+                  bid={quote?.bid} ask={quote?.ask} timeInForce={timeInForce} expiry={expiry}
+                  onExpiration={(mode, timestamp) => { setTimeInForce(mode); setExpiry(timestamp); }} disabled={busy || investorReadOnly} />
+                {error ? <Text accessibilityRole="alert" style={{ color: T.down }}>{error}</Text> : null}
+                {busy ? <ActivityIndicator color={T.accent} /> : null}
+                <FastPressable disabled={busy || investorReadOnly} onPress={() => { void submit(false); }} accessibilityRole="button" accessibilityLabel="Save pending order"
+                  style={{ padding: 16, borderRadius: 8, backgroundColor: T.accent, opacity: busy || investorReadOnly ? 0.5 : 1 }}>
+                  <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '600' }}>Save Changes</Text>
+                </FastPressable>
+                <FastPressable disabled={busy || investorReadOnly} onPress={() => {
+                  const visit = focusVisit.current;
+                  Alert.alert('Cancel pending order', `Delete pending order #${order.ticket}?`, [
+                    { text: 'Keep Order', style: 'cancel' }, { text: 'Delete Order', style: 'destructive', onPress: () => {
+                      if (focusVisit.current === visit) void submit(true);
+                    } },
+                  ]);
+                }} style={{ padding: 16 }} accessibilityRole="button" accessibilityLabel="Delete pending order">
+                  <Text style={{ color: T.down, textAlign: 'center' }}>Delete / Cancel Order</Text>
+                </FastPressable>
+              </>}
+        </ScrollView>
+      </Screen>;
+    }
+    
+  operator: 'doesNotMatch'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\rtx5-app\src\utils\appActionLatencyContract.test.ts:950:12)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: settings navigation surfaces keep heavyweight routes responsive on first touch
+ok 132 - settings navigation surfaces keep heavyweight routes responsive on first touch
+  ---
+  duration_ms: 2469.8081
+  type: 'test'
+  ...
+# Subtest: trade ticket execution actions use the immediate fast press path
+ok 133 - trade ticket execution actions use the immediate fast press path
+  ---
+  duration_ms: 143.2138
+  type: 'test'
+  ...
+# Subtest: close position actions use the immediate trade path
+ok 134 - close position actions use the immediate trade path
+  ---
+  duration_ms: 334.4336
+  type: 'test'
+  ...
+# Subtest: high-traffic tab screens keep fast actions off the old trace wrapper
+ok 135 - high-traffic tab screens keep fast actions off the old trace wrapper
+  ---
+  duration_ms: 153.9749
+  type: 'test'
+  ...
+# Subtest: chart native and web hot actions use the shared immediate action guard
+ok 136 - chart native and web hot actions use the shared immediate action guard
+  ---
+  duration_ms: 67.1474
+  type: 'test'
+  ...
+# Subtest: fast action surfaces keep light and dark theme styling wired
+ok 137 - fast action surfaces keep light and dark theme styling wired
+  ---
+  duration_ms: 109.4891
+  type: 'test'
+  ...
+# Subtest: theme toggles paint drawer chrome before retained scenes and preference persistence
+ok 138 - theme toggles paint drawer chrome before retained scenes and preference persistence
+  ---
+  duration_ms: 9349.5348
+  type: 'test'
+  ...
+# Subtest: root layout is protected by the app error boundary
+ok 139 - root layout is protected by the app error boundary
+  ---
+  duration_ms: 2.3238
+  type: 'test'
+  ...
+# Subtest: error boundary reload remounts the crashed subtree through the fast press path
+ok 140 - error boundary reload remounts the crashed subtree through the fast press path
+  ---
+  duration_ms: 0.9379
+  type: 'test'
+  ...
+# Subtest: persisted auth restore requires a broker-bound secure credential bundle
+ok 141 - persisted auth restore requires a broker-bound secure credential bundle
+  ---
+  duration_ms: 9.2969
+  type: 'test'
+  ...
+# Subtest: secure storage reads fail closed during startup restore
+ok 142 - secure storage reads fail closed during startup restore
+  ---
+  duration_ms: 36.5211
+  type: 'test'
+  ...
+# Subtest: secondary persisted stores normalize valid-but-invalid shapes before hydration
+ok 143 - secondary persisted stores normalize valid-but-invalid shapes before hydration
+  ---
+  duration_ms: 26.2879
+  type: 'test'
+  ...
+# Subtest: startup diagnostics stringify non-error throws without throwing again
+ok 144 - startup diagnostics stringify non-error throws without throwing again
+  ---
+  duration_ms: 26.7151
+  type: 'test'
+  ...
+# Subtest: startup diagnostics redact credential-bearing error text and stacks
+ok 145 - startup diagnostics redact credential-bearing error text and stacks
+  ---
+  duration_ms: 2.5259
+  type: 'test'
+  ...
+# Subtest: transient account hydration failures stay stack-free in Expo diagnostics
+ok 146 - transient account hydration failures stay stack-free in Expo diagnostics
+  ---
+  duration_ms: 2.3089
+  type: 'test'
+  ...
+# Subtest: hidden tab screens gate heavy work while a visited chart keeps one atomic live-paint bridge warm
+ok 147 - hidden tab screens gate heavy work while a visited chart keeps one atomic live-paint bridge warm
+  ---
+  duration_ms: 276.8257
+  type: 'test'
+  ...
+# Subtest: settings, trade, and history screens pause work when another screen is focused
+not ok 148 - settings, trade, and history screens pause work when another screen is focused
+  ---
+  duration_ms: 95.8308
+  type: 'test'
+  location: 'C:\\Users\\S S LAPTOP BAZAAR\\Desktop\\RTX-5Mobile-App\\rtx5-app\\src\\utils\\hiddenScreenWorkContract.test.ts:2:25917'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /export function HistoryScreen\(\) \{\s*const isScreenFocused = useIsFocused\(\);\s*const deferredScreenFocused = useNextFrameValue\(isScreenFocused\);\s*return <HistoryScreenInner isScreenFocused=\{deferredScreenFocused\} \/>;\s*\}/. Input:
+    
+    '/**\n' +
+      " * Historical trade record timeline (aka 'History' tab).\n" +
+      ' * \n' +
+      ' * Displays closed positions, executed orders, and balance operations spanning \n' +
+      ' * user-defined time periods (e.g. Last Month, Last 6 Months).\n' +
+      ' * Calculates and visualizes realized PL, Swaps, Commission, and Net Balance evolution.\n' +
+      ' */\n' +
+      "import { Ionicons } from '@expo/vector-icons';\n" +
+      "import { useIsFocused } from '@react-navigation/native';\n" +
+      "import { router } from 'expo-router';\n" +
+      "import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';\n" +
+      "import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';\n" +
+      "import { Screen } from '../../ui/components/Screen';\n" +
+      "import { AppHeader } from '../../ui/components/AppHeader';\n" +
+      "import { FastPressable } from '../../ui/components/FastPressable';\n" +
+      "import { useUserPreferences } from '../../state/userPreferences';\n" +
+      "import { useIsDarkTheme } from '../../state/themeMode';\n" +
+      "import { useUIState } from '../../state/uiState';\n" +
+      "import { useResolvedTradingLogin } from '../../state/tradingLogin';\n" +
+      "import { AccountPageGate } from '../auth/AccountPageGate';\n" +
+      "import { usePositionHistoryQuery } from '../../query/positions';\n" +
+      "import { useAccountDealsQuery } from '../../query/deals';\n" +
+      "import { useOrdersByLoginQuery } from '../../query/orders';\n" +
+      "import { useAccountSummary } from '../../query/account';\n" +
+      "import { useLiveAccountState } from '../../state/liveAccountState';\n" +
+      "import { usePositionsState } from '../../state/positionsState';\n" +
+      "import { Deal } from '../../api/deals';\n" +
+      "import { useDeferredActiveFlag } from '../../hooks/useDeferredActiveFlag';\n" +
+      "import { useAppForeground } from '../../hooks/useAppForeground';\n" +
+      "import { useNextFrameValue } from '../../hooks/useNextFrameValue';\n" +
+      "import { LoginOrder } from '../../api/orders';\n" +
+      "import { ClosedPosition } from '../../api/positions';\n" +
+      "import { filterClosedRecordsByDateRange, filterOrderRecordsByDateRange, resolveEffectiveHistoryDateRange } from './historyDateRange';\n" +
+      "import { deriveClosedPositionsFromDeals, mergeClosedPositionSources } from './derivedClosedPositions';\n" +
+      "import { keyHistoryRows } from './historyRowKeys';\n" +
+      'import {\n' +
+      '  calculateHistoryMoneySummary,\n' +
+      '  resolveClosedPositionNetProfit,\n' +
+      '  resolveDealBalanceOperation,\n' +
+      "} from './historyMoney';\n" +
+      "import { spacing } from '../../ui/theme/index';\n" +
+      "import { useTheme } from '../../ui/theme/useTheme';\n" +
+      "import { ThemeColors } from '../../ui/theme/glass';\n" +
+      "import { fmt } from '../../utils/format';\n" +
+      "import { formatBackendPrice } from '../../utils/backendPrice';\n" +
+      "import { formatBrokerTime } from '../../utils/brokerTime';\n" +
+      "import { useTranslation } from '../../i18n/useTranslation';\n" +
+      "import { useShallow } from 'zustand/shallow';\n" +
+      "import { runImmediateAction } from '../../utils/actionLatency';\n" +
+      "import { calculateWinRatePercentFromPnl } from '../../utils/winRate';\n" +
+      "import { showHistoryFilterHost } from './historyFilterHostController';\n" +
+      "import { useResponsiveLayout } from '../../ui/layout/useResponsiveLayout';\n" +
+      "import { shouldScrollTradingSummary } from '../trade/summaryViewport';\n" +
+      '\n' +
+      "type Tab = 'Positions' | 'Orders' | 'Deals' | 'Deals & Orders';\n" +
+      "type SortBy = 'Default' | 'Symbol' | 'Ticket' | 'Type' | 'Volume' | 'Open Time' | 'Close Time' | 'Profit';\n" +
+      'type HistoryRow = {\n' +
+      '  id: string;\n' +
+      '  ticketLabel: string;\n' +
+      '  line1: string;\n' +
+      '  line2: string;\n' +
+      '  time: string;\n' +
+      '  openTime?: string;\n' +
+      '  closeTime?: string;\n' +
+      '  status?: string;\n' +
+      "  recordKind?: 'closed-position' | 'order' | 'deal';\n" +
+      '  profit?: number | null;\n' +
+      '  /** Optional note shown beneath the price row (e.g. deal comment from EA or manual entry) */\n' +
+      '  note?: string;\n' +
+      '  /** Structured fields used by the closed-position card layout (Positions tab). */\n' +
+      '  symbolRaw?: string;\n' +
+      '  sideRaw?: string;\n' +
+      '  volumeNum?: number;\n' +
+      '  openPrice?: number;\n' +
+      '  closePrice?: number;\n' +
+      '};\n' +
+      '\n' +
+      "type Tone = 'positive' | 'negative' | 'neutral';\n" +
+      '\n' +
+      "const TABS: Tab[] = ['Orders', 'Positions', 'Deals', 'Deals & Orders'];\n" +
+      "const SORT_OPTIONS: SortBy[] = ['Default', 'Symbol', 'Ticket', 'Type', 'Volume', 'Open Time', 'Close Time', 'Profit'];\n" +
+      'const EMPTY_CLOSED_POSITIONS: ClosedPosition[] = [];\n' +
+      'const EMPTY_DEALS: Deal[] = [];\n' +
+      'const EMPTY_ORDERS: LoginOrder[] = [];\n' +
+      'const historyRowKey = (item: { listKey: string }) => item.listKey;\n' +
+      '\n' +
+      '/**\n' +
+      ' * The summary details card is the first thing in the FlatList header, so its top\n' +
+      " * edge sits exactly on the list's clip boundary — flush against the pinned balance\n" +
+      ' * card. Fractional scroll offsets during a fast fling, and top-edge overscroll\n' +
+      ' * (iOS bounce, Android stretch), momentarily pull it clear of that boundary and\n' +
+      ' * expose screen background as a hairline seam. The card is pulled up by this much\n' +
+      ' * and padded straight back down, so whatever peeks past the clip edge is card\n' +
+      ' * background and side borders instead of a gap. Net content height is unchanged.\n' +
+      ' */\n' +
+      'const SUMMARY_DETAILS_OVERSCROLL_BLEED = 96;\n' +
+      '\n' +
+      'function safeTimeStr(timestamp?: number | string | Date): string {\n' +
+      "  if (timestamp === undefined || timestamp === null || timestamp === '') return '--';\n" +
+      "  if (typeof timestamp === 'number' && !Number.isFinite(timestamp)) return '--';\n" +
+      '  try {\n' +
+      '    return formatBrokerTime(timestamp);\n' +
+      '  } catch {\n' +
+      "    return '--';\n" +
+      '  }\n' +
+      '}\n' +
+      '\n' +
+      'function toFiniteNumber(value: unknown): number | undefined {\n' +
+      "  if (typeof value === 'number' && Number.isFinite(value)) {\n" +
+      '    return value;\n' +
+      '  }\n' +
+      '\n' +
+      "  if (typeof value === 'string' && value.trim() !== '') {\n" +
+      '    const parsed = Number(value);\n' +
+      '    if (Number.isFinite(parsed)) {\n' +
+      '      return parsed;\n' +
+      '    }\n' +
+      '  }\n' +
+      '\n' +
+      '  return undefined;\n' +
+      '}\n' +
+      '\n' +
+      'function pickFiniteNumber(source: Record<string, unknown>, keys: string[]): number | undefined {\n' +
+      '  for (const key of keys) {\n' +
+      '    const value = toFiniteNumber(source[key]);\n' +
+      '    if (value !== undefined) {\n' +
+      '      return value;\n' +
+      '    }\n' +
+      '  }\n' +
+      '\n' +
+      '  return undefined;\n' +
+      '}\n' +
+      '\n' +
+      'function pickTrimmedString(source: Record<string, unknown>, keys: string[]): string | undefined {\n' +
+      '  for (const key of keys) {\n' +
+      '    const value = source[key];\n' +
+      "    if (typeof value === 'string' && value.trim() !== '') {\n" +
+      '      return value.trim();\n' +
+      '    }\n' +
+      "    if (typeof value === 'number' && Number.isFinite(value)) {\n" +
+      '      return String(value);\n' +
+      '    }\n' +
+      '  }\n' +
+      '\n' +
+      '  return undefined;\n' +
+      '}\n' +
+      '\n' +
+      'function pickHistoryTime(source: Record<string, unknown>, keys: string[]): number | string | undefined {\n' +
+      '  for (const key of keys) {\n' +
+      '    const value = source[key];\n' +
+      '    const numeric = toFiniteNumber(value);\n' +
+      '    if (numeric !== undefined) {\n' +
+      '      return numeric;\n' +
+      '    }\n' +
+      "    if (typeof value === 'string' && value.trim() !== '') {\n" +
+      '      return value.trim();\n' +
+      '    }\n' +
+      '  }\n' +
+      '\n' +
+      '  return undefined;\n' +
+      '}\n' +
+      '\n' +
+      'function resolveClosedPositionSide(source: Record<string, unknown>, fallback?: string): string {\n' +
+      "  const side = pickTrimmedString(source, ['side', 'type', 'order_type', 'action', 'cmd']) ?? fallback ?? '';\n" +
+      '  const sideLower = side.toLowerCase();\n' +
+      '\n' +
+      "  if (sideLower.includes('sell')) {\n" +
+      "    return 'sell';\n" +
+      '  }\n' +
+      "  if (sideLower.includes('buy')) {\n" +
+      "    return 'buy';\n" +
+      '  }\n' +
+      '\n' +
+      '  return sideLower;\n' +
+      '}\n' +
+      '\n' +
+      'function normalizeHistoryIdPart(value: unknown): string {\n' +
+      '  if (value === null || value === undefined) {\n' +
+      "    return '';\n" +
+      '  }\n' +
+      '\n' +
+      "  if (typeof value === 'number' && Number.isFinite(value)) {\n" +
+      '    return String(Math.trunc(value));\n' +
+      '  }\n' +
+      '\n' +
+      '  return String(value).trim();\n' +
+      '}\n' +
+      '\n' +
+      'function resolveHistoryTicketLabel(source: Record<string, unknown>): string | null {\n' +
+      '  const ticketLikeValues = [source.ticket, source.position_ticket, source.order_ticket, source.id];\n' +
+      '\n' +
+      '  for (const value of ticketLikeValues) {\n' +
+      '    const numeric = toFiniteNumber(value);\n' +
+      '    if (numeric !== undefined) {\n' +
+      '      return String(Math.trunc(numeric));\n' +
+      '    }\n' +
+      '\n' +
+      "    if (typeof value === 'string' && value.trim() !== '') {\n" +
+      '      return value.trim();\n' +
+      '    }\n' +
+      '  }\n' +
+      '\n' +
+      '  return null;\n' +
+      '}\n' +
+      '\n' +
+      'function buildHistoryFallbackId(source: Record<string, unknown>, parts: unknown[]): string {\n' +
+      '  const normalized = parts\n' +
+      '    .map(normalizeHistoryIdPart)\n' +
+      '    .filter(Boolean);\n' +
+      '\n' +
+      '  if (normalized.length > 0) {\n' +
+      "    return normalized.join('-');\n" +
+      '  }\n' +
+      '\n' +
+      '  const sourceValues = [\n' +
+      '    source.symbol,\n' +
+      '    source.side,\n' +
+      '    source.time_close,\n' +
+      '    source.time_done,\n' +
+      '    source.time,\n' +
+      '    source.time_update,\n' +
+      '    source.time_create,\n' +
+      '    source.volume,\n' +
+      '  ]\n' +
+      '    .map(normalizeHistoryIdPart)\n' +
+      '    .filter(Boolean);\n' +
+      '\n' +
+      "  return sourceValues.join('-') || 'record';\n" +
+      '}\n' +
+      '\n' +
+      'function pickNumericFallbackTicket(fallbackParts: unknown[]): string | null {\n' +
+      '  // When the broker omits the ticket field we still want `#1776852277`-style\n' +
+      '  // numeric handles, not `#EURUSD-sell-1776852277-0.10`. Pick the first\n' +
+      '  // numeric part with magnitude >= 1 — that filters out lot sizes (e.g. 0.10)\n' +
+      '  // and lands on the timestamp, which is broker-issued and effectively unique.\n' +
+      '  for (const part of fallbackParts) {\n' +
+      '    const numeric = toFiniteNumber(part);\n' +
+      '    if (numeric !== undefined && Math.abs(numeric) >= 1) {\n' +
+      '      return String(Math.trunc(numeric));\n' +
+      '    }\n' +
+      '  }\n' +
+      '  return null;\n' +
+      '}\n' +
+      '\n' +
+      'function buildHistoryRowIdentity(prefix: string, source: Record<string, unknown>, fallbackParts: unknown[]) {\n' +
+      '  const ticketLabel = resolveHistoryTicketLabel(source);\n' +
+      '  const fallbackId = buildHistoryFallbackId(source, fallbackParts);\n' +
+      '  const numericFallback = ticketLabel ? null : pickNumericFallbackTicket(fallbackParts);\n' +
+      '\n' +
+      '  return {\n' +
+      '    // `id` stays as the joined-string fallback so the React key is unique\n' +
+      '    // across rows that happen to share the same numeric handle.\n' +
+      '    id: `${prefix}-${ticketLabel ?? fallbackId}`,\n' +
+      '    ticketLabel: ticketLabel ?? numericFallback ?? fallbackId,\n' +
+      '  };\n' +
+      '}\n' +
+      '\n' +
+      '/**\n' +
+      ' * Maps a LoginOrder DTO from GET /api/v2/orders/{login}\n' +
+      ' * into the HistoryRow format used by the list renderer.\n' +
+      ' *\n' +
+      ' * Real response uses `price_open` (not `price`), `time_setup` (order placed),\n' +
+      ' * and `time_done` (order completed). For closed orders, `time_done` is shown\n' +
+      ' * as the primary timestamp since it represents when the position was closed.\n' +
+      ' *\n' +
+      ' * Price readouts use the shared integer-digit display rules.\n' +
+      ' * Status forwarded so the row badge can colour-code filled vs closed/canceled.\n' +
+      ' * Comment forwarded as `note` — shows EA name or manual annotation.\n' +
+      ' */\n' +
+      'function mapOrderToRow(o: LoginOrder): HistoryRow {\n' +
+      '  const source = o as unknown as Record<string, un'... 51274 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    /**
+     * Historical trade record timeline (aka 'History' tab).
+     * 
+     * Displays closed positions, executed orders, and balance operations spanning 
+     * user-defined time periods (e.g. Last Month, Last 6 Months).
+     * Calculates and visualizes realized PL, Swaps, Commission, and Net Balance evolution.
+     */
+    import { Ionicons } from '@expo/vector-icons';
+    import { useIsFocused } from '@react-navigation/native';
+    import { router } from 'expo-router';
+    import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+    import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+    import { Screen } from '../../ui/components/Screen';
+    import { AppHeader } from '../../ui/components/AppHeader';
+    import { FastPressable } from '../../ui/components/FastPressable';
+    import { useUserPreferences } from '../../state/userPreferences';
+    import { useIsDarkTheme } from '../../state/themeMode';
+    import { useUIState } from '../../state/uiState';
+    import { useResolvedTradingLogin } from '../../state/tradingLogin';
+    import { AccountPageGate } from '../auth/AccountPageGate';
+    import { usePositionHistoryQuery } from '../../query/positions';
+    import { useAccountDealsQuery } from '../../query/deals';
+    import { useOrdersByLoginQuery } from '../../query/orders';
+    import { useAccountSummary } from '../../query/account';
+    import { useLiveAccountState } from '../../state/liveAccountState';
+    import { usePositionsState } from '../../state/positionsState';
+    import { Deal } from '../../api/deals';
+    import { useDeferredActiveFlag } from '../../hooks/useDeferredActiveFlag';
+    import { useAppForeground } from '../../hooks/useAppForeground';
+    import { useNextFrameValue } from '../../hooks/useNextFrameValue';
+    import { LoginOrder } from '../../api/orders';
+    import { ClosedPosition } from '../../api/positions';
+    import { filterClosedRecordsByDateRange, filterOrderRecordsByDateRange, resolveEffectiveHistoryDateRange } from './historyDateRange';
+    import { deriveClosedPositionsFromDeals, mergeClosedPositionSources } from './derivedClosedPositions';
+    import { keyHistoryRows } from './historyRowKeys';
+    import {
+      calculateHistoryMoneySummary,
+      resolveClosedPositionNetProfit,
+      resolveDealBalanceOperation,
+    } from './historyMoney';
+    import { spacing } from '../../ui/theme/index';
+    import { useTheme } from '../../ui/theme/useTheme';
+    import { ThemeColors } from '../../ui/theme/glass';
+    import { fmt } from '../../utils/format';
+    import { formatBackendPrice } from '../../utils/backendPrice';
+    import { formatBrokerTime } from '../../utils/brokerTime';
+    import { useTranslation } from '../../i18n/useTranslation';
+    import { useShallow } from 'zustand/shallow';
+    import { runImmediateAction } from '../../utils/actionLatency';
+    import { calculateWinRatePercentFromPnl } from '../../utils/winRate';
+    import { showHistoryFilterHost } from './historyFilterHostController';
+    import { useResponsiveLayout } from '../../ui/layout/useResponsiveLayout';
+    import { shouldScrollTradingSummary } from '../trade/summaryViewport';
+    
+    type Tab = 'Positions' | 'Orders' | 'Deals' | 'Deals & Orders';
+    type SortBy = 'Default' | 'Symbol' | 'Ticket' | 'Type' | 'Volume' | 'Open Time' | 'Close Time' | 'Profit';
+    type HistoryRow = {
+      id: string;
+      ticketLabel: string;
+      line1: string;
+      line2: string;
+      time: string;
+      openTime?: string;
+      closeTime?: string;
+      status?: string;
+      recordKind?: 'closed-position' | 'order' | 'deal';
+      profit?: number | null;
+      /** Optional note shown beneath the price row (e.g. deal comment from EA or manual entry) */
+      note?: string;
+      /** Structured fields used by the closed-position card layout (Positions tab). */
+      symbolRaw?: string;
+      sideRaw?: string;
+      volumeNum?: number;
+      openPrice?: number;
+      closePrice?: number;
+    };
+    
+    type Tone = 'positive' | 'negative' | 'neutral';
+    
+    const TABS: Tab[] = ['Orders', 'Positions', 'Deals', 'Deals & Orders'];
+    const SORT_OPTIONS: SortBy[] = ['Default', 'Symbol', 'Ticket', 'Type', 'Volume', 'Open Time', 'Close Time', 'Profit'];
+    const EMPTY_CLOSED_POSITIONS: ClosedPosition[] = [];
+    const EMPTY_DEALS: Deal[] = [];
+    const EMPTY_ORDERS: LoginOrder[] = [];
+    const historyRowKey = (item: { listKey: string }) => item.listKey;
+    
+    /**
+     * The summary details card is the first thing in the FlatList header, so its top
+     * edge sits exactly on the list's clip boundary — flush against the pinned balance
+     * card. Fractional scroll offsets during a fast fling, and top-edge overscroll
+     * (iOS bounce, Android stretch), momentarily pull it clear of that boundary and
+     * expose screen background as a hairline seam. The card is pulled up by this much
+     * and padded straight back down, so whatever peeks past the clip edge is card
+     * background and side borders instead of a gap. Net content height is unchanged.
+     */
+    const SUMMARY_DETAILS_OVERSCROLL_BLEED = 96;
+    
+    function safeTimeStr(timestamp?: number | string | Date): string {
+      if (timestamp === undefined || timestamp === null || timestamp === '') return '--';
+      if (typeof timestamp === 'number' && !Number.isFinite(timestamp)) return '--';
+      try {
+        return formatBrokerTime(timestamp);
+      } catch {
+        return '--';
+      }
+    }
+    
+    function toFiniteNumber(value: unknown): number | undefined {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+    
+      if (typeof value === 'string' && value.trim() !== '') {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+          return parsed;
+        }
+      }
+    
+      return undefined;
+    }
+    
+    function pickFiniteNumber(source: Record<string, unknown>, keys: string[]): number | undefined {
+      for (const key of keys) {
+        const value = toFiniteNumber(source[key]);
+        if (value !== undefined) {
+          return value;
+        }
+      }
+    
+      return undefined;
+    }
+    
+    function pickTrimmedString(source: Record<string, unknown>, keys: string[]): string | undefined {
+      for (const key of keys) {
+        const value = source[key];
+        if (typeof value === 'string' && value.trim() !== '') {
+          return value.trim();
+        }
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return String(value);
+        }
+      }
+    
+      return undefined;
+    }
+    
+    function pickHistoryTime(source: Record<string, unknown>, keys: string[]): number | string | undefined {
+      for (const key of keys) {
+        const value = source[key];
+        const numeric = toFiniteNumber(value);
+        if (numeric !== undefined) {
+          return numeric;
+        }
+        if (typeof value === 'string' && value.trim() !== '') {
+          return value.trim();
+        }
+      }
+    
+      return undefined;
+    }
+    
+    function resolveClosedPositionSide(source: Record<string, unknown>, fallback?: string): string {
+      const side = pickTrimmedString(source, ['side', 'type', 'order_type', 'action', 'cmd']) ?? fallback ?? '';
+      const sideLower = side.toLowerCase();
+    
+      if (sideLower.includes('sell')) {
+        return 'sell';
+      }
+      if (sideLower.includes('buy')) {
+        return 'buy';
+      }
+    
+      return sideLower;
+    }
+    
+    function normalizeHistoryIdPart(value: unknown): string {
+      if (value === null || value === undefined) {
+        return '';
+      }
+    
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return String(Math.trunc(value));
+      }
+    
+      return String(value).trim();
+    }
+    
+    function resolveHistoryTicketLabel(source: Record<string, unknown>): string | null {
+      const ticketLikeValues = [source.ticket, source.position_ticket, source.order_ticket, source.id];
+    
+      for (const value of ticketLikeValues) {
+        const numeric = toFiniteNumber(value);
+        if (numeric !== undefined) {
+          return String(Math.trunc(numeric));
+        }
+    
+        if (typeof value === 'string' && value.trim() !== '') {
+          return value.trim();
+        }
+      }
+    
+      return null;
+    }
+    
+    function buildHistoryFallbackId(source: Record<string, unknown>, parts: unknown[]): string {
+      const normalized = parts
+        .map(normalizeHistoryIdPart)
+        .filter(Boolean);
+    
+      if (normalized.length > 0) {
+        return normalized.join('-');
+      }
+    
+      const sourceValues = [
+        source.symbol,
+        source.side,
+        source.time_close,
+        source.time_done,
+        source.time,
+        source.time_update,
+        source.time_create,
+        source.volume,
+      ]
+        .map(normalizeHistoryIdPart)
+        .filter(Boolean);
+    
+      return sourceValues.join('-') || 'record';
+    }
+    
+    function pickNumericFallbackTicket(fallbackParts: unknown[]): string | null {
+      // When the broker omits the ticket field we still want `#1776852277`-style
+      // numeric handles, not `#EURUSD-sell-1776852277-0.10`. Pick the first
+      // numeric part with magnitude >= 1 — that filters out lot sizes (e.g. 0.10)
+      // and lands on the timestamp, which is broker-issued and effectively unique.
+      for (const part of fallbackParts) {
+        const numeric = toFiniteNumber(part);
+        if (numeric !== undefined && Math.abs(numeric) >= 1) {
+          return String(Math.trunc(numeric));
+        }
+      }
+      return null;
+    }
+    
+    function buildHistoryRowIdentity(prefix: string, source: Record<string, unknown>, fallbackParts: unknown[]) {
+      const ticketLabel = resolveHistoryTicketLabel(source);
+      const fallbackId = buildHistoryFallbackId(source, fallbackParts);
+      const numericFallback = ticketLabel ? null : pickNumericFallbackTicket(fallbackParts);
+    
+      return {
+        // `id` stays as the joined-string fallback so the React key is unique
+        // across rows that happen to share the same numeric handle.
+        id: `${prefix}-${ticketLabel ?? fallbackId}`,
+        ticketLabel: ticketLabel ?? numericFallback ?? fallbackId,
+      };
+    }
+    
+    /**
+     * Maps a LoginOrder DTO from GET /api/v2/orders/{login}
+     * into the HistoryRow format used by the list renderer.
+     *
+     * Real response uses `price_open` (not `price`), `time_setup` (order placed),
+     * and `time_done` (order completed). For closed orders, `time_done` is shown
+     * as the primary timestamp since it represents when the position was closed.
+     *
+     * Price readouts use the shared integer-digit display rules.
+     * Status forwarded so the row badge can colour-code filled vs closed/canceled.
+     * Comment forwarded as `note` — shows EA name or manual annotation.
+     */
+    function mapOrderToRow(o: LoginOrder): HistoryRow {
+      const source = o as unknown as Record<string, unknown>;
+    
+      // Closed orders: show time_done (when position closed) as primary time.
+      // Filled/open orders: show time_setup (when order was placed).
+      const displayTime = o.time_done > 0 ? o.time_done : o.time_setup;
+      const identity = buildHistoryRowIdentity('ho', source, [o.symbol, o.side, displayTime, o.volume]);
+    
+      return {
+        ...identity,
+        line1: `${o.symbol ?? ''} ${o.side ?? ''} ${(o.volume ?? 0).toFixed(2)}`,
+        line2: `${o.type ?? 'market'} at ${formatBackendPrice(o.price_open ?? 0)}`,
+        time: safeTimeStr(displayTime),
+        openTime: safeTimeStr(o.time_setup ?? displayTime),
+        closeTime: safeTimeStr(o.time_done ?? displayTime),
+        status: String(o.status).toLowerCase(),
+        recordKind: 'order',
+        profit: null,
+        note: o.comment?.trim() || undefined,
+      };
+    }
+    
+    /**
+     * Maps a Deal DTO from GET /api/v2/deals/{login}
+     * into the HistoryRow format used by the list renderer.
+     *
+     * Price precision: forex pairs need 5 decimal places (3 for JPY pairs).
+     * Fee: included in the net profit — `fee` is a broker cost separate from commission.
+     * Comment: forwarded as a `note` so the EA or manual annotation is visible.
+     */
+    function mapDealToRow(d: Deal): HistoryRow {
+      const source = d as unknown as Record<string, unknown>;
+      const balanceOperation = resolveDealBalanceOperation(d);
+      if (balanceOperation) {
+        // Balance/deposit/withdrawal rows are account ledger movements, not trades.
+        // Keep profit null so deposits never inflate trade P/L or win-rate stats.
+        const label =
+          balanceOperation.kind === 'withdrawal'
+            ? 'Withdrawal'
+            : balanceOperation.kind === 'deposit'
+              ? 'Deposit'
+              : 'Balance';
+        const identity = buildHistoryRowIdentity('hd', source, [label, d.time, balanceOperation.amount]);
+        const dealTimeStr = safeTimeStr(d.time);
+    
+        return {
+          ...identity,
+          line1: label,
+          line2: `${fmt.pnlPrecise(balanceOperation.amount)} balance operation`,
+          time: dealTimeStr,
+          openTime: dealTimeStr,
+          closeTime: dealTimeStr,
+          profit: null,
+          note: d.comment?.trim() || undefined,
+        };
+      }
+    
+      const direction = d.action === 'deal_buy' ? 'buy' : 'sell';
+      const entry = d.entry === 'entry_in' ? 'in' : 'out';
+      const timeStr = safeTimeStr(d.time);
+    
+      // Use symbol-aware decimal places: JPY pairs → 3 dp, all others → 5 dp
+    
+      // Net profit includes swap, commission, and fee (all are real P&L costs).
+      // entry_in deals (opening a position) typically have 0 profit but non-zero
+      // commission/fee — we show those as a cost by including them. entry_out
+      // deals close the position and realise the full P&L including all costs.
+      const netCosts = (d.swap || 0) + (d.commission || 0) + (d.fee || 0);
+      const netProfit = d.entry === 'entry_out' ? d.profit + netCosts : null;
+      const identity = buildHistoryRowIdentity('hd', source, [d.symbol, d.action, d.entry, d.time, d.volume]);
+    
+      return {
+        ...identity,
+        line1: `${d.symbol} ${direction},${entry}`,
+        line2: `${(d.volume ?? 0).toFixed(2)} at ${formatBackendPrice(d.price ?? 0)}`,
+        time: timeStr,
+        openTime: timeStr,
+        closeTime: timeStr,
+        profit: netProfit,
+        // Only forward non-empty comments — EA names, manual notes, or reason codes
+        note: d.comment?.trim() || undefined,
+      };
+    }
+    
+    function mapClosedPositionToRow(position: ClosedPosition): HistoryRow {
+      const source = position as unknown as Record<string, unknown>;
+      const symbol = pickTrimmedString(source, ['symbol', 'Symbol', 'instrument', 'name']) ?? '';
+      const side = resolveClosedPositionSide(source, position.side);
+      const volume = pickFiniteNumber(source, ['volume', 'lots', 'lot', 'volume_closed', 'volumeClosed']) ?? 0;
+      const openPrice = pickFiniteNumber(source, ['price_open', 'priceOpen', 'open_price', 'openPrice', 'open']) ?? 0;
+      const closePrice =
+        pickFiniteNumber(source, ['price_close', 'priceClose', 'close_price', 'closePrice', 'close']) ??
+        pickFiniteNumber(source, ['price_current', 'priceCurrent', 'current_price', 'currentPrice', 'price']) ??
+        openPrice;
+      const openTimeRaw = pickHistoryTime(source, ['time_create', 'timeCreate', 'open_time', 'openTime', 'time_open', 'timeOpen', 'created_at']);
+      const displayTime =
+        pickHistoryTime(source, ['time_close', 'timeClose', 'close_time', 'closeTime', 'time_done', 'timeDone', 'closed_at', 'time']) ??
+        pickHistoryTime(source, ['time_update', 'timeUpdate', 'updated_at']) ??
+        openTimeRaw;
+      const note = pickTrimmedString(source, ['comment', 'reason', 'description']);
+      const netProfit = resolveClosedPositionNetProfit(position);
+      const identity = buildHistoryRowIdentity('hp', source, [symbol, side, displayTime, volume]);
+      const displayTimeStr = safeTimeStr(displayTime);
+    
+      return {
+        ...identity,
+        line1: `${symbol} ${side} ${volume.toFixed(2)}`,
+        line2: `${formatBackendPrice(openPrice)} → ${formatBackendPrice(closePrice)}`,
+        time: displayTimeStr,
+        openTime: safeTimeStr(openTimeRaw ?? displayTime),
+        closeTime: displayTimeStr,
+        status: 'closed',
+        recordKind: 'closed-position',
+        profit: netProfit,
+        note,
+        symbolRaw: symbol,
+        sideRaw: side,
+        volumeNum: volume,
+        openPrice,
+        closePrice,
+      };
+    }
+    
+    /**
+     * Main screen for the History tab, displaying past trades, closed positions, and account operations over a selected time period.
+     */
+    const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }: { isScreenFocused: boolean }) {
+      const [tab, setTab] = useState<Tab>('Positions');
+      const [sortBy, setSortBy] = useState<SortBy>('Default');
+      const openHistoryFilter = useCallback(() => {
+        // Chart-options-class retained host: first paint in this press turn, no stack push.
+        runImmediateAction('history.filter.open', () => {
+          showHistoryFilterHost();
+        });
+      }, []);
+      const { historyRange, historyFromMs, historyToMs, accountDetails } = useUserPreferences(
+        useShallow((state) => ({
+          historyRange: state.historyRange,
+          historyFromMs: state.historyFromMs,
+          historyToMs: state.historyToMs,
+          accountDetails: state.accountDetails,
+        })),
+      );
+      const historySummaryDetailsVisible = useUserPreferences((state) => state.historySummaryDetailsVisible);
+      const setHistorySummaryDetailsVisible = useUserPreferences((state) => state.setHistorySummaryDetailsVisible);
+      const showHistoryActionSheet = useUIState((s) => s.showHistoryActionSheet);
+    
+      const T = useTheme();
+      const scrollSummary = shouldScrollTradingSummary(useResponsiveLayout());
+      const { t } = useTranslation();
+      const isDark = useIsDarkTheme();
+      const styles = useMemo(() => makeStyles(T, isDark), [T, isDark]);
+      const historySortSheetConfig = useMemo<Parameters<typeof showHistoryActionSheet>[0]>(() => ({
+        title: t('Sort By'),
+        presentation: 'mt5Plain',
+        detent: 'adaptive',
+        instantOpen: true,
+        entryMotion: 'mt5Slide',
+        runActionAfterClose: false,
+        visualKey: `history.sortBy|${sortBy}|${t('Sort By')}`,
+        actions: SORT_OPTIONS.map((option) => ({
+          label: t(option),
+          selected: option === sortBy,
+          onPress: () => startTransition(() => setSortBy(option)),
+        })),
+      }), [sortBy, t]);
+      const openHistorySortSheet = useCallback(() => {
+        runImmediateAction('history.sortSheet.open', () =>
+          showHistoryActionSheet(historySortSheetConfig),
+        );
+      }, [historySortSheetConfig, showHistoryActionSheet]);
+    
+      const preloadHistoryActionSheet = useUIState((s) => s.preloadScopedActionSheet);
+      useEffect(() => {
+        if (!isScreenFocused) {
+          return;
+        }
+        // Warm the shared history host with the Sort By config so open never pays
+        // first-measure cost on the press frame (same idea as chart ⋮ preload).
+        preloadHistoryActionSheet('history', historySortSheetConfig);
+      }, [historySortSheetConfig, isScreenFocused, preloadHistoryActionSheet]);
+    
+      // ── Live API data via TanStack Query ─────────────────────────────────
+      // GET /api/v2/positions/{login}/history — closed position history
+      // GET /api/v2/account/deals             — deal history (JWT-resolved, date-range aware)
+      // GET /api/v2/orders/{login}            — order history (login-based, verified real fields)
+      const accountLogin = useResolvedTradingLogin();
+      const appForeground = useAppForeground();
+      // Disabling polling alone still observes shared cache writes. Unsubscribe
+      // the retained tab so live deals do not remap hidden history rows. Subscribe
+      // immediately on focus to adopt cached results before deferred network work.
+      const historySubscribed = isScreenFocused && appForeground;
+      const historyDataActive = useDeferredActiveFlag(historySubscribed);
+      // Cached data shows instantly on tab focus; the focus-refetch effect below
+      // refreshes in the background without blocking the transition.
+      // /positions/{login}/history is paged by from/to time windows (contract
+      // 6.4), so the selected range is passed down instead of loading everything.
+      const historyDayKey = new Date().toDateString();
+      const { fromMs: effectiveHistoryFromMs, toMs: effectiveHistoryToMs } = useMemo(
+        () => resolveEffectiveHistoryDateRange(historyRange, historyFromMs, historyToMs),
+        [historyRange, historyFromMs, historyToMs, historyDayKey],
+      );
+      const positionHistoryRange = useMemo(() => {
+        return {
+          from: effectiveHistoryFromMs != null ? Math.floor(effectiveHistoryFromMs / 1000) : undefined,
+          to: effectiveHistoryToMs != null ? Math.floor(effectiveHistoryToMs / 1000) : undefined,
+        };
+      }, [effectiveHistoryFromMs, effectiveHistoryToMs]);
+      const { data: rawPositionHistory = EMPTY_CLOSED_POSITIONS, refetch: refetchPositionHistory, isPending: positionsPending, isError: positionsError } = usePositionHistoryQuery(accountLogin, {
+        enabled: historyDataActive,
+        subscribed: historySubscribed,
+        from: positionHistoryRange.from,
+        to: positionHistoryRange.to,
+      });
+      const { data: rawDeals = EMPTY_DEALS, refetch: refetchDeals, isPending: dealsPending, isError: dealsError, historyComplete } = useAccountDealsQuery({
+        login: accountLogin,
+        enabled: historyDataActive,
+        subscribed: historySubscribed,
+      });
+      const { data: rawOrders = EMPTY_ORDERS, refetch: refetchOrders, isPending: ordersPending, isError: ordersError } = useOrdersByLoginQuery(accountLogin, {
+        enabled: historyDataActive,
+        subscribed: historySubscribed,
+        from: positionHistoryRange.from,
+        to: positionHistoryRange.to,
+      });
+    
+      // ── Refetch on tab focus ─────────────────────────────────────────────
+      // When the user switches to the History tab, immediately fetch fresh data
+      // from the server. This ensures that trades closed on other screens (Trade,
+      // Chart, etc.) appear in the list without waiting for the polling interval.
+      const wasFocusedRef = useRef(historyDataActive);
+      useEffect(() => {
+        if (historyDataActive && !wasFocusedRef.current) {
+          refetchPositionHistory();
+          refetchDeals();
+          refetchOrders();
+        }
+        wasFocusedRef.current = historyDataActive;
+      }, [historyDataActive, isScreenFocused, refetchPositionHistory, refetchDeals, refetchOrders]);
+    
+      const accountLoginStr = String(accountDetails?.id ?? accountLogin ?? '—');
+      const accountLoginString = accountLogin !== undefined ? String(accountLogin) : undefined;
+    
+      // ── Account Summary from backend API ────────────────────────────────
+      // GET /api/account/summary — provides balance, currency, leverage, etc.
+      // Falls back to WebSocket live state for balance if API hasn't responded yet.
+      const { data: accountSummary } = useAccountSummary(accountLoginString, {
+        enabled: historyDataActive,
+        subscribed: historySubscribed,
+      });
+      const liveBalance = useLiveAccountState((s) => s.balance);
+      const balance = accountSummary?.balance ?? liveBalance;
+      const currency = accountSummary?.currency ?? 'USD';
+      const orderHistory = useMemo(
+        () => filterOrderRecordsByDateRange(rawOrders, effectiveHistoryFromMs, effectiveHistoryToMs),
+        [rawOrders, effectiveHistoryFromMs, effectiveHistoryToMs],
+      );
+      // Demo brokers (and occasionally real brokers under load) don't always
+      // populate /positions/{login}/history immediately after a close, so we
+      // also rebuild closed positions from the deals stream and merge the two
+      // sources. The history endpoint wins on collisions when it does return
+      // a record. This is what makes freshly-closed demo trades show up here.
+      const recentlyClosedPositions = usePositionsState((s) => s.recentlyClosedPositions);
+      const derivedClosedPositions = useMemo(
+        () => deriveClosedPositionsFromDeals(rawDeals),
+        [rawDeals],
+      );
+      const mergedClosedPositions = useMemo(
+        () => mergeClosedPositionSources(
+          mergeClosedPositionSources(rawPositionHistory, derivedClosedPositions),
+          recentlyClosedPositions,
+        ),
+        [rawPositionHistory, derivedClosedPositions, recentlyClosedPositions],
+      );
+      const positionHistory = useMemo(
+        () => filterClosedRecordsByDateRange(mergedClosedPositions, effectiveHistoryFromMs, effectiveHistoryToMs),
+        [mergedClosedPositions, effectiveHistoryFromMs, effectiveHistoryToMs],
+      );
+    
+      const dealHistory = useMemo(
+        () => filterClosedRecordsByDateRange(rawDeals, effectiveHistoryFromMs, effectiveHistoryToMs),
+        [rawDeals, effectiveHistoryFromMs, effectiveHistoryToMs],
+      );
+    
+      // Keep all money math in one pure helper: closed P/L includes swap,
+      // commission, and fee once; deposit prefers exact ledger rows when present.
+      const historyMoneySummary = useMemo(
+        () => calculateHistoryMoneySummary({
+          closedPositions: positionHistory,
+          deals: rawDeals,
+          balance,
+        }),
+        [positionHistory, rawDeals, balance],
+      );
+      const { closedSwap, closedCommission, totalClosedPnl, deposit } = historyMoneySummary;
+    
+      const baseData = useMemo<HistoryRow[]>(() => {
+        // GET /api/v2/account/orders — real order history, replaces static mock
+        if (tab === 'Orders') return orderHistory.map(mapOrderToRow);
+        if (tab === 'Deals') return dealHistory.map(mapDealToRow);
+        if (tab === 'Deals & Orders') return [...dealHistory.map(mapDealToRow), ...orderHistory.map(mapOrderToRow)];
+        return positionHistory.map(mapClosedPositionToRow);
+      }, [tab, dealHistory, orderHistory, positionHistory]);
+    
+      const keyedBaseData = useMemo(() => keyHistoryRows(baseData), [baseData]);
+      const data = useMemo(() => sortHistoryRows(keyedBaseData, sortBy), [keyedBaseData, sortBy]);
+      const renderHistoryRow = useCallback(
+        ({ item }: { item: HistoryRow }) => <HistoryItemRow item={item} T={T} isDark={isDark} currency={currency} />,
+        [T, isDark, currency],
+      );
+      const profitRows = useMemo(
+        () => data.filter((item) => typeof item.profit === 'number') as Array<HistoryRow & { profit: number }>,
+        [data]
+      );
+      const netProfit = useMemo(() => profitRows.reduce((sum, item) => sum + item.profit, 0), [profitRows]);
+      const winRate = useMemo(() => {
+        if (!profitRows.length) return '0%';
+        return `${calculateWinRatePercentFromPnl(profitRows.map((item) => item.profit))}%`;
+      }, [profitRows]);
+      const filledCount = useMemo(() => data.filter((item) => item.status === 'filled').length, [data]);
+      const netTone: Tone = netProfit > 0 ? 'positive' : netProfit < 0 ? 'negative' : 'neutral';
+      const historyRangeLabel = t(historyRange);
+      const historySymbolLabel = t('All symbols');
+      const toggleHistorySummaryDetails = useCallback(() => {
+        setHistorySummaryDetailsVisible(!historySummaryDetailsVisible);
+      }, [historySummaryDetailsVisible, setHistorySummaryDetailsVisible]);
+    
+      const historyLoading = historyDataActive && (tab === 'Orders' ? ordersPending : tab === 'Deals' ? dealsPending : tab === 'Deals & Orders' ? dealsPending || ordersPending : positionsPending || dealsPending);
+      const historyError = tab === 'Orders' ? ordersError : tab === 'Deals' ? dealsError : tab === 'Deals & Orders' ? dealsError || ordersError : positionsError || dealsError;
+      const retryHistory = () => {
+        if (!historyDataActive) return;
+        if (tab === 'Orders') void refetchOrders();
+        else if (tab === 'Deals') void refetchDeals();
+        else if (tab === 'Deals & Orders') { void refetchDeals(); void refetchOrders(); }
+        else { void refetchPositionHistory(); void refetchDeals(); }
+      };
+      const historyNotice = historyError ? t('Could not refresh history. Please retry.') : tab !== 'Orders' && historyComplete === false ? t('History is incomplete. Some records and totals may be missing.') : null;
+      const historySummaryHeader = (
+        <>
+          <Text style={styles.accountSummaryHeading}>{t('Account Summary')}</Text>
+          <View style={[styles.summaryBlock, historySummaryDetailsVisible && styles.summaryBlockFused]}>
+            <FastPressable
+              onPress={toggleHistorySummaryDetails}
+              latencyLabel="history.summary.toggle"
+              accessibilityRole="button"
+              accessibilityLabel="Toggle account summary details"
+              accessibilityState={{ expanded: historySummaryDetailsVisible }}
+              style={styles.summaryTop}
+            >
+              <Text style={[styles.summaryLabel, { color: T.textMuted }]}>{t('Balance')}</Text>
+              <View style={styles.summaryBalanceInline}>
+                <Text
+                  style={[styles.summaryBalanceValue, { color: T.text, opacity: 0.9 }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
+                  {typeof balance === 'number' && Number.isFinite(balance) ? fmt.decimal(balance) : '--'}
+                </Text>
+                <Text style={[styles.balanceQuickCurrency, { color: T.textSub }]}>{currency}</Text>
+              </View>
+            </FastPressable>
+          </View>
+        </>
+      );
+    
+      return (
+        <Screen noBottomInset style={isDark ? { backgroundColor: '#121212' } : undefined}>
+          <AppHeader title={t('History')} noBorder />
+          {data.length > 0 && historyNotice ? (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 10, gap: 8 }} accessibilityLiveRegion="polite">
+              <Text style={{ color: T.textSub }}>{historyNotice}</Text>
+              <FastPressable accessibilityRole="button" accessibilityLabel={t('Retry')} onPress={retryHistory}><Text style={{ color: T.accent }}>{t('Retry')}</Text></FastPressable>
+              {historyComplete === false ? <FastPressable accessibilityRole="button" accessibilityLabel={t('Change date range')} onPress={openHistoryFilter}><Text style={{ color: T.accent }}>{t('Change date range')}</Text></FastPressable> : null}
+            </View>
+          ) : null}
+          {!scrollSummary ? historySummaryHeader : null}
+    
+          <FlatList
+            keyboardShouldPersistTaps="always"
+            style={styles.list}
+            data={data}
+            keyExtractor={historyRowKey}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={15}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={true}
+            ListHeaderComponent={(
+              <>
+                {scrollSummary ? historySummaryHeader : null}
+                {historySummaryDetailsVisible ? (
+                  <View style={[styles.summaryDetailsCard, scrollSummary && styles.summaryDetailsCardScrolling]}>
+                    <View style={[styles.gridRow, { borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : T.borderSubtle }]}>
+                      <View style={[styles.gridCol, { borderRightWidth: 1, borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : T.borderSubtle }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.gridLabel, { color: isDark ? 'rgba(148,163,184,0.5)' : T.textMuted }]}>{t('Account ID')}:</Text>
+                        </View>
+                        <Text style={[styles.gridValue, { color: T.text, opacity: 0.7 }]}>{accountLoginStr}</Text>
+                      </View>
+                      <View style={styles.gridCol}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.gridLabel, { color: isDark ? 'rgba(148,163,184,0.5)' : T.textMuted }]}>{t('Symbol')}:</Text>
+                        </View>
+                        <Text style={[styles.gridValue, { color: T.text, opacity: 0.7 }]}>{historySymbolLabel}</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.gridRow, { borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : T.borderSubtle }]}>
+                      <View style={[styles.gridCol, { borderRightWidth: 1, borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : T.borderSubtle }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.gridLabel, { color: isDark ? 'rgba(148,163,184,0.5)' : T.textMuted }]}>{t('Deposit')}:</Text>
+                        </View>
+                        <Text style={[styles.gridValue, { color: T.text, opacity: 0.7 }]}>{fmt.int(deposit)}</Text>
+                      </View>
+                      <View style={styles.gridCol}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.gridLabel, { color: isDark ? 'rgba(148,163,184,0.5)' : T.textMuted }]}>{t('Closed P/L')}:</Text>
+                        </View>
+                        <Text style={[styles.gridValue, { color: totalClosedPnl >= 0 ? T.up : T.down, opacity: 0.9 }]}>{fmt.pnl(totalClosedPnl)}</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.gridRow, { borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : T.borderSubtle }]}>
+                      <View style={[styles.gridCol, { borderRightWidth: 1, borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : T.borderSubtle }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.gridLabel, { color: isDark ? 'rgba(148,163,184,0.5)' : T.textMuted }]}>{t('Swap')}:</Text>
+                        </View>
+                        <Text style={[styles.gridValue, { color: T.text, opacity: 0.7 }]}>{fmt.pnl(closedSwap)}</Text>
+                      </View>
+                      <View style={styles.gridCol}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.gridLabel, { color: isDark ? 'rgba(148,163,184,0.5)' : T.textMuted }]}>{t('Commission')}:</Text>
+                        </View>
+                        <Text style={[styles.gridValue, { color: T.text, opacity: 0.7 }]}>{fmt.pnl(closedCommission)}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.gridRow}>
+                      <FastPressable
+                        style={styles.gridCol}
+                        onPress={openHistoryFilter}
+                        activateOnPressIn
+                        latencyLabel="history.filter.open"
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.gridLabel, { color: isDark ? 'rgba(148,163,184,0.5)' : T.textMuted }]}>{t('Range')}:</Text>
+                        </View>
+                        <Text style={[styles.gridValue, { color: T.accent, opacity: 1 }]}>{historyRangeLabel}</Text>
+                      </FastPressable>
+                    </View>
+                  </View>
+                ) : null}
+    
+                {/* ── Controls Card ── */}
+                <View style={styles.topBlock}>
+                  <View style={styles.topControlsRow}>
+                    <FastPressable
+                      style={styles.iconButton}
+                      onPress={openHistorySortSheet}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('Sort By')}
+                      latencyLabel="history.sort.open"
+                      activateOnPressIn
+                      unstable_pressDelay={0}
+                    >
+                      <Ionicons name='swap-vertical-outline' size={20} color={T.text} />
+                    </FastPressable>
+    
+                    <View style={styles.segment}>
+                      {TABS.map((item) => (
+                        <FastPressable
+                          key={item}
+                          style={[styles.segmentButton, tab === item && styles.segmentButtonActive]}
+                          onPress={() => startTransition(() => setTab(item))}
+                          latencyLabel={`history.tab.${item}`}
+                        >
+                          <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8} style={[styles.segmentText, { color: tab === item ? T.text : T.textMuted }]}>{t(item)}</Text>
+                        </FastPressable>
+                      ))}
+                    </View>
+    
+                    <FastPressable
+                      style={styles.iconButton}
+                      onPress={openHistoryFilter}
+                      activateOnPressIn
+                      activateOnTouchStart
+                      unstable_pressDelay={0}
+                      latencyLabel="history.range.open"
+                    >
+                      <Ionicons name='time-outline' size={20} color={T.text} />
+                    </FastPressable>
+                  </View>
+    
+                  <View style={styles.metricsRow}>
+                    <MetricPill
+                      label={t('Range')}
+                      value={historyRangeLabel}
+                      icon='calendar-outline'
+                      tone='neutral'
+                      T={T}
+                      isDark={isDark}
+                      onPress={openHistoryFilter}
+                    />
+                    <MetricPill
+                      label={tab === 'Orders' ? t('Filled') : t('Win Rate')}
+                      value={historyLoading || (historyError && data.length === 0) ? '--' : tab === 'Orders' ? `${filledCount} / ${data.length}` : winRate}
+                      icon={tab === 'Orders' ? 'checkmark-done-outline' : 'stats-chart-outline'}
+                      tone={tab === 'Orders' ? (filledCount > 0 ? 'positive' : 'neutral') : 'positive'}
+                      T={T}
+                      isDark={isDark}
+                    />
+                    <MetricPill label={t('Trades')} value={historyLoading || (historyError && data.length === 0) ? '--' : String(data.length)} icon='layers-outline' tone='neutral' T={T} isDark={isDark} />
+                    <MetricPill
+                      label={t('Net P/L')}
+                      value={historyLoading || (historyError && data.length === 0) ? '--' : fmt.pnl(netProfit)}
+                      icon='wallet-outline'
+                      tone={netTone}
+                      T={T}
+                      isDark={isDark}
+                      onPress={
+                        tab === 'Positions'
+                          ? () => router.push({ pathname: '/history/filter', params: { view: 'net-pnl' } })
+                          : undefined
+                      }
+                    />
+                  </View>
+                </View>
+    
+                {/* ── Section Header ── */}
+                <View style={[styles.sectionHeader, { borderBottomColor: T.border }]}>
+                  <View>
+                    <Text style={[styles.sectionTitle, { color: T.text }]}>{t('Trade Records')}</Text>
+                    <Text style={[styles.sectionMeta, { color: T.textMuted }]}>{data.length} {t('records')}</Text>
+                  </View>
+                </View>
+              </>
+            )}
+            renderItem={renderHistoryRow}
+            ListEmptyComponent={
+              <View style={{ padding: 24, alignItems: 'center', gap: 12 }} accessibilityLiveRegion="polite">
+                {historyLoading ? <ActivityIndicator color={T.accent} /> : null}
+                <Text style={[styles.emptyText, { color: T.textMuted }]}>{historyLoading ? t('Loading history...') : historyNotice ?? t('No history records')}</Text>
+                {!historyLoading && historyNotice ? <FastPressable accessibilityRole="button" accessibilityLabel={t('Retry')} onPress={retryHistory}><Text style={{ color: T.accent }}>{t('Retry')}</Text></FastPressable> : null}
+              </View>
+            }
+          />
+        </Screen>
+      );
+    });
+    
+    export function HistoryScreen() {
+      const isScreenFocused = useIsFocused();
+      const deferredScreenFocused = useNextFrameValue(isScreenFocused);
+      return <AccountPageGate page="History"><HistoryScreenInner isScreenFocused={deferredScreenFocused} /></AccountPageGate>;
+    }
+    
+    /**
+     * Renders a generic row for historical account operations such as deposits, withdrawals, or balance adjustments.
+     */
+    const HistoryItemRow = memo(function HistoryItemRow({ item, T, isDark, currency }: { item: HistoryRow; T: ThemeColors; isDark: boolean; currency: string }) {
+      const isClosedPosition = item.recordKind === 'closed-position';
+    
+      if (isClosedPosition) {
+        return <ClosedPositionRow item={item} T={T} isDark={isDark} currency={currency} />;
+      }
+    
+      const { symbol, side, volume } = parseLine1(item.line1);
+      const sideLower = side.toLowerCase().replace(',', '');
+      const isBuy = sideLower.includes('buy');
+      const isSell = sideLower.includes('sell');
+      const profit = typeof item.profit === 'number' ? item.profit : null;
+      const statusColor = item.status === 'filled' ? '#16A34A'
+        : item.status === 'expired' ? '#D97706' : item.status === 'rejected' ? '#DC2626' : T.textMuted;
+      const cardBg = T.glass2;
+    
+      return (
+        <View style={[
+          rStyles.rowCard,
+          {
+            backgroundColor: isDark ? T.glass2 : cardBg,
+            borderColor: isDark ? T.border : T.borderSubtle,
+          },
+          !isDark && rStyles.cardShadowLight,
+          isDark && rStyles.cardShadowDark,
+        ]}>
+          <Text style={[rStyles.cornerId, { color: T.textMuted }]}>#{item.ticketLabel}</Text>
+          <View style={rStyles.rowBody}>
+            <View style={rStyles.rowTop}>
+              <View style={rStyles.symbolLine}>
+                <Text style={[rStyles.symbolText, { color: T.text }]}>{symbol}</Text>
+                {side ? (
+                  <View style={[
+                    rStyles.sideBadge,
+                    { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : T.glass1 },
+                  ]}>
+                    <Text style={[
+                      rStyles.sideText,
+                      isBuy ? { color: T.trading.buy.hover }
+                        : isSell ? { color: T.trading.sell.hover }
+                          : { color: T.textMuted },
+                    ]}>
+                      {side}
+                    </Text>
+                  </View>
+                ) : null}
+                {volume ? <Text style={[rStyles.volumeText, { color: T.textMuted }]}>{volume}</Text> : null}
+                {item.status ? (
+                  <View
+                    style={[
+                      rStyles.statusBadge,
+                      {
+                        backgroundColor: isDark ? 'rgba(148, 163, 184, 0.08)' : T.glass1,
+                        borderColor: isDark ? 'rgba(148, 163, 184, 0.16)' : T.borderSubtle,
+                      },
+                    ]}
+                  >
+                    <Text style={[rStyles.statusText, { color: statusColor }]}>{item.status.toUpperCase()}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <View style={rStyles.rightCol}>
+                {profit !== null ? (
+                  <Text
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                    style={[rStyles.pnlText, { color: profit >= 0 ? T.trading.profit : T.down }]}
+                  >
+                    {profit >= 0 ? '+' : ''}{profit.toFixed(2)}
+                  </Text>
+                ) : (
+                  <Text style={[rStyles.timeOnly, { color: T.textSub }]}>{shortTime(item.time)}</Text>
+                )}
+              </View>
+            </View>
+            <View style={rStyles.priceRow}>
+              {item.line2.includes('→') ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, maxWidth: '100%' }}>
+                  <Text style={[rStyles.priceTrack, { color: T.textSub }]}>{item.line2.split('→')[0].trim()}</Text>
+                  <Ionicons name="arrow-forward-outline" size={16} color={T.textSub} />
+                  <Text style={[rStyles.priceTrack, { color: T.text, fontWeight: '500' }]}>{item.line2.split('→')[1].trim()}</Text>
+                </View>
+              ) : (
+                <Text style={[rStyles.priceTrack, { color: T.textSub }]}>{item.line2}</Text>
+              )}
+              <Text style={[rStyles.timeText, { color: T.textMuted }]}>{item.time}</Text>
+            </View>
+            {/* Deal comment — shown when present (EA notes, manual reason codes, etc.) */}
+            {item.note ? (
+              <View style={rStyles.noteRow}>
+                <Ionicons name="chatbubble-ellipses-outline" size={11} color={T.textMuted} />
+                <Text style={[rStyles.noteText, { color: T.textMuted }]} numberOfLines={1}>{item.note}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      );
+    });
+    
+    /**
+     * Closed-position card — mirrors the open-position card on the Trade screen,
+     * but renders the *final* close price and close P&L instead of streaming live values.
+     */
+    function ClosedPositionRow({ item, T, isDark, currency }: { item: HistoryRow; T: ThemeColors; isDark: boolean; currency: string }) {
+      const symbol = item.symbolRaw ?? parseLine1(item.line1).symbol;
+      const sideRaw = (item.sideRaw ?? '').toLowerCase();
+      const isBuy = sideRaw === 'buy';
+      const isSell = sideRaw === 'sell';
+      const sideLabel = isBuy ? 'buy' : isSell ? 'sell' : sideRaw;
+      const volumeNum = typeof item.volumeNum === 'number' ? item.volumeNum : Number(parseLine1(item.line1).volume) || 0;
+      const openPrice = typeof item.openPrice === 'number' ? item.openPrice : NaN;
+      const closePrice = typeof item.closePrice === 'number' ? item.closePrice : NaN;
+      const profit = typeof item.profit === 'number' ? item.profit : 0;
+      return (
+        <View
+          style={[
+            cpStyles.row,
+            {
+              backgroundColor: isDark ? T.glass2 : T.glass2,
+              borderColor: T.border,
+              borderLeftColor: T.border,
+            },
+            !isDark && cpStyles.shadowLight,
+            isDark && cpStyles.shadowDark,
+          ]}
+        >
+          <Text style={[cpStyles.cornerId, { color: T.textMuted }]}>#{item.ticketLabel}</Text>
+    
+          <View style={cpStyles.body}>
+            <View style={cpStyles.headerRow}>
+              <View style={cpStyles.symbolLine}>
+                <Text style={[cpStyles.symbol, { color: T.text }]}>{fmt.symbol(symbol)}</Text>
+                {sideLabel ? (
+                  <View
+                    style={[
+                      cpStyles.sideBadge,
+                      isBuy
+                        ? { backgroundColor: 'rgba(37,99,235,0.15)' }
+                        : isSell
+                          ? { backgroundColor: 'rgba(220,38,38,0.12)' }
+                          : { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : T.glass1 },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        cpStyles.sideText,
+                        { color: isBuy ? T.trading.buy.hover : isSell ? T.trading.sell.hover : T.textMuted },
+                      ]}
+                    >
+                      {sideLabel}
+                    </Text>
+                  </View>
+                ) : null}
+                <Text style={[cpStyles.volume, { color: T.textMuted }]}>{volumeNum.toFixed(2)}</Text>
+              </View>
+              <View style={cpStyles.rightCol}>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
+                  style={[cpStyles.pnl, { color: profit >= 0 ? T.trading.profit : T.trading.loss }]}
+                >
+                  {fmt.pnlPrecise(profit)} {currency}
+                </Text>
+              </View>
+            </View>
+    
+            <View style={cpStyles.priceRow}>
+              <View style={cpStyles.priceLeft}>
+                <Text style={[cpStyles.price, { color: T.textSub }]}>
+                  {Number.isFinite(openPrice) ? formatBackendPrice(openPrice) : '---'}
+                </Text>
+                <Ionicons name="arrow-forward-outline" size={16} color={T.textSub} style={cpStyles.arrow} />
+                <Text style={[cpStyles.price, { color: T.textSub }]}>
+                  {Number.isFinite(closePrice) ? formatBackendPrice(closePrice) : '---'}
+                </Text>
+              </View>
+              <Text style={[cpStyles.dateRight, { color: T.textSub }]}>
+                {item.time.replace(' ', '   ')}
+              </Text>
+            </View>
+    
+            {item.note ? (
+              <View style={cpStyles.noteRow}>
+                <Ionicons name="chatbubble-ellipses-outline" size={11} color={T.textMuted} />
+                <Text style={[cpStyles.noteText, { color: T.textMuted }]} numberOfLines={1}>{item.note}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      );
+    }
+    
+    /**
+     * Reusable UI component displaying a small colored badge or pill with a specific metric value (e.g., profit/loss amount).
+     */
+    function MetricPill({
+      label, value, icon, tone, T, isDark, onPress,
+    }: {
+      label: string; value: string;
+      icon: keyof typeof Ionicons.glyphMap;
+      tone: Tone; T: ThemeColors; isDark: boolean;
+      onPress?: () => void;
+    }) {
+      const cardBg = T.glass1;
+      if (onPress) {
+        return (
+          <FastPressable
+            style={[mpS.metricPill, { borderColor: isDark ? T.border : 'transparent', backgroundColor: isDark ? cardBg : T.glass1 }]}
+            onPress={onPress}
+            latencyLabel={`history.metric.${label}`}
+          >
+            <View style={mpS.metricTop}>
+              <Ionicons name={icon} size={12} color={T.textSub} />
+              <Text
+                style={[mpS.metricLabel, { color: T.textSub }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                {label}
+              </Text>
+            </View>
+            <Text
+              style={[
+                mpS.metricValue,
+                { color: T.text },
+                tone === 'positive' && { color: T.trading.profit },
+                tone === 'negative' && { color: T.down },
+              ]}
+            >
+              {value}
+            </Text>
+          </FastPressable>
+        );
+      }
+    
+      return (
+        <View style={[mpS.metricPill, { borderColor: isDark ? T.border : 'transparent', backgroundColor: isDark ? cardBg : T.glass1 }]}>
+          <View style={mpS.metricTop}>
+            <Ionicons name={icon} size={12} color={T.textSub} />
+            <Text
+              style={[mpS.metricLabel, { color: T.textSub }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              {label}
+            </Text>
+          </View>
+          <Text
+            style={[
+              mpS.metricValue,
+              { color: T.text },
+              tone === 'positive' && { color: T.trading.profit },
+              tone === 'negative' && { color: T.down },
+            ]}
+          >
+            {value}
+          </Text>
+        </View>
+      );
+    }
+    
+    function parseLine1(line1: string) {
+      const parts = line1.trim().split(/\s+/);
+      const symbol = parts[0] ?? line1;
+      const sideRaw = parts[1] ?? '';
+      const volumeRaw = parts[2] ?? '';
+      const side = sideRaw.trim();
+      const hasVolume = Number.isFinite(Number(volumeRaw));
+      const volume = hasVolume ? Number(volumeRaw).toFixed(2) : '';
+      return { symbol, side, volume };
+    }
+    
+    function shortTime(input: string) {
+      const parts = input.split(' ');
+      return parts[1] ?? input;
+    }
+    
+    function sortHistoryRows<Row extends HistoryRow>(rows: Row[], sortBy: SortBy) {
+      const sorted = [...rows];
+      if (sortBy === 'Default') return sorted;
+      sorted.sort((a, b) => {
+        if (sortBy === 'Symbol') return parseLine1(a.line1).symbol.localeCompare(parseLine1(b.line1).symbol);
+        if (sortBy === 'Ticket') return a.ticketLabel.localeCompare(b.ticketLabel, undefined, { numeric: true });
+        if (sortBy === 'Type') return parseLine1(a.line1).side.localeCompare(parseLine1(b.line1).side);
+        if (sortBy === 'Volume') {
+          const av = Number(parseLine1(a.line1).volume) || 0;
+          const bv = Number(parseLine1(b.line1).volume) || 0;
+          return bv - av;
+        }
+        if (sortBy === 'Open Time') return (b.openTime ?? b.time).localeCompare(a.openTime ?? a.time);
+        if (sortBy === 'Close Time') return (b.closeTime ?? b.time).localeCompare(a.closeTime ?? a.time);
+        if (sortBy === 'Profit') return (b.profit ?? Number.NEGATIVE_INFINITY) - (a.profit ?? Number.NEGATIVE_INFINITY);
+        return 0;
+      });
+      return sorted;
+    }
+    
+    /* ─── Static layout-only stylesheets ──────────────────────────────────────── */
+    
+    const rStyles = StyleSheet.create({
+      rowCard: {
+        marginHorizontal: spacing.md, marginTop: spacing.sm,
+        paddingTop: 18, paddingBottom: 10, paddingHorizontal: spacing.md,
+        borderRadius: 16, borderWidth: 1,
+      },
+      cardShadowLight: { shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 1 },
+      cardShadowDark: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 4,
+      },
+      cornerId: { position: 'absolute', top: 4, left: 8, fontSize: 11, fontWeight: '500', fontVariant: ['tabular-nums'], letterSpacing: 0 },
+      rowBody: { width: '100%' },
+      rowTop: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'space-between', alignItems: 'flex-start' },
+      symbolLine: { flexDirection: 'row', alignItems: 'center', gap: 6, flexGrow: 1, flexShrink: 1, flexBasis: 140, flexWrap: 'wrap', minWidth: 0 },
+      symbolText: { fontSize: 16, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0, flexShrink: 1 },
+      sideBadge: { borderRadius: 3, paddingHorizontal: 6, paddingVertical: 2 },
+      sideText: { fontSize: 11, fontWeight: '600', textTransform: 'lowercase', letterSpacing: 0 },
+      volumeText: { fontSize: 13, fontWeight: '500' },
+      statusBadge: { borderRadius: 3, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2 },
+      statusText: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0 },
+      rightCol: { alignItems: 'flex-end', justifyContent: 'flex-start', marginLeft: 'auto', maxWidth: '100%', flexShrink: 1 },
+      pnlText: { maxWidth: '100%', textAlign: 'right', fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },
+      priceRow: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'space-between' },
+      priceTrack: { maxWidth: '100%', flexShrink: 1, fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
+      timeText: { maxWidth: '100%', marginLeft: 'auto', fontSize: 12, fontWeight: '500', textAlign: 'right', fontVariant: ['tabular-nums'] },
+      timeOnly: { fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
+      /** Deal comment row — only rendered when a non-empty comment exists on the deal */
+      noteRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+      noteText: { fontSize: 11, fontWeight: '500', flex: 1 },
+    });
+    
+    /* Closed-position card — visually mirrors TradePositionRow so the user sees the
+     * same shape as live open positions, with close price + close time + final P&L. */
+    const cpStyles = StyleSheet.create({
+      row: {
+        marginHorizontal: spacing.md,
+        marginTop: spacing.sm,
+        paddingTop: 18,
+        paddingBottom: 10,
+        paddingHorizontal: spacing.md,
+        borderRadius: 16,
+        borderWidth: 1,
+      },
+      shadowLight: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 1 },
+      shadowDark: { shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
+      body: { width: '100%' },
+      headerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'space-between', alignItems: 'flex-start' },
+      symbolLine: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 },
+      symbol: { flexShrink: 1, maxWidth: '100%', fontSize: 16, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0 },
+      sideBadge: { borderRadius: 3, paddingHorizontal: 6, paddingVertical: 2 },
+      sideText: { fontSize: 11, fontWeight: '600', textTransform: 'lowercase', letterSpacing: 0 },
+      volume: { fontSize: 13, fontWeight: '500' },
+      pnl: { maxWidth: '100%', textAlign: 'right', fontSize: 16, fontWeight: '600', letterSpacing: 0, fontVariant: ['tabular-nums'] },
+      priceRow: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'space-between' },
+      priceLeft: { flexDirection: 'row', flexWrap: 'wrap', maxWidth: '100%', alignItems: 'center', gap: 3 },
+      price: { flexShrink: 1, maxWidth: '100%', fontSize: 13, fontWeight: '500', fontVariant: ['tabular-nums'] },
+      arrow: { marginHorizontal: 4 },
+      dateRight: { maxWidth: '100%', marginLeft: 'auto', fontSize: 12, fontWeight: '500', textAlign: 'right', fontVariant: ['tabular-nums'] },
+      rightCol: { alignItems: 'flex-end', justifyContent: 'flex-start', marginLeft: 'auto', maxWidth: '100%', flexShrink: 1 },
+      cornerId: { position: 'absolute', top: 4, left: 8, fontSize: 11, fontWeight: '500', fontVariant: ['tabular-nums'], letterSpacing: 0 },
+      noteRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+      noteText: { fontSize: 11, fontWeight: '500', flex: 1 },
+    });
+    
+    const mpS = StyleSheet.create({
+      metricPill: { flexGrow: 1, flexShrink: 1, flexBasis: 130, minWidth: 0, minHeight: 52, borderRadius: 10, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 6, alignItems: 'center', justifyContent: 'center' },
+      metricTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 4, paddingHorizontal: 2 },
+      metricLabel: { marginLeft: 6, flexShrink: 1, fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0 },
+      metricValue: { fontSize: 14, fontWeight: '600', textAlign: 'center', fontVariant: ['tabular-nums'] },
+    });
+    
+    function makeStyles(T: ThemeColors, isDark: boolean) {
+      const cardBg = T.glass2;
+    
+      const accountSummaryCardBg = isDark ? '#1E1E1E' : cardBg; // Matches the app dark card tone.
+      return StyleSheet.create({
+        // Clip the details bleed so expanding the grid cannot cover the balance.
+        list: { flex: 1, overflow: 'hidden', zIndex: 0 },
+        listContent: { paddingBottom: 32 },
+        headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 },
+        menuBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: T.glass1, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: T.border },
+        accountSummaryHeading: { color: T.text, fontSize: 19, fontWeight: '600', letterSpacing: 0, marginTop: 4, marginHorizontal: spacing.md, marginBottom: 8 },
+        summaryBlock: {
+          marginTop: spacing.md, marginHorizontal: spacing.md, borderRadius: 16,
+          backgroundColor: accountSummaryCardBg, borderWidth: 1, borderColor: T.border,
+          shadowColor: isDark ? '#000000' : '#64748B',
+          shadowOffset: { width: 0, height: isDark ? 4 : 2 },
+          shadowOpacity: isDark ? 0.08 : 0.06,
+          shadowRadius: isDark ? 16 : 8, elevation: isDark ? 5 : 2,
+          zIndex: 1, // Keep the balance above the scrolling details in both themes.
+          overflow: 'hidden',
+        },
+        summaryTop: { minHeight: 52, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', gap: 12 },
+        summaryLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 0, textTransform: 'uppercase', marginTop: 1 },
+        summaryBalanceInline: {
+          flex: 1,
+          minWidth: 0,
+          flexDirection: 'row',
+          alignItems: 'baseline',
+          justifyContent: 'flex-end',
+          gap: 4,
+        },
+        summaryBalanceValue: { minWidth: 0, flexShrink: 1, fontSize: 24, fontWeight: '700', letterSpacing: 0, lineHeight: 30, marginTop: 1, fontVariant: ['tabular-nums'] },
+        balanceQuickCurrency: { fontSize: 13, fontWeight: '600', flexShrink: 0 },
+        /** Applied to the pinned balance card only while the details grid is expanded.
+         *  It squares off the bottom edge and recolors it to the old in-card divider, so
+         *  the balance card and the scrolling grid below still read as the single card
+         *  they were before the grid moved into the FlatList header. */
+        summaryBlockFused: {
+          borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+          borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : T.borderSubtle,
+        },
+        /** Summary details card — same shell as `summaryBlock`, but it lives inside the
+         *  FlatList header so it scrolls away under the pinned balance header. It sits
+         *  flush with squared-off top corners and no top edge, so it visually continues
+         *  the balance card above it. The negative top margin plus matching top padding
+         *  hides a bleed of card background above the clip boundary — see
+         *  SUMMARY_DETAILS_OVERSCROLL_BLEED — which keeps a fast fling from opening a
+         *  hairline seam between the two halves. */
+        summaryDetailsCard: {
+          marginTop: -SUMMARY_DETAILS_OVERSCROLL_BLEED,
+          paddingTop: SUMMARY_DETAILS_OVERSCROLL_BLEED,
+          marginHorizontal: spacing.md, borderRadius: 16,
+          backgroundColor: accountSummaryCardBg, borderWidth: 1, borderColor: T.border,
+          borderTopWidth: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0,
+          shadowColor: isDark ? '#000000' : '#64748B',
+          shadowOffset: { width: 0, height: isDark ? 4 : 2 },
+          shadowOpacity: isDark ? 0.08 : 0.06,
+          shadowRadius: isDark ? 16 : 8, elevation: isDark ? 4 : 1,
+          overflow: 'hidden',
+        },
+        summaryDetailsCardScrolling: { marginTop: 0, paddingTop: 0 },
+        gridRow: { flexDirection: 'row' },
+        gridCol: { flex: 1, minWidth: 0, flexWrap: 'wrap', gap: 4, paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+        gridLabel: { maxWidth: '100%', flexShrink: 1, fontSize: 12, fontWeight: '500' },
+        gridValue: { maxWidth: '100%', flexShrink: 1, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'], letterSpacing: 0 },
+        topBlock: {
+          marginTop: spacing.lg, marginHorizontal: spacing.md, borderRadius: 16,
+          borderWidth: 1, borderColor: T.border,
+          backgroundColor: isDark ? T.glass2 : cardBg, padding: 6, paddingBottom: 8,
+          shadowColor: isDark ? '#000000' : '#64748B',
+          shadowOffset: { width: 0, height: isDark ? 4 : 2 },
+          shadowOpacity: isDark ? 0.08 : 0.06,
+          shadowRadius: isDark ? 16 : 8, elevation: isDark ? 4 : 1,
+        },
+        topControlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+        iconButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+        segment: { flex: 1, minWidth: 0, flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 0.5, borderColor: T.border, backgroundColor: T.glass1 },
+        segmentButton: { flex: 1, minWidth: 0, paddingVertical: 8, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+        segmentButtonActive: { backgroundColor: isDark ? T.glass3 : T.glass2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: isDark ? 0 : 0.05, shadowRadius: 2, elevation: 1 },
+        segmentText: { fontSize: 13, fontWeight: '600' },
+        metricsRow: { marginTop: 14, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+        sectionHeader: { marginTop: spacing.lg, marginHorizontal: spacing.md, paddingVertical: 8, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1 },
+        sectionTitle: { fontSize: 19, fontWeight: '600', letterSpacing: 0 },
+        sectionMeta: { marginTop: 2, fontSize: 13, fontWeight: '500' },
+        emptyText: { marginTop: spacing.lg, textAlign: 'center', fontSize: 13 },
+      });
+    }
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (C:\Users\S S LAPTOP BAZAAR\Desktop\RTX-5Mobile-App\rtx5-app\src\utils\hiddenScreenWorkContract.test.ts:434:10)
+    Test.runInAsyncScope (node:async_hooks:226:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: high-volume diagnostics are disabled unless explicitly requested
+ok 149 - high-volume diagnostics are disabled unless explicitly requested
+  ---
+  duration_ms: 12.8866
+  type: 'test'
+  ...
+# Subtest: shared fast press uses the native responder press recognizer
+ok 150 - shared fast press uses the native responder press recognizer
+  ---
+  duration_ms: 0.8236
+  type: 'test'
+  ...
+# Subtest: login submit uses the shared stable fast press path
+ok 151 - login submit uses the shared stable fast press path
+  ---
+  duration_ms: 31.0533
+  type: 'test'
+  ...
+# Subtest: login screen pre-warms health from only the selected broker server URL
+ok 152 - login screen pre-warms health from only the selected broker server URL
+  ---
+  duration_ms: 3.1526
+  type: 'test'
+  ...
+# Subtest: login submit requires health success for the exact selected broker server URL
+ok 153 - login submit requires health success for the exact selected broker server URL
+  ---
+  duration_ms: 18.3115
+  type: 'test'
+  ...
+# Subtest: a healthy broker is never reported unavailable just because health is not verified yet
+ok 154 - a healthy broker is never reported unavailable just because health is not verified yet
+  ---
+  duration_ms: 22.8679
+  type: 'test'
+  ...
+# Subtest: login screen exposes register account navigation to the demo registration screen
+ok 155 - login screen exposes register account navigation to the demo registration screen
+  ---
+  duration_ms: 12.6836
+  type: 'test'
+  ...
+# Subtest: login broker id can be selected from the broker directory dropdown
+ok 156 - login broker id can be selected from the broker directory dropdown
+  ---
+  duration_ms: 28.174
+  type: 'test'
+  ...
+# Subtest: logged-out demo broker is only an initial default and cannot overwrite a user selection
+ok 157 - logged-out demo broker is only an initial default and cannot overwrite a user selection
+  ---
+  duration_ms: 57.1172
+  type: 'test'
+  ...
+# Subtest: login validation snapshots the latest committed native field values
+ok 158 - login validation snapshots the latest committed native field values
+  ---
+  duration_ms: 24.5411
+  type: 'test'
+  ...
+# Subtest: login failure modal keeps the real backend error visible
+ok 159 - login failure modal keeps the real backend error visible
+  ---
+  duration_ms: 19.1559
+  type: 'test'
+  ...
+# Subtest: login submit has a synchronous duplicate request guard
+ok 160 - login submit has a synchronous duplicate request guard
+  ---
+  duration_ms: 24.1815
+  type: 'test'
+  ...
+# Subtest: login atomically commits the validated secure session before navigation
+ok 161 - login atomically commits the validated secure session before navigation
+  ---
+  duration_ms: 15.5663
+  type: 'test'
+  ...
+# Subtest: broker detail login atomically commits the selected directory session before navigation
+ok 162 - broker detail login atomically commits the selected directory session before navigation
+  ---
+  duration_ms: 41.1512
+  type: 'test'
+  ...
+# Subtest: broker detail preserves only the exact selected broker ID and server URL
+ok 163 - broker detail preserves only the exact selected broker ID and server URL
+  ---
+  duration_ms: 86.937
+  type: 'test'
+  ...
+# Subtest: broker detail login button shows text without a trailing arrow icon
+ok 164 - broker detail login button shows text without a trailing arrow icon
+  ---
+  duration_ms: 81.275
+  type: 'test'
+  ...
+# Subtest: login auth request has a bounded frontend timeout
+ok 165 - login auth request has a bounded frontend timeout
+  ---
+  duration_ms: 1.6957
+  type: 'test'
+  ...
+# Subtest: saved account credentials use native-safe SecureStore keys
+ok 166 - saved account credentials use native-safe SecureStore keys
+  ---
+  duration_ms: 3.2395
+  type: 'test'
+  ...
+# Subtest: safeRouterBack dispatches back only when a previous route exists
+ok 167 - safeRouterBack dispatches back only when a previous route exists
+  ---
+  duration_ms: 3.5972
+  type: 'test'
+  ...
+# Subtest: safeRouterBack replaces with fallback when no navigator can handle go back
+ok 168 - safeRouterBack replaces with fallback when no navigator can handle go back
+  ---
+  duration_ms: 0.3577
+  type: 'test'
+  ...
+# Subtest: feature screens do not dispatch router.back directly
+ok 169 - feature screens do not dispatch router.back directly
+  ---
+  duration_ms: 12671.6245
+  type: 'test'
+  ...
+# Subtest: visible arrow-back controls start navigation on press-in
+ok 170 - visible arrow-back controls start navigation on press-in
+  ---
+  duration_ms: 17715.692
+  type: 'test'
+  ...
+# Subtest: back navigation work starts only after the touch frame can paint
+ok 171 - back navigation work starts only after the touch frame can paint
+  ---
+  duration_ms: 60.5384
+  type: 'test'
+  ...
+# Subtest: Back recovers from an interrupted frame without running again on a late frame
+ok 172 - Back recovers from an interrupted frame without running again on a late frame
+  ---
+  duration_ms: 166.2151
+  type: 'test'
+  ...
+# Subtest: repeated Back taps before a paint commit only the latest pending pop
+ok 173 - repeated Back taps before a paint commit only the latest pending pop
+  ---
+  duration_ms: 138.4447
+  type: 'test'
+  ...
+# Subtest: native-revealable sidebar destinations keep the settled theme while hidden
+ok 174 - native-revealable sidebar destinations keep the settled theme while hidden
+  ---
+  duration_ms: 22.8214
+  type: 'test'
+  ...
+# Subtest: hamburger opens the sidebar on the zero-delay stable press path
+ok 175 - hamburger opens the sidebar on the zero-delay stable press path
+  ---
+  duration_ms: 97.451
+  type: 'test'
+  ...
+# Subtest: sidebar drawer reveals instantly and keeps navigation and closing work non-blocking
+ok 176 - sidebar drawer reveals instantly and keeps navigation and closing work non-blocking
+  ---
+  duration_ms: 121.9605
+  type: 'test'
+  ...
+# Subtest: trade route keeps its structural body mounted while deferring live work
+ok 177 - trade route keeps its structural body mounted while deferring live work
+  ---
+  duration_ms: 37.0268
+  type: 'test'
+  ...
+# Subtest: settings sidebar route renders its complete page while deferring account-card queries
+ok 178 - settings sidebar route renders its complete page while deferring account-card queries
+  ---
+  duration_ms: 69.6036
+  type: 'test'
+  ...
+# Subtest: journal sidebar route defers live account queries until after first paint
+ok 179 - journal sidebar route defers live account queries until after first paint
+  ---
+  duration_ms: 21.3297
+  type: 'test'
+  ...
+# Subtest: journal sidebar destination keeps menu access for repeated MT-style drawer selection
+ok 180 - journal sidebar destination keeps menu access for repeated MT-style drawer selection
+  ---
+  duration_ms: 67.1527
+  type: 'test'
+  ...
+# Subtest: economic calendar sidebar destination uses hamburger menu access
+ok 181 - economic calendar sidebar destination uses hamburger menu access
+  ---
+  duration_ms: 168.9693
+  type: 'test'
+  ...
+# Subtest: settings detail back buttons pop instantly instead of re-mounting the tab navigator
+ok 182 - settings detail back buttons pop instantly instead of re-mounting the tab navigator
+  ---
+  duration_ms: 139.5297
+  type: 'test'
+  ...
+# Subtest: chart header menu avoids Android edge gesture interception
+ok 183 - chart header menu avoids Android edge gesture interception
+  ---
+  duration_ms: 21.5628
+  type: 'test'
+  ...
+# Subtest: sidebar login prompt opens login from a large first-touch target
+ok 184 - sidebar login prompt opens login from a large first-touch target
+  ---
+  duration_ms: 82.2477
+  type: 'test'
+  ...
+# Subtest: sidebar profile avatar shows the logged-in broker logo with RTX5 fallback
+ok 185 - sidebar profile avatar shows the logged-in broker logo with RTX5 fallback
+  ---
+  duration_ms: 22.8502
+  type: 'test'
+  ...
+# Subtest: sidebar hosts detail destinations directly and shares the fast primary-tab visual path
+ok 186 - sidebar hosts detail destinations directly and shares the fast primary-tab visual path
+  ---
+  duration_ms: 731.363
+  type: 'test'
+  ...
+# Subtest: sidebar detail screens prewarm complete retained content before their first reveal
+ok 187 - sidebar detail screens prewarm complete retained content before their first reveal
+  ---
+  duration_ms: 532.6421
+  type: 'test'
+  ...
+# Subtest: bottom tab touch-start paints optimistically before real navigation work
+ok 188 - bottom tab touch-start paints optimistically before real navigation work
+  ---
+  duration_ms: 5.4173
+  type: 'test'
+  ...
+# Subtest: logged-out chart history warms from the lightweight tabs shell
+ok 189 - logged-out chart history warms from the lightweight tabs shell
+  ---
+  duration_ms: 6.7756
+  type: 'test'
+  ...
+# Subtest: delayed tab navigation is cancelled after its optimistic route is cleared
+ok 190 - delayed tab navigation is cancelled after its optimistic route is cleared
+  ---
+  duration_ms: 432.2978
+  type: 'test'
+  ...
+# Subtest: a newer hamburger destination cancels an older tab commit instead of blinking away
+ok 191 - a newer hamburger destination cancels an older tab commit instead of blinking away
+  ---
+  duration_ms: 3.2103
+  type: 'test'
+  ...
+# Subtest: dropped tab frames use a bounded route commit, and cannot dispatch twice later
+ok 192 - dropped tab frames use a bounded route commit, and cannot dispatch twice later
+  ---
+  duration_ms: 331.2502
+  type: 'test'
+  ...
+# Subtest: tab layout declares only the five primary cached scenes
+ok 193 - tab layout declares only the five primary cached scenes
+  ---
+  duration_ms: 3.1064
+  type: 'test'
+  ...
+# Subtest: retained Trade stays complete while its hidden live work remains inactive
+ok 194 - retained Trade stays complete while its hidden live work remains inactive
+  ---
+  duration_ms: 90.3109
+  type: 'test'
+  ...
+# Subtest: custom fast tabs retain Expo Router and TabRouter navigation contracts
+ok 195 - custom fast tabs retain Expo Router and TabRouter navigation contracts
+  ---
+  duration_ms: 1.5132
+  type: 'test'
+  ...
+# Subtest: fast tab scenes remain cached in plain absolute view layers
+ok 196 - fast tab scenes remain cached in plain absolute view layers
+  ---
+  duration_ms: 1.5352
+  type: 'test'
+  ...
+# Subtest: tab bar and retained scenes share one deterministic visible route
+ok 197 - tab bar and retained scenes share one deterministic visible route
+  ---
+  duration_ms: 108.0563
+  type: 'test'
+  ...
+# Subtest: native-revealable tab scenes keep the settled theme before first navigation
+ok 198 - native-revealable tab scenes keep the settled theme before first navigation
+  ---
+  duration_ms: 1.6217
+  type: 'test'
+  ...
+# Subtest: fast tab native scene and menu chrome always receive the same route
+ok 199 - fast tab native scene and menu chrome always receive the same route
+  ---
+  duration_ms: 0.5868
+  type: 'test'
+  ...
+# Subtest: a stale route commit cannot overwrite a newer rapid tab selection
+ok 200 - a stale route commit cannot overwrite a newer rapid tab selection
+  ---
+  duration_ms: 0.3726
+  type: 'test'
+  ...
+# Subtest: bottom tab bar follows the optimistic visual route before navigation commits
+ok 201 - bottom tab bar follows the optimistic visual route before navigation commits
+  ---
+  duration_ms: 49.5438
+  type: 'test'
+  ...
+# Subtest: bottom tab presses never write timing logs or LogBox warnings
+ok 202 - bottom tab presses never write timing logs or LogBox warnings
+  ---
+  duration_ms: 0.916
+  type: 'test'
+  ...
+# Subtest: bottom tab navigation fast path preserves light and dark tab bar themes
+ok 203 - bottom tab navigation fast path preserves light and dark tab bar themes
+  ---
+  duration_ms: 4.2024
+  type: 'test'
+  ...
+# Subtest: bottom tab bar compacts in landscape to preserve phone content height
+ok 204 - bottom tab bar compacts in landscape to preserve phone content height
+  ---
+  duration_ms: 67.88
+  type: 'test'
+  ...
+# Subtest: primary tab route wrappers do not unmount screens on blur
+ok 205 - primary tab route wrappers do not unmount screens on blur
+  ---
+  duration_ms: 236.2554
+  type: 'test'
+  ...
+1..205
+# tests 205
+# suites 0
+# pass 201
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 53775.2616

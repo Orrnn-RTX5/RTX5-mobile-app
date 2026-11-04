@@ -1,0 +1,187 @@
+{
+  "checkedAt": "2026-10-26T05:33:27.604Z",
+  "credentialId": "0607575b-fecb-4d9b-ad2b-31993d718069",
+  "assignedKeyId": "e1f1ce12-b7fd-47a9-bd59-1406ec837694",
+  "buildTeam": {
+    "id": "4a45767a-9442-4618-a56b-a1d4df707ace",
+    "appleTeamIdentifier": "FGVWUQA882",
+    "appleTeamName": "FLEXY COMMERCIAL BROKER L.L.C (Company/Organization)",
+    "__typename": "AppleTeam"
+  },
+  "results": [
+    {
+      "id": "e1f1ce12-b7fd-47a9-bd59-1406ec837694",
+      "name": "[Expo] EAS Submit p9wBxiUGFM",
+      "team": {
+        "id": "4a45767a-9442-4618-a56b-a1d4df707ace",
+        "appleTeamIdentifier": "FGVWUQA882",
+        "appleTeamName": "FLEXY COMMERCIAL BROKER L.L.C (Company/Organization)",
+        "__typename": "AppleTeam"
+      },
+      "assigned": true,
+      "checks": [
+        {
+          "path": "/v1/apps/6820412382",
+          "status": 404,
+          "apps": [],
+          "errors": [
+            {
+              "code": "NOT_FOUND",
+              "title": "The specified resource does not exist",
+              "detail": "There is no resource of type 'apps' with id '6820412382'"
+            }
+          ]
+        },
+        {
+          "path": "/v1/apps?filter%5BbundleId%5D=com.yoforex.expogo&limit=5",
+          "status": 200,
+          "apps": []
+        },
+        {
+          "path": "/v1/apps?limit=100&fields%5Bapps%5D=name,bundleId,sku",
+          "status": 200,
+          "apps": [
+            {
+              "id": "6810100141",
+              "name": "TradeCopier - Copy Trading",
+              "bundleId": "com.yoforex.tradecopier"
+            },
+            {
+              "id": "6760580946",
+              "name": "YoPips: Funded Trading",
+              "bundleId": "com.yopips.app"
+            },
+            {
+              "id": "6768249377",
+              "name": "RTX5 Trading Terminal",
+              "bundleId": "com.rtx5.trading"
+            },
+            {
+              "id": "6785929975",
+              "name": "Yo4x Trading Bot",
+              "bundleId": "com.yo4x.tradingbot"
+            },
+            {
+              "id": "6756056483",
+              "name": "Yoforex Ai",
+              "bundleId": "com.yoforex.ai"
+            },
+            {
+              "id": "6752637785",
+              "name": "Flexy Markets",
+              "bundleId": "com.flexy.markets"
+            },
+            {
+              "id": "6756045163",
+              "name": "Fx Trusts",
+              "bundleId": "com.fx.trusts"
+            }
+          ]
+        },
+        {
+          "path": "/v1/bundleIds?filter%5Bidentifier%5D=com.yoforex.expogo&limit=5",
+          "status": 200,
+          "apps": [
+            {
+              "id": "26VKX2L8TD",
+              "name": "yoforexexpogo 2f019052f524854efe54eb3b37e7042c",
+              "identifier": "com.yoforex.expogo.ExpoNotificationServiceExtension"
+            },
+            {
+              "id": "DDF9DUP2F4",
+              "name": "yoforexexpogo 2f019052f524854efe54eb3b37e7042c",
+              "identifier": "com.yoforex.expogo"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "00fceabc-a6e8-4318-aa5e-0ae5c9100778",
+      "name": "[Expo] EAS Submit fww6WYiLtL",
+      "team": {
+        "id": "4a45767a-9442-4618-a56b-a1d4df707ace",
+        "appleTeamIdentifier": "FGVWUQA882",
+        "appleTeamName": "FLEXY COMMERCIAL BROKER L.L.C (Company/Organization)",
+        "__typename": "AppleTeam"
+      },
+      "assigned": false,
+      "checks": [
+        {
+          "path": "/v1/apps/6820412382",
+          "status": 404,
+          "apps": [],
+          "errors": [
+            {
+              "code": "NOT_FOUND",
+              "title": "The specified resource does not exist",
+              "detail": "There is no resource of type 'apps' with id '6820412382'"
+            }
+          ]
+        },
+        {
+          "path": "/v1/apps?filter%5BbundleId%5D=com.yoforex.expogo&limit=5",
+          "status": 200,
+          "apps": []
+        },
+        {
+          "path": "/v1/apps?limit=100&fields%5Bapps%5D=name,bundleId,sku",
+          "status": 200,
+          "apps": [
+            {
+              "id": "6810100141",
+              "name": "TradeCopier - Copy Trading",
+              "bundleId": "com.yoforex.tradecopier"
+            },
+            {
+              "id": "6760580946",
+              "name": "YoPips: Funded Trading",
+              "bundleId": "com.yopips.app"
+            },
+            {
+              "id": "6768249377",
+              "name": "RTX5 Trading Terminal",
+              "bundleId": "com.rtx5.trading"
+            },
+            {
+              "id": "6785929975",
+              "name": "Yo4x Trading Bot",
+              "bundleId": "com.yo4x.tradingbot"
+            },
+            {
+              "id": "6756056483",
+              "name": "Yoforex Ai",
+              "bundleId": "com.yoforex.ai"
+            },
+            {
+              "id": "6752637785",
+              "name": "Flexy Markets",
+              "bundleId": "com.flexy.markets"
+            },
+            {
+              "id": "6756045163",
+              "name": "Fx Trusts",
+              "bundleId": "com.fx.trusts"
+            }
+          ]
+        },
+        {
+          "path": "/v1/bundleIds?filter%5Bidentifier%5D=com.yoforex.expogo&limit=5",
+          "status": 200,
+          "apps": [
+            {
+              "id": "26VKX2L8TD",
+              "name": "yoforexexpogo 2f019052f524854efe54eb3b37e7042c",
+              "identifier": "com.yoforex.expogo.ExpoNotificationServiceExtension"
+            },
+            {
+              "id": "DDF9DUP2F4",
+              "name": "yoforexexpogo 2f019052f524854efe54eb3b37e7042c",
+              "identifier": "com.yoforex.expogo"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

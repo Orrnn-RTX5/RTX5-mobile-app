@@ -1,0 +1,19 @@
+{
+  "deviceSuffix": "402E",
+  "profiles": [
+    {
+      "bundleIdentifier": "com.yoforex.expogo",
+      "profileId": "YBH7J3HK9W",
+      "name": "ExpoGo54-Connected-iPhone-402E-Main",
+      "expirationDate": "2027-05-18T07:21:14.000+00:00",
+      "deviceIncluded": true
+    },
+    {
+      "bundleIdentifier": "com.yoforex.expogo.ExpoNotificationServiceExtension",
+      "profileId": "U88C43KH46",
+      "name": "ExpoGo54-Connected-iPhone-402E-Extension",
+      "expirationDate": "2027-05-18T07:21:14.000+00:00",
+      "deviceIncluded": true
+    }
+  ]
+}

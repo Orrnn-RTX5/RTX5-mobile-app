@@ -1,0 +1,9 @@
+{
+  "id": "4c6bed8b-e9a1-40a5-bf23-a92259e2eea3",
+  "identifier": "00008030-000168322293402E",
+  "name": "Connected iPhone",
+  "model": null,
+  "deviceClass": "IPHONE",
+  "createdAt": "2026-10-26T05:39:29.888Z",
+  "__typename": "AppleDevice"
+}

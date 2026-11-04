@@ -1,0 +1,24 @@
+build:
+  name: Expo Go 54 for connected iPhone
+  steps:
+    - eas/checkout
+    - run:
+        name: Install dependencies
+        command: npm install --ignore-scripts
+    - eas/resolve_build_config
+    - run:
+        id: download
+        name: Download official Expo Go SDK 54
+        outputs: [ipa_path]
+        command: |
+          curl --fail --location --output expo-go.ipa 'https://storage.googleapis.com/turtle-v2/eas-go/application-9c82bcdc-7463-4d01-bf30-56fe09adaacd-54.0.6.ipa'
+          set-output ipa_path "$PWD/expo-go.ipa"
+    - eas/repack:
+        id: repack
+        inputs:
+          platform: ios
+          source_app_path: ${ steps.download.ipa_path }
+          embed_bundle_assets: false
+    - eas/upload_artifact:
+        inputs:
+          path: ${ steps.repack.output_path }

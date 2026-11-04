@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-13",
+  "device": "POCO M2010J19CI, Android 12",
+  "connection": "USB ADB and scrcpy 4.1",
+  "physicalReproduction": {
+    "input": "User tapped Floating Profit/Loss on phone",
+    "result": "Details collapsed; label and value disappeared while the card and live tab P/L remained",
+    "screenshot": "usb-03-collapsed.png"
+  },
+  "cause": "React Native Android turns an unset edge-specific border width into NaN, invalidating the rounded overflow clip",
+  "upstream": "https://github.com/react/react-native/issues/54217",
+  "fix": {
+    "summaryBlock.borderBottomWidth": 1,
+    "summaryTop.borderBottomWidth": 0,
+    "previousSpeculativeListViewportWrapper": "removed"
+  },
+  "observedAfterFix": {
+    "collapsedLabelVisible": true,
+    "collapsedValueVisible": true,
+    "liveReadingsUSD": [130.99, 133.25, 138.00],
+    "screenshots": ["usb-04-collapsed-after-border-fix.png", "usb-05-live-check.png", "usb-06-final-state.png"],
+    "freshPhysicalExpandCollapseCycle": "pending user tap; remote input blocked by device INJECT_EVENTS permission"
+  },
+  "checks": {
+    "focusedTests": "30 passed",
+    "regression": "Original border styles fail in memory; fixed expanded/collapsed styles pass",
+    "typescriptNoEmit": "passed",
+    "diffWhitespace": "passed"
+  }
+}

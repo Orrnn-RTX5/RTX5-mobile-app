@@ -1,0 +1,16 @@
+{
+  "task": "Pending orders integration",
+  "implementation": "complete",
+  "expoSdk": 54,
+  "verification": {
+    "selectedTests": { "passed": 239, "failed": 0, "log": "verification-tests.log" },
+    "webViewTests": { "passed": 34, "failed": 0, "log": "webview-tests.log" },
+    "finalPrecisionRegression": { "passed": 24, "failed": 0, "log": "precision-final.log", "overlapsSelectedTests": true },
+    "typeScript": { "exitCode": 0, "log": "typecheck-verified.log" },
+    "javascriptExport": { "platforms": ["ios", "android"], "exitCode": 0, "log": "bundle-verified.log", "output": "bundle-verified" }
+  },
+  "gatewayAcceptance": { "transport": "in-memory contract fixture running production API and state modules", "accountLogins": [200019, 200020], "liveTradesSent": false },
+  "remainingValidation": ["Physical iPhone UI testing", "End-to-end acceptance against the live Gateway"],
+  "nativeBinaryBuild": "not_run",
+  "deployed": false
+}

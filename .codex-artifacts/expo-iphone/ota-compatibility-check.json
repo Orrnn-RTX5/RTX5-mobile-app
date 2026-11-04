@@ -1,0 +1,795 @@
+{
+  "checkedAt": "2026-10-26T05:54:05.063Z",
+  "channel": {
+    "name": "production",
+    "isPaused": false,
+    "branchMapping": "{\"data\":[{\"branchId\":\"019e4e07-1eb3-7000-bd63-d79591ead50e\",\"branchMappingLogic\":\"true\"}],\"version\":0}",
+    "branches": [
+      {
+        "name": "production",
+        "id": "019e4e07-1eb3-7000-bd63-d79591ead50e"
+      }
+    ]
+  },
+  "expoGo": {
+    "id": "0c7a3acb-b975-428d-aedb-6c2c27088346",
+    "sdkVersion": "54.0.0",
+    "projectId": "ba323d63-7e19-41a0-b88e-d20fda074505",
+    "runtimeVersion": null,
+    "channel": null
+  },
+  "builds": [
+    {
+      "id": "8b89f97d-d1d1-4303-aa78-01311d884fe3",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "33",
+      "runtimeVersion": "d2219f10a952ee0890954bbbd8804f02c3ef98b4",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-07-20T12:24:56.999Z"
+    },
+    {
+      "id": "568405c4-96f4-4895-9c54-c88692d1fc6d",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "32",
+      "runtimeVersion": "56277bfea8d7fe467046bf696d33ea99553c2656",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-07-20T12:24:05.638Z"
+    },
+    {
+      "id": "e9166b14-aab1-4834-8312-0b34a5db87be",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "32",
+      "runtimeVersion": "16c88203d6fd56f87ee2ff5d0fcb5aca98a8a755",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-07-20T11:46:28.263Z"
+    },
+    {
+      "id": "1c767dac-fa20-451b-bdc8-bd97d26721f2",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "31",
+      "runtimeVersion": "938a0b99f4c9e84d68e1b716ef6b46b5425d852e",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-07-20T11:45:41.097Z"
+    },
+    {
+      "id": "1b1bd2e3-da6c-4c8b-94c2-285b0329dce2",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.10",
+      "buildNumber": "30",
+      "runtimeVersion": "ef38da275b765380037fc377f5c596de31690b7d",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-19T06:57:53.486Z"
+    },
+    {
+      "id": "cfe3b101-ab15-4e18-854b-ef808e96d708",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.11",
+      "buildNumber": "28",
+      "runtimeVersion": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-19T06:20:00.709Z"
+    },
+    {
+      "id": "5fc8fb3c-b936-4842-8827-2827827a6fb6",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.10",
+      "buildNumber": "27",
+      "runtimeVersion": "4b887f50a5b8f8a3651628b46e4b0010b99a941e",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-19T05:19:01.208Z"
+    },
+    {
+      "id": "fe8b6163-5126-4980-a84a-69c34cf0de1a",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.7",
+      "buildNumber": "26",
+      "runtimeVersion": "464b445c8692471fd889dcf6f039ea987f799e7c",
+      "channel": "production",
+      "profile": "production-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-18T13:34:17.234Z"
+    },
+    {
+      "id": "7ddd8fd8-9ea1-4620-8de1-a2fcd05944b1",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.7",
+      "buildNumber": "29",
+      "runtimeVersion": "16fe4b7b7d0420c19bc6ebc586b71cbef61289a1",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-16T14:09:02.903Z"
+    },
+    {
+      "id": "4d094d3d-30e4-4853-95f8-84776b8447c7",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.6",
+      "buildNumber": "24",
+      "runtimeVersion": "edb0b57f5087c748ca29b975f3532c166d36140b",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-16T13:32:38.060Z"
+    },
+    {
+      "id": "0d56025c-07f8-4f84-9f6a-8f57b443c86b",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.6",
+      "buildNumber": "28",
+      "runtimeVersion": "3b868b6b41f0ba1dd97eb6f947d31a11f701b535",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-15T14:36:09.926Z"
+    },
+    {
+      "id": "1a5705bb-1631-47bc-8921-4df4f1e302e7",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "27",
+      "runtimeVersion": "dce8162d2ac4cc5171eb56ae1a82bc7d53fcaacf",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-15T14:15:12.647Z"
+    },
+    {
+      "id": "91406e51-27f2-47b9-8700-ef5d094d9693",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "23",
+      "runtimeVersion": "68ed18ce8a73495c0720ececddc0aa2d4a4c5422",
+      "channel": "production",
+      "profile": "production-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-15T12:57:01.544Z"
+    },
+    {
+      "id": "c0fef024-69f2-414c-847e-fd0f26240957",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "22",
+      "runtimeVersion": "e8fb5e369ca4fa775113ecddcc175aef75d19fa8",
+      "channel": "production",
+      "profile": "sentry-crash-test-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-15T11:59:25.861Z"
+    },
+    {
+      "id": "baa13b38-341f-4158-9ae7-e3b28e81b06a",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "21",
+      "runtimeVersion": "e8fb5e369ca4fa775113ecddcc175aef75d19fa8",
+      "channel": "production",
+      "profile": "sentry-crash-test-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-15T11:12:16.993Z"
+    },
+    {
+      "id": "1fc2d6b3-b29b-4b4b-af00-a702c1cf04e7",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "20",
+      "runtimeVersion": "0b3493714f526a5f1237efcce562d26a63ec33d8",
+      "channel": "production",
+      "profile": "sentry-crash-test-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-15T10:17:52.819Z"
+    },
+    {
+      "id": "40205f6c-d398-4fcf-b438-b5e0a3f8f50f",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "25",
+      "runtimeVersion": "eb3ee7e740b26b3cea091fd6300335d64f5b6bd7",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-11T07:54:15.331Z"
+    },
+    {
+      "id": "4c9318d5-3db7-4bb4-8991-58f246ddfa39",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "24",
+      "runtimeVersion": "eb3ee7e740b26b3cea091fd6300335d64f5b6bd7",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-10T14:32:22.969Z"
+    },
+    {
+      "id": "de72ff78-0417-4e21-b9ce-833171064e58",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "23",
+      "runtimeVersion": "f4184b3e04e9e7200364ce9ab4dfd4ec18950364",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-10T11:19:28.972Z"
+    },
+    {
+      "id": "ff562ad7-8be9-4bb6-b719-f488b31cb7db",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "22",
+      "runtimeVersion": "e4742e46c961072f39776c78678b681b8c5d5b78",
+      "channel": "production",
+      "profile": "production-no-ota",
+      "distribution": "STORE",
+      "createdAt": "2026-06-10T10:48:30.581Z"
+    },
+    {
+      "id": "e0d111e8-2976-4921-8c25-2d4b67c5f997",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "19",
+      "runtimeVersion": "7fbdceaf861e84c582a844d56655a3cecd894d77",
+      "channel": "production",
+      "profile": "production-no-ota-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-10T08:12:39.970Z"
+    },
+    {
+      "id": "f7325049-991b-49bf-84f5-c816bc453d1e",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "16",
+      "runtimeVersion": "7fbdceaf861e84c582a844d56655a3cecd894d77",
+      "channel": "production",
+      "profile": "production-no-ota-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-10T06:38:12.157Z"
+    },
+    {
+      "id": "0198e86f-3aad-4c7e-83fa-690c609da2eb",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "21",
+      "runtimeVersion": "c58b2592048c109a6b26a8887df8d434d180777f",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-10T04:52:12.525Z"
+    },
+    {
+      "id": "5522cdde-cab4-4c29-80ee-e9d6fa95a89b",
+      "platform": "ANDROID",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "15",
+      "runtimeVersion": "ccff25e5d1f67d5fc97c7ae745da029b76f12d89",
+      "channel": "production",
+      "profile": "production-apk",
+      "distribution": "INTERNAL",
+      "createdAt": "2026-06-10T04:52:10.539Z"
+    },
+    {
+      "id": "c1ff37e9-6ed7-4daf-9689-3631585169b1",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.3",
+      "buildNumber": "20",
+      "runtimeVersion": "6bb46bd25e90e1df9597b7059be7c15a747b8bd4",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-10T04:38:13.411Z"
+    },
+    {
+      "id": "42f0064b-4c2e-4663-a9c4-0661f58bd8c2",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.3",
+      "buildNumber": "19",
+      "runtimeVersion": "1.1.3",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-09T13:56:16.566Z"
+    },
+    {
+      "id": "eea05ae8-42df-441b-8a86-df34a791f459",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.3",
+      "buildNumber": "18",
+      "runtimeVersion": "1.1.3",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-09T12:13:24.683Z"
+    },
+    {
+      "id": "8121a4ba-6149-4f57-a79e-809af3dd9df3",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.2",
+      "buildNumber": "17",
+      "runtimeVersion": "1.1.2",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-09T10:10:31.902Z"
+    },
+    {
+      "id": "e57d273e-7321-420a-9222-49dd613fb571",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.1.1",
+      "buildNumber": "16",
+      "runtimeVersion": "1.1.1",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-09T09:25:08.737Z"
+    },
+    {
+      "id": "afd518fb-3c53-4135-8bc4-ed3b071d0bfa",
+      "platform": "IOS",
+      "sdkVersion": "54.0.0",
+      "nativeVersion": "1.0.1",
+      "buildNumber": "15",
+      "runtimeVersion": "1.0.1",
+      "channel": "production",
+      "profile": "production",
+      "distribution": "STORE",
+      "createdAt": "2026-06-09T09:00:06.326Z"
+    }
+  ],
+  "compatibility": [
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "33",
+      "buildId": "8b89f97d-d1d1-4303-aa78-01311d884fe3",
+      "runtimeVersion": "d2219f10a952ee0890954bbbd8804f02c3ef98b4",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019f800f-16d9-7319-9625-9f7380baad5f",
+        "group": "0e63b36e-796b-4518-8112-088ea86169f4",
+        "createdAt": "2026-07-20T15:05:00.377Z",
+        "message": "Fix trade idempotency keys",
+        "runtimeVersion": "d2219f10a952ee0890954bbbd8804f02c3ef98b4",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.21"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "32",
+      "buildId": "568405c4-96f4-4895-9c54-c88692d1fc6d",
+      "runtimeVersion": "56277bfea8d7fe467046bf696d33ea99553c2656",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019f800f-16d9-7c2f-9d88-172e208fe876",
+        "group": "2e5a79c3-3405-4480-b0c8-46de115508bc",
+        "createdAt": "2026-07-20T15:05:00.377Z",
+        "message": "Fix trade idempotency keys",
+        "runtimeVersion": "56277bfea8d7fe467046bf696d33ea99553c2656",
+        "platform": "android",
+        "manifestAppVersion": "1.1.21"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "32",
+      "buildId": "e9166b14-aab1-4834-8312-0b34a5db87be",
+      "runtimeVersion": "16c88203d6fd56f87ee2ff5d0fcb5aca98a8a755",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019f7f74-76ff-7ed5-b482-826fddff935c",
+        "group": "338ba1dc-475b-4565-9805-51769d654c84",
+        "createdAt": "2026-07-20T12:16:06.911Z",
+        "message": "RTX5 1.1.21 production",
+        "runtimeVersion": "16c88203d6fd56f87ee2ff5d0fcb5aca98a8a755",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.21"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.21",
+      "buildNumber": "31",
+      "buildId": "1c767dac-fa20-451b-bdc8-bd97d26721f2",
+      "runtimeVersion": "938a0b99f4c9e84d68e1b716ef6b46b5425d852e",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019f7f74-76ff-7066-944c-f16cab4a179d",
+        "group": "462c958b-f7c3-4472-ac74-a77ad0c7bddd",
+        "createdAt": "2026-07-20T12:16:06.911Z",
+        "message": "RTX5 1.1.21 production",
+        "runtimeVersion": "938a0b99f4c9e84d68e1b716ef6b46b5425d852e",
+        "platform": "android",
+        "manifestAppVersion": "1.1.21"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.10",
+      "buildNumber": "30",
+      "buildId": "1b1bd2e3-da6c-4c8b-94c2-285b0329dce2",
+      "runtimeVersion": "ef38da275b765380037fc377f5c596de31690b7d",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "01a13aa3-1499-7751-9235-72493db42406",
+        "group": "144526b3-6a4c-4d79-964e-8a3c12371c1e",
+        "createdAt": "2026-10-14T13:38:48.601Z",
+        "message": "iOS production OTA 1.1.54 current local application, chart position controls, calendar and trading UI fixes; reviewed legacy native compatibility",
+        "runtimeVersion": "ef38da275b765380037fc377f5c596de31690b7d",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.30"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.11",
+      "buildNumber": "28",
+      "buildId": "cfe3b101-ab15-4e18-854b-ef808e96d708",
+      "runtimeVersion": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "01a13aa1-f394-74a6-8961-7e1d186502cb",
+        "group": "5682837f-6abd-4906-b513-74d6854c6c67",
+        "createdAt": "2026-10-14T13:37:34.612Z",
+        "message": "Android production OTA 1.1.54 current local application, chart position controls, calendar and trading UI fixes; reviewed legacy native compatibility",
+        "runtimeVersion": "30cba83220fc6c92180eed477863c3e3e3087ce6",
+        "platform": "android",
+        "manifestAppVersion": "1.1.30"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.10",
+      "buildNumber": "27",
+      "buildId": "5fc8fb3c-b936-4842-8827-2827827a6fb6",
+      "runtimeVersion": "4b887f50a5b8f8a3651628b46e4b0010b99a941e",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019ede4f-ede0-7cc2-b9cd-6e1f62f4d6df",
+        "group": "275ff7ce-1631-46e9-a151-b80be3830ec0",
+        "createdAt": "2026-06-19T05:17:20.736Z",
+        "message": "Android production OTA 1.1.10 for Play Store runtime 4b887f50",
+        "runtimeVersion": "4b887f50a5b8f8a3651628b46e4b0010b99a941e",
+        "platform": "android",
+        "manifestAppVersion": "1.1.10"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.7",
+      "buildNumber": "26",
+      "buildId": "fe8b6163-5126-4980-a84a-69c34cf0de1a",
+      "runtimeVersion": "464b445c8692471fd889dcf6f039ea987f799e7c",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019ede83-db95-727f-b7c8-d568ede0475e",
+        "group": "d6846971-7a99-4bbb-9f19-2ff3e800aa22",
+        "createdAt": "2026-06-19T06:14:03.925Z",
+        "message": "Android production OTA show 1.1.10 for installed 1.1.7 runtime 464b445c",
+        "runtimeVersion": "464b445c8692471fd889dcf6f039ea987f799e7c",
+        "platform": "android",
+        "manifestAppVersion": "1.1.7"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.7",
+      "buildNumber": "29",
+      "buildId": "7ddd8fd8-9ea1-4620-8de1-a2fcd05944b1",
+      "runtimeVersion": "16fe4b7b7d0420c19bc6ebc586b71cbef61289a1",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019ed0f0-c103-7a2c-8f80-7b6454f84a7f",
+        "group": "47ef701f-fc42-4790-8bba-29db43a31c8e",
+        "createdAt": "2026-06-16T14:58:19.523Z",
+        "message": "iOS OTA show 1.1.9 with install prompt for 1.1.7 runtime",
+        "runtimeVersion": "16fe4b7b7d0420c19bc6ebc586b71cbef61289a1",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.7"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.6",
+      "buildNumber": "24",
+      "buildId": "4d094d3d-30e4-4853-95f8-84776b8447c7",
+      "runtimeVersion": "edb0b57f5087c748ca29b975f3532c166d36140b",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019ed0ae-56d9-768d-9f2f-4b37040e125f",
+        "group": "3fc5e878-f773-4f61-8c81-5048369a1dad",
+        "createdAt": "2026-06-16T13:45:46.969Z",
+        "message": "Android production OTA republish for 1.1.6 runtime edb0b57f",
+        "runtimeVersion": "edb0b57f5087c748ca29b975f3532c166d36140b",
+        "platform": "android",
+        "manifestAppVersion": "1.1.6"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.6",
+      "buildNumber": "28",
+      "buildId": "0d56025c-07f8-4f84-9f6a-8f57b443c86b",
+      "runtimeVersion": "3b868b6b41f0ba1dd97eb6f947d31a11f701b535",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019ed0b9-f6cb-7e03-87f4-38d1dc91cc76",
+        "group": "145242d6-22cc-4f13-9d20-40c1ae350e56",
+        "createdAt": "2026-06-16T13:58:28.811Z",
+        "message": "iOS production OTA republish for 1.1.6 runtime 3b868b6b",
+        "runtimeVersion": "3b868b6b41f0ba1dd97eb6f947d31a11f701b535",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.6"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "27",
+      "buildId": "1a5705bb-1631-47bc-8921-4df4f1e302e7",
+      "runtimeVersion": "dce8162d2ac4cc5171eb56ae1a82bc7d53fcaacf",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019ecbaf-ccd9-7dd0-aaa1-2f6d985eda01",
+        "group": "1d83def5-e2d0-435e-8a80-0d81318c4b43",
+        "createdAt": "2026-06-15T14:29:16.633Z",
+        "message": "iOS production OTA for Sentry-enabled runtime dce8162d",
+        "runtimeVersion": "dce8162d2ac4cc5171eb56ae1a82bc7d53fcaacf",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.5"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "23",
+      "buildId": "91406e51-27f2-47b9-8700-ef5d094d9693",
+      "runtimeVersion": "68ed18ce8a73495c0720ececddc0aa2d4a4c5422",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019ecb8b-5567-79c4-8854-d6f68e87de28",
+        "group": "c5cc156f-2fd1-4c42-b94f-4f8cebf421d5",
+        "createdAt": "2026-06-15T13:49:26.759Z",
+        "message": "Android production OTA for Sentry-enabled runtime 68ed18ce",
+        "runtimeVersion": "68ed18ce8a73495c0720ececddc0aa2d4a4c5422",
+        "platform": "android",
+        "manifestAppVersion": "1.1.5"
+      }
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "22",
+      "buildId": "c0fef024-69f2-414c-847e-fd0f26240957",
+      "runtimeVersion": "e8fb5e369ca4fa775113ecddcc175aef75d19fa8",
+      "branch": "production",
+      "hasCompatibleOTA": false,
+      "update": null
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "20",
+      "buildId": "1fc2d6b3-b29b-4b4b-af00-a702c1cf04e7",
+      "runtimeVersion": "0b3493714f526a5f1237efcce562d26a63ec33d8",
+      "branch": "production",
+      "hasCompatibleOTA": false,
+      "update": null
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "25",
+      "buildId": "40205f6c-d398-4fcf-b438-b5e0a3f8f50f",
+      "runtimeVersion": "eb3ee7e740b26b3cea091fd6300335d64f5b6bd7",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019eb5aa-4191-7b60-9086-0e21006626a5",
+        "group": "978ebbf5-fcb6-4caa-9c58-5da364247b36",
+        "createdAt": "2026-06-11T07:51:34.545Z",
+        "message": "iOS OTA live candle and bid/ask price-scale highlight for build 24-25 runtime",
+        "runtimeVersion": "eb3ee7e740b26b3cea091fd6300335d64f5b6bd7",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.5"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "23",
+      "buildId": "de72ff78-0417-4e21-b9ce-833171064e58",
+      "runtimeVersion": "f4184b3e04e9e7200364ce9ab4dfd4ec18950364",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019eb59c-de8d-7cca-ab0a-9cfb9285916f",
+        "group": "0cd98777-8bcb-43b5-9b7e-7f0aa47214ba",
+        "createdAt": "2026-06-11T07:36:57.229Z",
+        "message": "iOS OTA live candle and bid/ask price-scale highlight for build 23",
+        "runtimeVersion": "f4184b3e04e9e7200364ce9ab4dfd4ec18950364",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.5"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "22",
+      "buildId": "ff562ad7-8be9-4bb6-b719-f488b31cb7db",
+      "runtimeVersion": "e4742e46c961072f39776c78678b681b8c5d5b78",
+      "branch": "production",
+      "hasCompatibleOTA": false,
+      "update": null
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "19",
+      "buildId": "e0d111e8-2976-4921-8c25-2d4b67c5f997",
+      "runtimeVersion": "7fbdceaf861e84c582a844d56655a3cecd894d77",
+      "branch": "production",
+      "hasCompatibleOTA": false,
+      "update": null
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "21",
+      "buildId": "0198e86f-3aad-4c7e-83fa-690c609da2eb",
+      "runtimeVersion": "c58b2592048c109a6b26a8887df8d434d180777f",
+      "branch": "production",
+      "hasCompatibleOTA": false,
+      "update": null
+    },
+    {
+      "platform": "ANDROID",
+      "nativeVersion": "1.1.5",
+      "buildNumber": "15",
+      "buildId": "5522cdde-cab4-4c29-80ee-e9d6fa95a89b",
+      "runtimeVersion": "ccff25e5d1f67d5fc97c7ae745da029b76f12d89",
+      "branch": "production",
+      "hasCompatibleOTA": false,
+      "update": null
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.3",
+      "buildNumber": "20",
+      "buildId": "c1ff37e9-6ed7-4daf-9689-3631585169b1",
+      "runtimeVersion": "6bb46bd25e90e1df9597b7059be7c15a747b8bd4",
+      "branch": "production",
+      "hasCompatibleOTA": false,
+      "update": null
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.3",
+      "buildNumber": "19",
+      "buildId": "42f0064b-4c2e-4663-a9c4-0661f58bd8c2",
+      "runtimeVersion": "1.1.3",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019eac8a-7c54-7771-a5bd-9f2a4eda5210",
+        "group": "59a698bb-e8e6-4458-b3a1-2ca3fb238ff2",
+        "createdAt": "2026-06-09T13:20:17.492Z",
+        "message": "Production iOS OTA runtime 1.1.3 clean standard",
+        "runtimeVersion": "1.1.3",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.3"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.2",
+      "buildNumber": "17",
+      "buildId": "8121a4ba-6149-4f57-a79e-809af3dd9df3",
+      "runtimeVersion": "1.1.2",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019eabe4-ae8d-7af8-8afc-938ddd9c6ee9",
+        "group": "40f80a25-ae65-45ad-ae20-f1b196d4443d",
+        "createdAt": "2026-06-09T10:19:11.373Z",
+        "message": "Keep iOS 1.1.2 TestFlight on embedded startup fix",
+        "runtimeVersion": "1.1.2",
+        "platform": "ios"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.1.1",
+      "buildNumber": "16",
+      "buildId": "e57d273e-7321-420a-9222-49dd613fb571",
+      "runtimeVersion": "1.1.1",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019eabd1-27e2-74f0-b5b9-a2d4100fb62e",
+        "group": "7b89b06c-c152-4434-a4cb-87a3135cd96d",
+        "createdAt": "2026-06-09T09:57:51.714Z",
+        "message": "Fix iOS second-launch persisted preferences crash",
+        "runtimeVersion": "1.1.1",
+        "platform": "ios",
+        "manifestAppVersion": "1.1.1"
+      }
+    },
+    {
+      "platform": "IOS",
+      "nativeVersion": "1.0.1",
+      "buildNumber": "15",
+      "buildId": "afd518fb-3c53-4135-8bc4-ed3b071d0bfa",
+      "runtimeVersion": "1.0.1",
+      "branch": "production",
+      "hasCompatibleOTA": true,
+      "update": {
+        "id": "019eaba4-9eab-759b-b696-1828c49af9fd",
+        "group": "f0c5e269-cc35-4e24-b803-b538c8ec1391",
+        "createdAt": "2026-06-09T09:09:13.003Z",
+        "message": "Keep iOS 1.0.1 TestFlight on embedded bundle",
+        "runtimeVersion": "1.0.1",
+        "platform": "ios"
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+✔ buy_limit sends a strict numeric payload and a new UUID for each submission (68.6094ms)
+✔ sell_limit sends a strict numeric payload and a new UUID for each submission (0.4916ms)
+✔ buy_stop sends a strict numeric payload and a new UUID for each submission (0.4718ms)
+✔ sell_stop sends a strict numeric payload and a new UUID for each submission (0.593ms)
+✔ buy_stop_limit sends a strict numeric payload and a new UUID for each submission (40.1965ms)
+✔ sell_stop_limit sends a strict numeric payload and a new UUID for each submission (0.8129ms)
+✔ all six labels normalize and unsupported types fail closed (75.2136ms)
+✔ blank, null and zero protection are omitted; positive values are tick-rounded numbers (51.5528ms)
+✔ stop-limit protection is validated against price_limit (20.2701ms)
+✔ GTC omits expiry, GTD uses whole seconds and DAY chooses local end-of-day (60.4809ms)
+✔ invalid account, volume, precision and ambiguous protection aliases cannot reach the wire (1.2314ms)
+✔ submission requires loaded broker precision and stop distance (49.438ms)
+✔ buy_limit: default uses the correct reference side, minimum distance and trading tick (16.7911ms)
+✔ sell_limit: default uses the correct reference side, minimum distance and trading tick (0.5004ms)
+✔ buy_stop: default uses the correct reference side, minimum distance and trading tick (0.287ms)
+✔ sell_stop: default uses the correct reference side, minimum distance and trading tick (0.2728ms)
+✔ buy_stop_limit: default uses the correct reference side, minimum distance and trading tick (0.211ms)
+✔ sell_stop_limit: default uses the correct reference side, minimum distance and trading tick (0.2011ms)
+✔ BUY rules use Ask and SELL rules use Bid even inside a large spread (27.228ms)
+✔ broker stops_level is in points, distinct from trading tick size (13.196ms)
+✔ stop-limit SL/TP use the limit entry rather than the stop trigger or quote (1.7284ms)
+✔ expiration uses local end-of-day and rejects milliseconds, past and fractional timestamps (26.0104ms)
+✔ placed orders render dashed ticket labels with a scoped edit action and disappear after cancellation (7061.5172ms)
+✔ pending chart taps preserve ticket and context; malformed tickets are rejected at the bridge (47.2345ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29339.4752

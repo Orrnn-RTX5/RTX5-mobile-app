@@ -1,6 +1,156 @@
 # RTX5 Production OTA Baseline
 
-> **CURRENT 2026-10-07: PRODUCTION OTA `1.1.50` IS LIVE FOR ANDROID AND IOS.**
+> **CURRENT 2026-11-03: PRODUCTION STORE BUILDS & XPREM OTA `1.1.62` ARE LIVE FOR ANDROID (PLAY STORE `.aab` + INTERNAL `.apk`) AND IOS (APP STORE `.ipa`).**
+>
+> Built, published, and verified at the user's explicit request to ship `1.1.62` production builds for Google Play Store and Apple App Store while preserving locked XPrem OTA runtime compatibility across Android and iOS.
+>
+> **Android Play Store Production Build (`.aab`)**:
+> - Version / Version Code: `1.1.62` / `42` (`--profile production`, distribution `STORE`)
+> - EAS Build ID: `84e7a097-c743-428e-9f98-6c1625ce598b` (**FINISHED** in `658s`)
+> - Build Dashboard: https://expo.dev/accounts/yoforex-organisation/projects/rtx5-app/builds/84e7a097-c743-428e-9f98-6c1625ce598b
+> - Direct `.aab` Download: https://expo.dev/artifacts/eas/acdVe_wGlcAjDVDyMkYf7u1MnU3ODKQKUkP_SkCVYN0.aab
+> - Android Internal `.apk` (same runtime): https://expo.dev/artifacts/eas/y3yY8bhNVsCkIthyDTspnDA1PM_VVNzyoGr_bNXICac.apk (Build `db4a69d2-6388-4a58-88fa-63e6d13879de`)
+> - Locked Android Runtime Version: `797dea98b258410dcbd80a727586f6af607da932`
+>
+> **iOS App Store Production Build (`.ipa`)**:
+> - Version / Build Number: `1.1.62` / `37` (`--profile production`, distribution `STORE`)
+> - EAS Build ID: `7bdd5a75-485f-42c9-9dd1-0e60a6b62f07` (**FINISHED** in `401s`)
+> - Build Dashboard: https://expo.dev/accounts/yoforex-organisation/projects/rtx5-app/builds/7bdd5a75-485f-42c9-9dd1-0e60a6b62f07
+> - Direct `.ipa` Download: https://expo.dev/artifacts/eas/3dWnKszYsSVaMWvDPdai0ZBHZmHRxu8iQ_klQO6xCeQ.ipa
+> - Locked iOS Runtime Version: `44d9c3b64f5b6fd221136b861e597bdbf62da208`
+>
+> **Live XPrem OTA `1.1.62` Release**:
+> - XPrem Endpoint: `https://otadeploy.yopips.com/manifest`
+> - XPrem App ID (`expo-app-id`): `b83d7191-d5ac-4b58-b850-8979759fe290`
+> - XPrem Channel (`expo-channel-name`): `yoforex-rtx5` -> Branch: `rtx5-production`
+> - Publish Group ID: `a20b75f5-2aad-4471-8db8-ecdb5a906d58`
+> - Android Primary OTA (`797dea98b258410dcbd80a727586f6af607da932`): Update ID `17936906941762`, Manifest UUID `df426f2d-061f-49b9-637e-b8abb791aac0`, Created `2026-11-03T07:24:56.871Z`, Launch Asset `f9b27e3ed9b5ab4822ff4fa3b15e928e.hbc` (`HTTP 200` verified).
+> - iOS Primary OTA (`44d9c3b64f5b6fd221136b861e597bdbf62da208`): Update ID `17936907575041`, Manifest UUID `9efc75c6-94c1-b8a1-893d-5e73aab63ed0`, Created `2026-11-03T07:25:58.647Z`, Launch Asset `b434e6b03a0526c985f77b4b688a2436.hbc` (`HTTP 200` verified).
+> - Future OTA Command: Bump `APP_DISPLAY_VERSION` in `rtx5-app/src/config/appDisplayVersion.ts` (and its test), then run `npm run update:xprem -- -m "OTA <version>: <summary>"` from `rtx5-app`. Do not alter `updates.url`, `expo-app-id`, `expo-channel-name`, `fingerprint.config.js`, or native dependencies. [Full publication record and repeatable workflow](../../OTA_UPDATE_INFORMATION.md).
+
+> **PREVIOUS 2026-10-30: PRODUCTION OTA `1.1.57`; SUPERSEDED BY `1.1.62` ABOVE.**
+>
+> Includes the `rtx-s3` pending-order cancel/modify single-identity (`client_order_id` = `Idempotency-Key`), decimal-string wire serialization, 35 s timeout, 202/401/409/503/network retry & reconciliation contract, `orders.{login}` `pending_updated` handling, investor read-only pending action hiding, full Login layout when opening New Order from the guest Quotes symbol ActionSheet, thin (`1px`) chart SL/TP lines, and compact chart SL/TP money delta labels without `USD` text. Retains 1.1.56 bulk actions, orange pending chart lines until confirmed execution, and compact chart controls.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `003c7d91-99d2-492f-9a31-f83c0193bf31`, update `01a18bcf-6eef-75eb-9c16-ae05596d1eab`, created `2026-10-30T07:56:29.807Z`. Served bundle SHA-256 `33cf41a6b29c8851d8db972b92e52508047d417a45840a3050dde5138e842630`. Compatible binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28).
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `0c7303e3-da5d-47af-86d3-1bc6399e0a1d`, update `01a18bd0-4227-762c-b8fc-a032b7385d4a`, created `2026-10-30T07:57:23.879Z`. Served bundle SHA-256 `5e58c5b7d25b1f4a543e63fb86f1470b8c7b570228966e397d421c0b762772c2`. Compatible binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30).
+>
+> 1449 inventoried files; 1446 exact main-source matches; three retained optional-native adaptations. 30 changed / 1 added / 0 removed files versus 1.1.56; native baseline unchanged. All 551 release test files, main changed-feature tests (22 files / 250 tests), both TypeScript checks and production exports passed. EAS, production manifests and CDN hashes match validated exports. Physical-device receipt/visual checks and current store distribution remain unconfirmed. Safety exit 2 contains only reviewed metadata/extra-URL exceptions.
+>
+> Worktree: `.codex-tmp/ota-release-1.1.57-20261030`; evidence: `.codex-tmp/ota-1.1.57-20261030-evidence`; source inventory SHA-256: `f70193c44af52eef3cd71364a75392643158f78e6358e8c4bcc898acdd25f325`. Natural fingerprints: `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Continue only the reviewed compatible baseline; never force legacy runtimes onto raw main. [Full publication record and future flow](../../OTA_UPDATE_INFORMATION.md).
+
+> **PREVIOUS 2026-10-29: PRODUCTION OTA `1.1.56`; SUPERSEDED BY `1.1.57` ABOVE.**
+>
+> Includes pending-order bulk review/deletion, refined Trade pending cards, an empty-Positions Bulk guard, centered back controls, accurate login errors and preservation of existing pending SL/TP. Retains orange pending chart lines until confirmed execution and compact chart controls. Physical Android login reproduction remains unconfirmed.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `782e0e25-3ef4-4491-9e93-723eecdaaac3`, update `01a1873b-2801-72af-baf8-26665d73b1de`, created `2026-10-29T10:36:03.457Z`. Compatible binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28).
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `87251afb-8065-4a4e-aa48-3a8b485302a4`, update `01a1873c-1f75-7279-a080-25f3a4e07d4d`, created `2026-10-29T10:37:06.805Z`. Compatible binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30).
+>
+> 1448 inventoried files; 1445 exact main-source matches; three retained optional-native adaptations. 18 changed / 5 added / 0 removed files versus 1.1.55; native baseline unchanged. All 550 release test files, main changed-feature tests, both TypeScript checks and production exports passed. EAS, production manifests and CDN hashes match validated exports. Physical-device receipt/visual checks and current store distribution remain unconfirmed. Safety exit 2 contains only reviewed metadata/extra-URL exceptions.
+>
+> Worktree: `.codex-tmp/ota-release-1.1.56-20261029`; evidence: `.codex-tmp/ota-1.1.56-20261029-evidence`; source inventory SHA-256: `4dfa8cb5ba9db03aa7aec736a56a059412a38a423dd68867a56b37f21a2de4fc`. Natural fingerprints: `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Continue only the reviewed compatible baseline; never force legacy runtimes onto raw main. [Full publication record and future flow](../../OTA_UPDATE_INFORMATION.md).
+
+> **PREVIOUS 2026-10-28: PRODUCTION OTA `1.1.55` PENDING-ORDER LIFECYCLE CORRECTION IS LIVE FOR ANDROID AND IOS.**
+>
+> Pending orders remain orange until broker-confirmed execution. Filled orders use regular market-position styling and the confirmed ticket/fill price; stale pending updates cannot restore them. Compact inline phone SL/TP controls are retained. Display version remains 1.1.55 at the user's request.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `db89529f-d459-471d-9f66-4d4a66649159`, update `01a1815a-7f46-7377-9dab-8df2b87139d4`, created `2026-10-28T07:12:34.118Z`. Compatible binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28).
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `b87ea0e3-e68f-4ead-a7c8-96255afa9f6f`, update `01a1815b-61a6-785a-834e-f2490b38c9f1`, created `2026-10-28T07:13:32.070Z`. Compatible binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30).
+>
+> 1443 inventoried files; 1440 exact local matches; three retained optional-native adaptations. 3 changed files versus the prior chart update; native baseline unchanged. 548 full release test files, main regressions in 12 files, both TypeScript checks, Chromium checks and production exports passed. Disassembled pending-entry functions use orange. EAS, production manifests and CDN hashes match validated exports. Physical-device checks and current store distribution remain unconfirmed. Safety exit 2 contains only reviewed metadata/extra-URL exceptions.
+>
+> Worktree: `.codex-tmp/ota-release-1.1.55-pending-lifecycle-20261028`; evidence: `.codex-tmp/ota-1.1.55-pending-lifecycle-20261028-evidence`; source inventory SHA-256: `9f43ef46f1e955eae99e59ab9e97eac5159e96a819afa1c8209afe4707f553ec`. Natural fingerprints: `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Continue only the reviewed compatible baseline; never force legacy runtimes onto raw main. [Full publication record and future flow](../../OTA_UPDATE_INFORMATION.md).
+
+> **PREVIOUS 2026-10-28: SAME-VERSION CHART FIX; SUPERSEDED BY THE PENDING-ORDER LIFECYCLE CORRECTION ABOVE.**
+>
+> Compact inline phone SL/TP controls replace the tall two-row panel. Placed pending Buy guides/labels/badges are blue; Sell guides/labels/badges are red. Pending rows stay on exact order prices. Display version remains 1.1.55 at the user's request.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `f0356628-f4c1-4f41-b055-d4ce2d4e74d0`, update `01a18125-8f50-71e4-a457-3b4c81266491`, created `2026-10-28T06:14:44.816Z`. Compatible binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28).
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `82552ea4-7cce-45c3-be76-f678041f2d13`, update `01a18126-7276-731c-897b-00e13bedef97`, created `2026-10-28T06:15:42.966Z`. Compatible binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30).
+>
+> 1443 inventoried files, 1440 exact local matches, three retained optional-native adaptations. 7 changed files versus initial 1.1.55; native baseline unchanged. 548 full release test files, main regressions in 11 files, both TypeScript checks and production exports passed. Real Chromium/minified-renderer layout checks passed; physical-device receipt/visual checks and current store distribution remain unconfirmed. Safety exit 2 matches only reviewed metadata/extra-URL exceptions. Live EAS, production manifests and CDN hashes match validated exports.
+>
+> Worktree: `.codex-tmp/ota-release-1.1.55-chart-fix-20261028`; evidence: `.codex-tmp/ota-1.1.55-chart-fix-20261028-evidence`; source inventory SHA-256: `1cb64a1cec364d1e1db89941759d5fb6e477b7317e09fdf9c3cdd350f250d1ac`. Natural fingerprints: `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Continue only the reviewed compatible baseline; do not publish raw main with forced legacy runtimes. [Full release record and future flow](../../OTA_UPDATE_INFORMATION.md).
+
+> **PREVIOUS 2026-10-27: INITIAL PRODUCTION OTA `1.1.55`; SUPERSEDED BY THE SAME-VERSION CHART FIX ABOVE.**
+>
+> Fresh current-source release: `.codex-tmp/ota-release-1.1.55-20261027`; 1443 inventoried files, 1440 exact local matches and three optional attachment/clipboard fallbacks. Native baseline is byte-identical to 1.1.54. Includes broker-login retention, decimal-price crash/drag/wheel fixes, portable expiration controls, backend Margin Level zero fallback and current application changes.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `988d2a5b-0206-46ba-9f35-c9180eb17d3a`, update `01a17d56-e3d4-7a4e-9ab4-7f24099f5950`, created `2026-10-27T12:30:08.852Z`. Compatible binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28).
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `aba556ee-db26-489b-b03d-222d07fad68e`, update `01a17d57-f972-7881-a3ee-f0cb912de972`, created `2026-10-27T12:31:19.922Z`. Compatible binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30).
+>
+> 548 full release test files and main regressions in 107 files passed; both TypeScript checks and production exports passed. Natural fingerprints remain `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Safety exit 2 matches only reviewed owner/extra-URL changes, not a safety-script pass. Live EAS, production manifests and CDN hashes match validated exports. Physical-device receipt/visual checks and current store distribution remain unconfirmed.
+>
+> [Release identifiers, validation and next-release flow](../../OTA_UPDATE_INFORMATION.md). Evidence: `.codex-tmp/ota-1.1.55-20261027-evidence`; inventory SHA-256 `81e1870e49b49f8810e579256b0292704bbeec82beb307ae2e8a50808fe08714`. Do not publish raw main or blindly force legacy runtimes.
+
+> **PREVIOUS 2026-10-14: PRODUCTION OTA `1.1.54`; SUPERSEDED BY `1.1.55`.**
+>
+> Current local source assembled in fresh worktree `.codex-tmp/ota-release-1.1.54`. 87 changed / 29 added / 0 removed files versus the live 1.1.53 shake publication; 1375 files inventoried, 1372 identical to local. Three optional attachment/clipboard adaptations retained. Includes current chart position controls, calendar, trading/history/UI and OTA prompt/reload changes; native dependencies/configuration/icons unchanged.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `5682837f-6abd-4906-b513-74d6854c6c67`, update `01a13aa1-f394-74a6-8961-7e1d186502cb`, created `2026-10-14T13:37:34.612Z`. Compatible binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28).
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `144526b3-6a4c-4d79-964e-8a3c12371c1e`, update `01a13aa3-1499-7751-9235-72493db42406`, created `2026-10-14T13:38:48.601Z`. Compatible binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30).
+>
+> 503 full release test files and 348 main regression tests in 42 files passed; both TypeScript checks and production exports passed. Nine stale UI test expectations corrected without product changes. Natural fingerprints remain `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`; legacy targets resolved separately. Safety exit 2 matches only the reviewed owner metadata/extra API URL exception. Live EAS, production manifests and CDN hashes match validated exports. Physical-device receipt/visual checks and current store distribution remain unconfirmed.
+>
+> [Current release record and next-release flow](../../OTA_UPDATE_INFORMATION.md). Evidence: `.codex-tmp/ota-1.1.54-evidence`; inventory SHA-256 `8be6703292bb9c9af92ea6faa4a7eb93abd5f618056a33fdad9e689ee4fc2c99`. Historical records follow; do not publish raw main or blindly force legacy runtimes.
+
+
+> **PREVIOUS 2026-10-12: PRODUCTION OTA `1.1.53` SAME-VERSION SHAKE FIX; SUPERSEDED BY 1.1.54.**
+>
+> Current local source assembled in fresh worktree `.codex-tmp/ota-release-1.1.53-shake`. 1 changed / 4 added / 0 removed versus the initial 1.1.53; 1346 files inventoried, three attachment/clipboard adaptations. Shake now uses existing Reanimated native accelerometer support; no dependency or native configuration changed.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `7cff7e10-cd9f-474b-b477-516baa7d0d91`, update `01a12f9b-8272-7270-b234-65ef8d900a54`, created `2026-10-12T10:14:43.058Z`. Compatible binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28).
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `ec8b46f8-72dc-41e0-9e87-5988c7312f1a`, update `01a12f9c-ceeb-7908-a171-a49a0054e582`, created `2026-10-12T10:16:08.171Z`. Compatible binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30).
+>
+> 492 full release test files and 47 main regression tests passed; both TypeScript checks and production exports passed. Natural fingerprints remain `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`; target runtimes resolved separately. Safety exit 2 matches only the reviewed owner metadata/extra API URL exception. Live EAS, manifests and downloaded CDN hashes match validated exports containing the new shake code. Physical-device shake/receipt and current store distribution remain unconfirmed.
+>
+> [Current release record and repeatable flow](../../OTA_UPDATE_INFORMATION.md). Evidence: `.codex-tmp/ota-1.1.53-shake-evidence`; inventory SHA-256 `8b62fe5d091d8e75d2c24ef7816544d17f0a64a4ecf7e1cc835ec7caa74108d9`. Prepared local shake fix is now published. Historical records follow; do not publish raw main or blindly force legacy runtimes.
+
+> **PREVIOUS INITIAL 2026-10-12: PRODUCTION OTA `1.1.53`; SUPERSEDED BY THE SAME-VERSION SHAKE PUBLICATION ABOVE.**
+>
+> Current local source assembled into fresh compatible worktree `.codex-tmp/ota-release-1.1.53` at `2975156c15199c21bb3a4c73af8bd35189aaa2bd` (dirty). 75 changed / 17 added / 0 removed files versus 1.1.52; 1342 inventoried, four optional-native adaptations. Includes price formatting, backend daily change and current mobile UI/session/history/bulk-close fixes.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `2d80c9a8-dd80-415b-a11c-841efbfe74c7`, update `01a12f6b-c8c6-7010-9929-359e1596c143`, created `2026-10-12T09:22:35.334Z`. Compatible EAS binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28), freshly verified.
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `2105f73b-1355-4430-8197-9ba2dd85e59e`, update `01a12f6d-a2b6-7964-b0a6-019f0640c57a`, created `2026-10-12T09:24:36.662Z`. Compatible EAS binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30), freshly verified.
+>
+> 490 full release test files and 372 main changed-feature tests passed; both TypeScript checks and production exports passed. Natural fingerprints remain `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Safety exit 2 flags only the reviewed owner metadata/extra API URLs. Live EAS, production manifests and CDN bundles match the new IDs and validated local export hashes. Physical-device receipt and current store distribution remain unconfirmed.
+>
+> [Current release record and next-release procedure](../../OTA_UPDATE_INFORMATION.md). Evidence: `.codex-tmp/ota-1.1.53-evidence`; inventory SHA-256 `3044de621969edd7d3ea19519483cbf432e2a586c75ac8825d7675c32f7d40d2`. Historical records follow; do not publish raw main or blindly force legacy runtimes.
+
+> **PREVIOUS 2026-10-08: PRODUCTION OTA `1.1.52`; SUPERSEDED BY `1.1.53`.**
+>
+> Current local source assembled into fresh compatible worktree `.codex-tmp/ota-release-1.1.52` at `2975156c15199c21bb3a4c73af8bd35189aaa2bd` (dirty). 10 changed / 2 added / 0 removed files versus 1.1.51; 1325 inventoried, four optional-native adaptations. Includes executable quote readiness, enabled-instrument trading-mode handling and chart feedback ownership fixes.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `034732a7-34d1-43f3-8a8e-a6a69fb01780`, update `01a11b12-9564-7b02-8396-429a96d54d4c`, created `2026-10-08T10:32:45.156Z`. Compatible EAS binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28), freshly verified.
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `653f2e41-38f0-4c92-b0e6-9ada6be1f279`, update `01a11b13-cd3f-70e9-9ef6-b4d54239bb9d`, created `2026-10-08T10:34:04.991Z`. Compatible EAS binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30), freshly verified.
+>
+> 480 full release test files passed; 19 main changed-feature tests passed; both TypeScript checks and production exports passed. Natural fingerprints remain `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Safety exit 2 flags only the same reviewed owner metadata/extra API URLs. Live EAS, production manifests and CDN bundles match the new IDs and validated local export hashes. Physical devices and current store distribution remain unconfirmed.
+>
+> [Current release record and next-release procedure](../../OTA_UPDATE_INFORMATION.md). Evidence: `.codex-tmp/ota-1.1.52-evidence`; inventory SHA-256 `7cc8be5708262c0649a3ae4aa80a45ab3ce84ba4ed0159c5410b4178f593c56d`. Historical records follow. Do not publish raw main or blindly force legacy runtimes.
+
+> **PREVIOUS 2026-10-07: PRODUCTION OTA `1.1.51`; SUPERSEDED BY `1.1.52`.**
+>
+> Current local application/source/tests/scripts/OTA assets assembled in fresh worktree `.codex-tmp/ota-release-1.1.51` at `2975156c15199c21bb3a4c73af8bd35189aaa2bd` (dirty). 54 changed / 17 added / 0 removed files versus `1.1.50`; 1323 inventoried, 1319 identical to local, four recorded native fallbacks. Includes broker-selection session preservation, demo investor-password/country-search fixes, app-wide performance improvements, and the existing guest/trading/chart/UI behavior. Native-only features require new binaries.
+>
+> Android: runtime `30cba83220fc6c92180eed477863c3e3e3087ce6`, group `1461001e-6d46-43bd-a345-173b9db3c988`, update `01a11685-17c0-7b0a-90cb-c424d815bd93`, created `2026-10-07T13:19:43.552Z`. Compatible EAS binary `cfe3b101-ab15-4e18-854b-ef808e96d708` (1.1.11/vc28), freshly verified.
+>
+> iOS: runtime `ef38da275b765380037fc377f5c596de31690b7d`, group `b9d8aadf-13b2-429a-a523-ea38c098b8f3`, update `01a11686-5374-7e91-a414-a31c1e7f9019`, created `2026-10-07T13:21:04.372Z`. Compatible EAS binary `1b1bd2e3-da6c-4c8b-94c2-285b0329dce2` (1.1.10/build30), freshly verified.
+>
+> 479 release test files passed; main 479-file performance regression and focused new-version test passed; both TypeScript checks passed; production environment and both exports passed. Natural fingerprints remain `1e1ad87a1fafdfca676015eb142abdfb0188d811` / `5d2be9c332fb6660513531f40f6ffff3254d8048`. Broad safety check returned exit 2 for only the same reviewed owner metadata/extra API URLs. Production manifests and downloaded CDN bundles match the new IDs, version, local exports and SHA-256 hashes. Physical-device receipt/visual checks and current store distribution remain unconfirmed; no Android device was connected.
+>
+> [Current release scope, identifiers, source parity and next-release procedure](../../OTA_UPDATE_INFORMATION.md). Evidence: `.codex-tmp/ota-1.1.51-evidence`; inventory SHA-256 `137f92075a176f0e0eee2ebac8f8b4296aed9e5c82e712e776b6df9b93c39731`. Records below are historical. Do not publish raw main or blindly force legacy runtimes.
+
+
+> **PREVIOUS 2026-10-07: PRODUCTION OTA `1.1.50` WAS LIVE FOR ANDROID AND IOS; SUPERSEDED BY 1.1.51.**
 >
 > Current local application/source/tests/scripts/OTA assets assembled in fresh worktree `.codex-tmp/ota-release-1.1.50` at `2975156c15199c21bb3a4c73af8bd35189aaa2bd` (dirty). 212 changed / 125 added / 0 removed files versus `1.1.49`; 1306 inventoried, 1302 identical to local, four recorded native fallbacks. Includes guest/login/demo flow, broker/public market/session restoration, charts and interaction/UI changes. Native-only features require new binaries.
 >
@@ -54,58 +204,50 @@
 > state, the installed binary source commit, and both resolved runtimes before
 > an OTA.
 
-Historical sections last verified: `2026-08-22` (Asia/Calcutta); current release verified `2026-10-02`.
+Historical sections last verified: `2026-08-22` (Asia/Calcutta); historical release record verified `2026-10-02`. The current release verification is recorded at the top of this file.
 
-## Authoritative Project Location
+## Authoritative Project Location & Locked XPrem Configuration (`1.1.62+`)
 
 - Repository: `YoForex005/RTX-5Mobile-App`
 - Production app working directory: `rtx5-app`
 - Effective Expo config: `rtx5-app/app.config.js`
 - Base Expo config loaded by it: `rtx5-app/app.json`
+- Fingerprint lock config: `rtx5-app/fingerprint.config.js`
 - EAS profiles: `rtx5-app/eas.json`
-- Expo owner/project: `yoforex-organisation/rtx5-app`
-- EAS project ID: `092a58db-dea9-469a-a383-f27300598812`
-- Update URL: `https://u.expo.dev/092a58db-dea9-469a-a383-f27300598812`
-- Runtime policy: `fingerprint`
-- EAS channel and branch: `production`
-- EAS environment: `production`
-- GitHub production workflow: `.github/workflows/eas-update.yml`
-- Required GitHub workflow branch for production: `release`
+- XPrem OTA publisher script: `rtx5-app/scripts/xprem-update.js` (`npm run update:xprem`)
+- Expo owner/project (for EAS native store builds): `yoforex-organisation/rtx5-app` (`092a58db-dea9-469a-a383-f27300598812`)
+- **XPrem Update Manifest URL**: `https://otadeploy.yopips.com/manifest`
+- **XPrem Upload URL**: `https://otadeploy.yopips.com/upload`
+- **XPrem App ID (`expo-app-id`)**: `b83d7191-d5ac-4b58-b850-8979759fe290`
+- **XPrem Channel (`expo-channel-name`)**: `yoforex-rtx5`
+- **XPrem Branch**: `rtx5-production`
+- **Runtime policy**: `fingerprint` (normalized via `rtx5-app/fingerprint.config.js`)
 
 The repository-root `app.json` and `eas.json` are not the RTX5 production app
-authority. Always change directory to `rtx5-app` before running Expo or EAS
-commands.
+authority. Always change directory to `rtx5-app` before running Expo, EAS, or
+XPrem commands.
 
-The GitHub OTA workflow is manual (`workflow_dispatch`). A normal Git push does
-not publish an OTA. As of this verification, the Git remote contained only
-`main`; do not create `release` from current `main` merely to make the workflow
-run.
+## Next OTA: Reused Locked Values Versus New Values
 
-## Next OTA: Reused Values Versus New Values
+Keep all XPrem OTA connection and runtime parameters strictly constant:
+- Manifest endpoint: `https://otadeploy.yopips.com/manifest`
+- Header `expo-app-id`: `b83d7191-d5ac-4b58-b850-8979759fe290`
+- Header `expo-channel-name`: `yoforex-rtx5`
+- XPrem target branch: `rtx5-production`
 
-Reuse the production destination only after live verification: Expo project
-`yoforex-organisation/rtx5-app`, EAS project ID
-`092a58db-dea9-469a-a383-f27300598812`, channel/branch `production`, EAS
-environment `production`, and the project update URL shown above.
-
-The last verified runtime targets are conditional compatibility values:
-
-| Platform | Runtime used by production OTA `1.1.42` |
+| Platform | Locked Runtime Version (`1.1.62` Store & Internal Binaries) |
 | --- | --- |
-| Android | `30cba83220fc6c92180eed477863c3e3e3087ce6` |
-| iOS | `ef38da275b765380037fc377f5c596de31690b7d` |
+| Android (`.aab` `84e7a097-c743-428e-9f98-6c1625ce598b` & `.apk` `db4a69d2-6388-4a58-88fa-63e6d13879de`) | `797dea98b258410dcbd80a727586f6af607da932` |
+| iOS (`.ipa` `7bdd5a75-485f-42c9-9dd1-0e60a6b62f07`) | `44d9c3b64f5b6fd221136b861e597bdbf62da208` |
 
-Reuse a runtime only when the intended installed/store binary uses that exact
-runtime and the exact release source passes all safety and compatibility checks.
-If it does not match, stop; do not force it merely to complete a publish.
+When publishing the next OTA update:
+1. Bump `APP_DISPLAY_VERSION` in `rtx5-app/src/config/appDisplayVersion.ts` and `rtx5-app/src/config/appDisplayVersion.test.ts`.
+2. Run `npm run update:xprem -- -m "OTA <version>: <description>"` inside `rtx5-app`.
+3. Record the newly generated XPrem `publishGroupId`, `updateId`, `manifestId`, and timestamp in `OTA_UPDATE_INFORMATION.md` and this file.
 
-Update groups, update IDs, timestamps, manifests, and dashboard URLs are EAS
-generated identifiers. The `1.1.41` values below are historical records and
-cannot be reused for the next OTA. Every later Android and iOS publish receives
-new identifiers. The version, message, release source/status, safety base, and
-target binary must also be freshly determined and recorded.
+---
 
-## Current Compatibility Decision
+### Historical Compatibility Decision (`1.1.42` — Archived)
 
 | Item | Android | iOS |
 | --- | --- | --- |

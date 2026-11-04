@@ -1,0 +1,23 @@
+{
+  "bundleIdentifier": "com.yoforex.expogo",
+  "name": "My Expo Go",
+  "version": "54.0.0",
+  "build": "1792993037",
+  "profiles": [
+    {
+      "name": "ExpoGo54-Connected-iPhone-402E-Extension",
+      "deviceIncluded": true,
+      "deviceCount": 1,
+      "expiration": "2027-05-18T07:21:14",
+      "applicationIdentifier": "FGVWUQA882.com.yoforex.expogo.ExpoNotificationServiceExtension"
+    },
+    {
+      "name": "ExpoGo54-Connected-iPhone-402E-Main",
+      "deviceIncluded": true,
+      "deviceCount": 1,
+      "expiration": "2027-05-18T07:21:14",
+      "applicationIdentifier": "FGVWUQA882.com.yoforex.expogo"
+    }
+  ],
+  "installedOnPhone": false
+}

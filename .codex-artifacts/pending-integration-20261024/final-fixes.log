@@ -1,0 +1,45 @@
+✔ Gateway contract: buy_limit place/list/modify/clear/expiry/cancel/history on account 200019 (2435.152ms)
+✔ Gateway contract: sell_limit place/list/modify/clear/expiry/cancel/history on account 200019 (2126.4728ms)
+✔ Gateway contract: buy_stop place/list/modify/clear/expiry/cancel/history on account 200019 (1309.1448ms)
+✔ Gateway contract: sell_stop place/list/modify/clear/expiry/cancel/history on account 200019 (851.0145ms)
+✔ Gateway contract: buy_stop_limit place/list/modify/clear/expiry/cancel/history on account 200019 (706.8678ms)
+✔ Gateway contract: sell_stop_limit place/list/modify/clear/expiry/cancel/history on account 200019 (1242.9783ms)
+✔ Gateway contract: buy_limit place/list/modify/clear/expiry/cancel/history on account 200020 (1183.9342ms)
+✔ Gateway contract: sell_limit place/list/modify/clear/expiry/cancel/history on account 200020 (702.0328ms)
+✔ Gateway contract: buy_stop place/list/modify/clear/expiry/cancel/history on account 200020 (694.9061ms)
+✔ Gateway contract: sell_stop place/list/modify/clear/expiry/cancel/history on account 200020 (481.0169ms)
+✔ Gateway contract: buy_stop_limit place/list/modify/clear/expiry/cancel/history on account 200020 (330.2214ms)
+✔ Gateway contract: sell_stop_limit place/list/modify/clear/expiry/cancel/history on account 200020 (523.0324ms)
+✔ old account payload and delayed GET cannot change the newly active account (545.2874ms)
+✔ unknown pending-create outcome starts reconciliation and never automatically repeats POST (700.2645ms)
+✔ a late REST snapshot and stale placed event cannot resurrect a filled/cancelled order (519.5258ms)
+✔ acknowledged modify and cancel remain successful if the reconciliation GET is offline (835.7098ms)
+✔ every direct SL/TP mutation helper fails before transport (40.9281ms)
+✔ one-click immediate trades check protection before dispatch (89.8136ms)
+✔ capability failures use a stable error code and broker-specific message (37.3231ms)
+✔ pending protection gates explicit null clears as mutations (1.1723ms)
+✔ market protection preserves only the documented legacy zero-as-unset rule (32.5032ms)
+✔ submission requires loaded broker precision and stop distance (39.8424ms)
+✔ buy_limit: default uses the correct reference side, minimum distance and trading tick (16.9202ms)
+✔ sell_limit: default uses the correct reference side, minimum distance and trading tick (0.2904ms)
+✔ buy_stop: default uses the correct reference side, minimum distance and trading tick (2.115ms)
+✔ sell_stop: default uses the correct reference side, minimum distance and trading tick (29.4769ms)
+✔ buy_stop_limit: default uses the correct reference side, minimum distance and trading tick (0.3139ms)
+✔ sell_stop_limit: default uses the correct reference side, minimum distance and trading tick (0.3427ms)
+✔ BUY rules use Ask and SELL rules use Bid even inside a large spread (20.4851ms)
+✔ broker stops_level is in points, distinct from trading tick size (1.867ms)
+✔ stop-limit SL/TP use the limit entry rather than the stop trigger or quote (17.3305ms)
+✔ expiration uses local end-of-day and rejects milliseconds, past and fractional timestamps (68.7691ms)
+✔ native chart draft defaults require healthy Bid/Ask and broker minimum distance (87.3018ms)
+✔ native chart pending-order submission rechecks the active session quote and health (0.6985ms)
+✔ native chart pending-order completions are bound to the captured broker epoch (2.228ms)
+✔ placed orders render dashed ticket labels with a scoped edit action and disappear after cancellation (4695.248ms)
+✔ pending chart taps preserve ticket and context; malformed tickets are rejected at the bridge (12.9708ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 39295.5607
