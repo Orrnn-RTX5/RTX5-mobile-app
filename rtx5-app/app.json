@@ -1,0 +1,138 @@
+{
+  "expo": {
+    "name": "RTX5",
+    "slug": "rtx5-app",
+    "version": "1.1.62",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "orientation": "default",
+    "icon": "./assets/adaptive-icon.png",
+    "backgroundColor": "#0a0c10",
+    "splash": {
+      "image": "./assets/adaptive-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0c10"
+    },
+    "userInterfaceStyle": "automatic",
+    "scheme": "rtx5",
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://otadeploy.yopips.com/manifest",
+      "requestHeaders": {
+        "expo-channel-name": "yoforex-rtx5",
+        "expo-app-id": "b83d7191-d5ac-4b58-b850-8979759fe290",
+        "xprem-branch": ""
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.rtx5.trading",
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch"
+        ]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.rtx5.app",
+      "backgroundColor": "#0a0c10",
+      "icon": "./assets/android-icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-adaptive-foreground.png",
+        "backgroundColor": "#0a0c10"
+      },
+      "splash": {
+        "image": "./assets/adaptive-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0a0c10"
+      },
+      "softwareKeyboardLayoutMode": "resize",
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "INTERNET"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/adaptive-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0a0c10"
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow RTX5 to select screenshots you want to attach to a bug report.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow RTX5 to detect a phone shake to open Report a Bug."
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf",
+            "./node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf"
+          ]
+        }
+      ],
+      [
+        "expo-updates",
+        {
+          "username": "yoforex"
+        }
+      ],
+      "./withAdiRegistration.js",
+      "./withNetworkSecurityConfig.js",
+      "./withAndroidLauncherIcons.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "rtx5",
+          "organization": "yoforex-ts"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "sentryDsn": "https://3dab2efca640377d8759f471e3452523@o4511568602464256.ingest.us.sentry.io/4511568799531008",
+      "eas": {
+        "projectId": "092a58db-dea9-469a-a383-f27300598812"
+      }
+    },
+    "owner": "yoforex-organisation"
+  }
+}

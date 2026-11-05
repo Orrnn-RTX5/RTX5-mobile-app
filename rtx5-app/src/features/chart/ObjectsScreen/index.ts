@@ -1,0 +1,1 @@
+export { ObjectsScreen } from './ObjectsScreen';

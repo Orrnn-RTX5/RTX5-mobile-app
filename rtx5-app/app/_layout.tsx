@@ -1,0 +1,569 @@
+import 'react-native-gesture-handler';
+import '../src/utils/installRuntimeConsole';
+import 'react-native-reanimated';
+import { wrapWithSentry } from '../src/services/sentry';
+import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { memo, useEffect, useRef, useState } from 'react';
+import { AppState, View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { enableFreeze } from 'react-native-screens';
+import { AppProviders } from '../src/state/providers/AppProviders';
+import { ErrorBoundary } from '../src/ui/components/ErrorBoundary';
+import { X5StartupSplash } from '../src/components/X5StartupSplash';
+import { FastPressable } from '../src/ui/components/FastPressable';
+import { SidebarDrawer } from '../src/ui/components/SidebarDrawer';
+import { useUserPreferences } from '../src/state/userPreferences';
+import {
+  ThemeModeRenderPriorityContext,
+  useIsDarkTheme,
+  useThemeMode,
+} from '../src/state/themeMode';
+import { GDark, GLight } from '../src/ui/theme/glass';
+import { useTranslation } from '../src/i18n/useTranslation';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { safeRouterBack } from '../src/utils/navigation';
+import { SidebarDestinationHost } from '../src/ui/components/SidebarDestinationHost';
+import { RetainedRoutePrewarmProvider } from '../src/ui/components/RetainedRoutePrewarm';
+import { BrokersLaunchHost } from '../src/features/settings/BrokersLaunchHost';
+import { BrokerDetailLaunchHost } from '../src/features/settings/BrokerDetailLaunchHost';
+import { RegisterLaunchHost } from '../src/features/settings/RegisterLaunchHost';
+import { ChartConfigDestinationHost } from '../src/features/chart/ChartConfigDestinationHost';
+import { ChartSettingsHost } from '../src/features/chart/ChartSettingsHost';
+import { AboutDetailDestinationHost } from '../src/features/settings/AboutDetailDestinationHost';
+import { ShakeToReportBugHost } from '../src/features/settings/shakeToReport/ShakeToReportBugHost';
+import { QuoteInfoLaunchHost } from '../src/features/quotes/QuoteInfoLaunchHost';
+import { HistoryFilterHost } from '../src/features/history/HistoryFilterHost';
+import { TradePositionActionHost } from '../src/features/trade/TradePositionActionHost';
+import { GuestFlowHost } from '../src/features/auth/GuestFlowHost';
+import { ChartActionLaunchHost } from '../src/features/chart/ChartActionLaunchHost';
+import { BlownAccountJournalNavigator } from '../src/features/settings/JournalScreen/BlownAccountJournalNavigator';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
+
+// Immediately hide any static OS / Expo Go white splash overlay as soon as the
+// root module evaluates so our dark animated X5StartupSplash takes over immediately.
+void SplashScreen.hideAsync().catch(() => undefined);
+
+enableFreeze(true);
+
+/**
+ * Renders the animated X5 startup splash screen while initial preference
+ * hydration, secure broker session restore, and icon fonts are loading.
+ * Hides the static OS boot splash as soon as X5StartupSplash lays out on
+ * screen so the user sees a seamless transition to the pulsing X5 logo.
+ */
+function StartupLogoScreen() {
+  const themeMode = useThemeMode();
+  useEffect(() => {
+    void SplashScreen.hideAsync().catch(() => undefined);
+    return scheduleAfterVisualFrame(() => {
+      void SplashScreen.hideAsync();
+    });
+  }, []);
+  return (
+    <X5StartupSplash
+      theme={themeMode}
+      onLayout={() => {
+        void SplashScreen.hideAsync().catch(() => undefined);
+      }}
+    />
+  );
+}
+
+function AppStatusBar() {
+  const isDark = useIsDarkTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
+
+/**
+ * Theme-bound navigator shell only. Retained hosts stay as siblings of this
+ * component so a theme tap does not reconcile every pre-mounted destination.
+ */
+function ThemedNavigatorShell() {
+  // Keep the root navigator, screen surface, and bottom menu on one visual
+  // clock. Persistence is already deferred by the preference storage adapter,
+  // so delaying the visible navigation theme only creates a light/dark flash.
+  const navigationThemeMode = useThemeMode();
+  const isDark = navigationThemeMode === 'dark';
+  const T = navigationThemeMode === 'light' ? GLight : GDark;
+  const { t } = useTranslation();
+  const router = useRouter();
+  const baseNavigationTheme = isDark ? DarkTheme : DefaultTheme;
+  const navigationTheme = {
+    ...baseNavigationTheme,
+    colors: {
+      ...baseNavigationTheme.colors,
+      background: T.bg,
+      card: T.bg,
+    },
+  };
+  const chartPageScreenOptions = {
+    headerShown: false,
+    animation: 'none',
+    presentation: 'containedTransparentModal',
+    freezeOnBlur: false,
+    contentStyle: { backgroundColor: T.bg },
+  } as const;
+  const historyFilterScreenOptions = {
+    headerShown: false,
+    animation: 'none',
+    // Keep the History tab attached behind this opaque route. Without a
+    // retained previous screen, an animation-free Android pop can expose the
+    // Activity and navigator backgrounds before the tab is reattached.
+    presentation: 'containedTransparentModal',
+    gestureEnabled: false,
+    contentStyle: { backgroundColor: T.bg },
+  } as const;
+  const sidebarDetailScreenOptions = {
+    headerShown: false,
+    animation: 'none',
+    presentation: 'containedTransparentModal',
+  } as const;
+  const sidebarHeaderScreenOptions = {
+    animation: 'none',
+    presentation: 'containedTransparentModal',
+  } as const;
+  const brokerFlowBackground = T.bg;
+  const brokerFlowScreenOptions = {
+    headerShown: false,
+    animation: 'none',
+    presentation: 'containedTransparentModal',
+    freezeOnBlur: false,
+    contentStyle: { backgroundColor: brokerFlowBackground },
+  } as const;
+  const registerScreenOptions = {
+    headerShown: false,
+    animation: 'none',
+    presentation: 'containedTransparentModal',
+    gestureEnabled: false,
+    freezeOnBlur: false,
+    contentStyle: { backgroundColor: brokerFlowBackground },
+  } as const;
+
+  return (
+      <ThemeProvider value={navigationTheme}>
+        <Stack
+          screenOptions={{
+            animation: 'none',
+            presentation: 'containedTransparentModal',
+            gestureDirection: 'horizontal',
+            freezeOnBlur: false,
+            headerStyle: { backgroundColor: T.bg },
+            headerTintColor: T.text,
+            contentStyle: { backgroundColor: T.bg },
+            headerTitleStyle: { fontSize: 17, fontWeight: '500' },
+            headerTitleAlign: 'center',
+            headerLeft: () => {
+              const action = () => safeRouterBack(router, '/');
+              return (
+                <View style={{ width: 58, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: 12 }}>
+                  <FastPressable
+                    onPress={action}
+                    activateOnPressIn
+                    latencyLabel="stack.back"
+                    hitSlop={15}
+                    style={{ padding: 4 }}
+                  >
+                    <Ionicons name="arrow-back" size={24} color={T.text} />
+                  </FastPressable>
+                </View>
+              );
+            },
+          }}
+        >
+          <Stack.Screen name='index' options={{ headerShown: false }} />
+          <Stack.Screen name='(tabs)' options={{ headerShown: false, freezeOnBlur: false }} />
+          <Stack.Screen name='quotes/details' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='quotes/market-statistics' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='trade/order-ticket' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='trade/pending-order' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='trade/one-click-terms' options={{ title: t('One Click Trading') }} />
+          <Stack.Screen name='trade/close-position' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='trade/close-by' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='trade/modify-position' options={{ headerShown: false, animation: 'none' }} />
+          <Stack.Screen name='trade/bulk' options={historyFilterScreenOptions} />
+          <Stack.Screen name='trade/pending-bulk' options={historyFilterScreenOptions} />
+          <Stack.Screen name='login' options={brokerFlowScreenOptions} />
+          <Stack.Screen name='register-entry' options={registerScreenOptions} />
+          <Stack.Screen name='register' options={registerScreenOptions} />
+          <Stack.Screen name='chart/objects' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/settings' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/preferences' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/schema-colors' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/colors' options={{ title: t('Colors') }} />
+          <Stack.Screen name='chart/price-source' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/open-order-mode' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/calculator' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/analytics' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/indicators' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/indicator-config' options={{ headerShown: false }} />
+          <Stack.Screen name='chart/indicator-line-style' options={{ headerShown: false }} />
+          <Stack.Screen name='chart/indicator-level' options={{ headerShown: false }} />
+          <Stack.Screen name='chart/specification' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/alerts' options={chartPageScreenOptions} />
+          <Stack.Screen name='chart/menu-order' options={chartPageScreenOptions} />
+          <Stack.Screen name='history/filter' options={historyFilterScreenOptions} />
+          <Stack.Screen name='settings/accounts' options={{ title: t('Accounts'), ...sidebarHeaderScreenOptions }} />
+          <Stack.Screen name='settings/brokers' options={brokerFlowScreenOptions} />
+          <Stack.Screen name='settings/broker-detail' options={brokerFlowScreenOptions} />
+          <Stack.Screen name='settings/charts' options={{ title: t('Chart Schema & Colors') }} />
+          <Stack.Screen name='settings/economic-calendar' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/interface' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/journal' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/user-guide' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/help' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/legal' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/account-deletion' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/contact-developer' options={sidebarDetailScreenOptions} />
+          <Stack.Screen name='settings/about' options={sidebarDetailScreenOptions} />
+        </Stack>
+      </ThemeProvider>
+  );
+}
+
+const InnerLayout = memo(function InnerLayout() {
+  // No theme subscription here — retained hosts must not re-render on every
+  // light/dark press just because the navigator shell did.
+  return (
+    <>
+      <AppStatusBar />
+      <BlownAccountJournalNavigator />
+      <ThemedNavigatorShell />
+      <ThemeModeRenderPriorityContext.Provider value="retained">
+        <RetainedRoutePrewarmProvider>
+        {/* Root-level retained handoffs cover every native broker-flow route. */}
+        <SidebarDestinationHost />
+        {/* About row details (Privacy / Contact / Deletion) — above About host. */}
+        <AboutDetailDestinationHost />
+        <BrokersLaunchHost />
+        {/* Properties / Market Statistics — root-level so open/back covers the stack. */}
+        <QuoteInfoLaunchHost />
+        {/* History clock filter — retained host like Chart options. */}
+        <HistoryFilterHost />
+        {/* Close / Close By / Modify — retained host (no stack push on open/back). */}
+        <TradePositionActionHost />
+        <ChartActionLaunchHost />
+        {/* Chart Preferences + nested config rows (sidebar-style instant open/back). */}
+        <ChartSettingsHost />
+        <ChartConfigDestinationHost />
+        </RetainedRoutePrewarmProvider>
+      </ThemeModeRenderPriorityContext.Provider>
+      <SidebarDrawer />
+      <ShakeToReportBugHost />
+      <GuestFlowHost />
+    </>
+  );
+});
+
+import { brokerRealtimeService } from '../src/api/ws/BrokerRealtimeService';
+import { brokerApi } from '../src/api/brokerApi';
+import { accountWsService } from '../src/api/ws/accountSocket';
+import { wsService } from '../src/api/ws/socket';
+import { candlesWsService } from '../src/domain/candles/ws/candlesSocket';
+import { useLiveAccountState } from '../src/state/liveAccountState';
+import { usePositionsState } from '../src/state/positionsState';
+import { flushTerminalJournalStorage } from '../src/state/terminalJournalState';
+import { useOtaUpdateOnLaunch } from '../src/utils/otaUpdates';
+import { hydratePersistedCandleCache } from '../src/domain/candles/state/persistedCandleCache';
+import { useDataAnalyzer } from '../src/features/chart/DataAnalyzer';
+import { OtaUpdateModal } from '../src/ui/components/OtaUpdateModal';
+import { scheduleAfterFirstFrame, scheduleIdleWork } from '../src/utils/startupScheduler';
+import { scheduleAfterVisualFrame } from '../src/utils/afterVisualFrame';
+import { bootstrapApp } from '../src/services/bootstrapApp';
+import { prefetchBrokerServers } from '../src/query/broker';
+import { installGlobalStartupErrorHandlers, logStartupDiagnostic } from '../src/utils/startupDiagnostics';
+import { restoreBrokerSession } from '../src/services/brokerSessionCoordinator';
+import { createForegroundSessionRecovery } from '../src/services/foregroundSessionRecovery';
+import {
+  captureActiveBrokerSession,
+  getActiveBrokerSessionIdentity,
+  getActiveBrokerSessionProvenance,
+  isActiveBrokerSessionCurrent,
+  subscribeActiveBrokerSession,
+} from '../src/state/activeBrokerSession';
+import { redactDiagnosticValue } from '../src/utils/securityRedaction';
+
+installGlobalStartupErrorHandlers();
+
+let initialSessionRestoreDone = false;
+
+function RootLayout() {
+  const otaUpdatePrompt = useOtaUpdateOnLaunch();
+  useDataAnalyzer();
+
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+    ...MaterialIcons.font,
+  });
+  // Treat a font-load *failure* as "ready" so we proceed with system-fallback
+  // glyphs instead of hanging on the splash forever. useFonts leaves
+  // fontsLoaded=false permanently if loadAsync rejects, and SplashScreen.hideAsync
+  // is gated on it below — without this the native splash would never hide.
+  const fontsReady = fontsLoaded || !!fontError;
+
+  const hasHydrated = useUserPreferences((s) => s.hasHydrated);
+  const isLoggedIn = useUserPreferences((s) => s.isLoggedIn);
+  const accountLogin = useUserPreferences((s) => s.accountDetails?.id);
+  const [sessionRestoreComplete, setSessionRestoreComplete] = useState(() => initialSessionRestoreDone);
+  const sessionRestoreStartedRef = useRef(initialSessionRestoreDone);
+
+  // Immediately dismiss the static OS / Expo Go launch screen once React Native
+  // mounts so the animated X5StartupSplash screen is shown instead of a white screen.
+  useEffect(() => {
+    void SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    // This anonymous directory is needed by both restore validation and the
+    // first broker picker. Share its request while secure storage/fonts load.
+    void prefetchBrokerServers().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active') void flushTerminalJournalStorage();
+    });
+    return () => { subscription.remove(); void flushTerminalJournalStorage(); };
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || sessionRestoreStartedRef.current) {
+      return;
+    }
+    sessionRestoreStartedRef.current = true;
+    let cancelled = false;
+    logStartupDiagnostic('auth.atomicRestore.started', {});
+    void restoreBrokerSession()
+      .then((result) => {
+        logStartupDiagnostic('auth.atomicRestore.completed', { status: result.status });
+      })
+      .catch((error) => {
+        // The coordinator advances the epoch and clears runtime state before a
+        // restore can fail. Keep startup fail-closed and show the login shell.
+        useUserPreferences.getState().logout();
+        console.error(
+          '[Session] Secure broker session restore failed',
+          redactDiagnosticValue(error),
+        );
+      })
+      .finally(() => {
+        initialSessionRestoreDone = true;
+        if (!cancelled) {
+          setSessionRestoreComplete(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydrated]);
+
+  useEffect(() => {
+    logStartupDiagnostic('root.mounted', {
+      hasHydrated,
+      fontsReady,
+      isLoggedIn,
+      hasAccountDetails: Boolean(accountLogin),
+      route: 'RootLayout',
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated || !sessionRestoreComplete) {
+      logStartupDiagnostic('storage.restore.waiting', { store: 'userPreferences' });
+      return;
+    }
+    const { chartSymbol, chartTimeframe } = useUserPreferences.getState();
+    logStartupDiagnostic('storage.restore.completed', {
+      store: 'userPreferences',
+      isLoggedIn,
+      hasAccountDetails: Boolean(accountLogin),
+      chartSymbol,
+      chartTimeframe,
+    });
+    let cancelled = false;
+
+    // Restore cached chart history immediately after session restore so the
+    // first Chart visit can paint without waiting for idle (was 1.5s+).
+    const cancelCacheHydration = scheduleAfterFirstFrame(() => {
+      if (!cancelled) {
+        logStartupDiagnostic('trading.candleCache.restore.started', {
+          chartSymbol,
+          chartTimeframe,
+        });
+        void hydratePersistedCandleCache(chartSymbol, chartTimeframe);
+      }
+    });
+    return () => {
+      cancelled = true;
+      cancelCacheHydration();
+    };
+  }, [hasHydrated, sessionRestoreComplete]);
+
+  useEffect(() => {
+    if (!sessionRestoreComplete || !isLoggedIn) return;
+
+    const recovery = createForegroundSessionRecovery({
+      captureIdentity: () => {
+        const capture = captureActiveBrokerSession();
+        return capture ? getActiveBrokerSessionIdentity(capture.session) : undefined;
+      },
+      isCurrent: (identity) => isActiveBrokerSessionCurrent(identity),
+      isForeground: () => AppState.currentState === 'active',
+      validate: () => brokerApi.getValidAccessToken(false),
+      resume: () => {
+        brokerRealtimeService.resume();
+        accountWsService.resume();
+        candlesWsService.resume();
+        wsService.resume();
+      },
+      refresh: (identity) => bootstrapApp({ accountLogin: identity.accountLogin }),
+      onError: (error) => {
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.log('[Lifecycle] Broker session recovery will retry:', redactDiagnosticValue(error));
+        }
+      },
+    });
+
+    const suspendSocketDemand = () => {
+      recovery.suspend();
+      brokerRealtimeService.suspend();
+      accountWsService.suspend();
+      candlesWsService.suspend();
+      wsService.suspend();
+    };
+
+    if (AppState.currentState !== 'active') {
+      suspendSocketDemand();
+    } else {
+      recovery.request();
+    }
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') {
+        suspendSocketDemand();
+        return;
+      }
+      recovery.request();
+    });
+
+    const unsubscribeNetwork = NetInfo.addEventListener((state) => {
+      if (state.isConnected === true && state.isInternetReachable !== false) recovery.request();
+    });
+    const unsubscribeSession = subscribeActiveBrokerSession((event) => {
+      if (event.type === 'transition') suspendSocketDemand();
+      else recovery.request();
+    });
+
+    return () => {
+      recovery.dispose();
+      subscription.remove();
+      unsubscribeNetwork();
+      unsubscribeSession();
+    };
+  }, [sessionRestoreComplete, isLoggedIn]);
+
+  useEffect(() => {
+    if (!sessionRestoreComplete) {
+      return;
+    }
+    if (isLoggedIn) {
+      logStartupDiagnostic('auth.restore.started', {
+        hasAccountDetails: Boolean(accountLogin),
+        accountLoginPresent: Boolean(accountLogin),
+      });
+      let cancelled = false;
+      const capture = captureActiveBrokerSession();
+      if (!capture) return;
+      const identity = getActiveBrokerSessionIdentity(capture.session);
+
+      const bootAccountData = async () => {
+        if (!accountLogin || !isActiveBrokerSessionCurrent(identity)) return;
+
+        const mt5Login = capture.session.accountLogin;
+        const mt5LoginNumber = Number(mt5Login);
+
+        if (cancelled) return;
+        if (mt5Login && Number.isFinite(mt5LoginNumber) && mt5LoginNumber > 0) {
+          logStartupDiagnostic('trading.bootstrap.started', {
+            accountLoginPresent: true,
+          });
+          useLiveAccountState.getState().updateMetrics({ login: mt5LoginNumber });
+          brokerRealtimeService.connect();
+          void bootstrapApp({
+            accountLogin: mt5Login,
+            expectedProvenance: getActiveBrokerSessionProvenance(capture.session),
+          }).catch((error) => {
+            if (!cancelled) {
+              console.error(
+                '[Bootstrap] Initial dashboard load failed:',
+                redactDiagnosticValue(error),
+              );
+            }
+            return null;
+          });
+
+          // Bootstrap seeds positions and both account caches, applies profile
+          // metadata, and retries transient reads without duplicating startup.
+        }
+      };
+
+      // The authenticated dashboard must paint before its optional account
+      // reads/socket setup compete with the Login handoff. Intent hydration
+      // remains owned by the auth flow and joins the same bootstrap request.
+      const cancelBootstrap = scheduleAfterVisualFrame(() => { void bootAccountData(); });
+      return () => {
+        cancelled = true;
+        cancelBootstrap();
+      };
+    } else {
+      brokerRealtimeService.disconnect();
+    }
+  }, [sessionRestoreComplete, isLoggedIn, accountLogin]);
+
+  useEffect(() => {
+    if (hasHydrated && sessionRestoreComplete && fontsReady) {
+      // SafeAreaProvider already has initialWindowMetrics. Reveal the first
+      // committed screen after paint, without an additional fixed 100 ms wait.
+      return scheduleAfterVisualFrame(() => {
+        void SplashScreen.hideAsync();
+        const notifyReady = (globalThis as Record<string, unknown>).__rtx5NotifyAppReady;
+        if (typeof notifyReady === 'function') {
+          notifyReady();
+        }
+      });
+    }
+  }, [hasHydrated, sessionRestoreComplete, fontsReady]);
+
+  // Hard safety net: never let the native splash stay up indefinitely, even if
+  // hydration or font loading wedges on some unexpected path. Reveals the
+  // branded StartupLogoScreen rather than a frozen splash that looks like a crash.
+  useEffect(() => {
+    const fallback = setTimeout(() => {
+      void SplashScreen.hideAsync();
+      const notifyReady = (globalThis as Record<string, unknown>).__rtx5NotifyAppReady;
+      if (typeof notifyReady === 'function') {
+        notifyReady();
+      }
+    }, 8000);
+    return () => clearTimeout(fallback);
+  }, []);
+
+  // OtaUpdateModal MUST sit outside ErrorBoundary. When the trading UI crashes
+  // (e.g. 1.1.28 quote-destructure bug), ErrorBoundary replaces its children —
+  // which used to unmount the install modal so users could never recover.
+  return (
+    <>
+      <ErrorBoundary>
+        <AppProviders>
+          {hasHydrated && sessionRestoreComplete && fontsReady ? <InnerLayout /> : <StartupLogoScreen />}
+        </AppProviders>
+      </ErrorBoundary>
+      <OtaUpdateModal {...otaUpdatePrompt} />
+    </>
+  );
+}
+
+export default wrapWithSentry(RootLayout);
+

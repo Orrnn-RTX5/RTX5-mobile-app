@@ -1,0 +1,195 @@
+{
+  "cli": {
+    "version": ">= 21.4.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development",
+        "EXPO_PUBLIC_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+        "EXPO_PUBLIC_CANDLE_HISTORY_PATH": "/candles",
+        "EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE": "window",
+        "EXPO_PUBLIC_DEMO_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID": "Orrnn",
+        "EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE": "10000",
+        "EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER": "Orrnn",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://orrnn.com/privacy",
+        "EXPO_PUBLIC_TERMS_URL": "https://orrnn.com/terms",
+        "EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES": "{}"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "yoforex-rtx5",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview",
+        "EXPO_PUBLIC_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+        "EXPO_PUBLIC_CANDLE_HISTORY_PATH": "/candles",
+        "EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE": "window",
+        "EXPO_PUBLIC_DEMO_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID": "Orrnn",
+        "EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE": "10000",
+        "EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER": "Orrnn",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://orrnn.com/privacy",
+        "EXPO_PUBLIC_TERMS_URL": "https://orrnn.com/terms",
+        "EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES": "{}",
+        "RELEASE_CHANNEL": "yoforex-rtx5"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "environment": "staging",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+        "EXPO_PUBLIC_CANDLE_HISTORY_PATH": "/candles",
+        "EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE": "window",
+        "EXPO_PUBLIC_DEMO_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID": "Orrnn",
+        "EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE": "10000",
+        "EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER": "Orrnn",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://orrnn.com/privacy",
+        "EXPO_PUBLIC_TERMS_URL": "https://orrnn.com/terms",
+        "EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES": "{}"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "channel": "yoforex-rtx5",
+      "distribution": "store",
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+        "EXPO_PUBLIC_CANDLE_HISTORY_PATH": "/candles",
+        "EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE": "window",
+        "EXPO_PUBLIC_DEMO_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID": "Orrnn",
+        "EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE": "10000",
+        "EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER": "Orrnn",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://orrnn.com/privacy",
+        "EXPO_PUBLIC_TERMS_URL": "https://orrnn.com/terms",
+        "EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES": "{}",
+        "RELEASE_CHANNEL": "yoforex-rtx5"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "production-apk": {
+      "channel": "yoforex-rtx5",
+      "distribution": "internal",
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+        "EXPO_PUBLIC_CANDLE_HISTORY_PATH": "/candles",
+        "EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE": "window",
+        "EXPO_PUBLIC_DEMO_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID": "Orrnn",
+        "EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE": "10000",
+        "EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER": "Orrnn",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://orrnn.com/privacy",
+        "EXPO_PUBLIC_TERMS_URL": "https://orrnn.com/terms",
+        "EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES": "{}",
+        "RELEASE_CHANNEL": "yoforex-rtx5"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production-no-ota": {
+      "channel": "production",
+      "distribution": "store",
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+        "EXPO_PUBLIC_CANDLE_HISTORY_PATH": "/candles",
+        "EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE": "window",
+        "EXPO_PUBLIC_DEMO_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID": "Orrnn",
+        "EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE": "10000",
+        "EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER": "Orrnn",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://orrnn.com/privacy",
+        "EXPO_PUBLIC_TERMS_URL": "https://orrnn.com/terms",
+        "EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES": "{}",
+        "EXPO_PUBLIC_DISABLE_OTA_UPDATES": "true"
+      },
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "production-no-ota-apk": {
+      "channel": "production",
+      "distribution": "internal",
+      "environment": "production",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_BROKER_DIRECTORY_BASE_URL": "https://superadmin-prod.orrnn.com/api/v2",
+        "EXPO_PUBLIC_CANDLE_HISTORY_PATH": "/candles",
+        "EXPO_PUBLIC_CANDLE_HISTORY_QUERY_STYLE": "window",
+        "EXPO_PUBLIC_DEMO_API_BASE_URL": "https://service.orrnn.com/api/v2",
+        "EXPO_PUBLIC_ORRNN_DEMO_BROKER_ID": "Orrnn",
+        "EXPO_PUBLIC_ORRNN_DEMO_INITIAL_BALANCE": "10000",
+        "EXPO_PUBLIC_ORRNN_DEMO_ORIGIN_BROKER": "Orrnn",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://orrnn.com/privacy",
+        "EXPO_PUBLIC_TERMS_URL": "https://orrnn.com/terms",
+        "EXPO_PUBLIC_BROKER_SLTP_CAPABILITIES": "{}",
+        "EXPO_PUBLIC_DISABLE_OTA_UPDATES": "true"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6768249377"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-services.json",
+        "track": "internal"
+      }
+    }
+  }
+}

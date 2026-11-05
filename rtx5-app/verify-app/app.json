@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "RTX5 Verify",
+    "slug": "rtx5-verify-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "jsEngine": "hermes",
+    "android": {
+      "package": "com.rtx5.trading",
+      "versionCode": 1
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3b9bf89d-c37f-48db-8070-7dd549f7f47a"
+      }
+    }
+  }
+}
