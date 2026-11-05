@@ -249,10 +249,10 @@ const InnerLayout = memo(function InnerLayout() {
         <ChartSettingsHost />
         <ChartConfigDestinationHost />
         </RetainedRoutePrewarmProvider>
+        <ShakeToReportBugHost />
+        <GuestFlowHost />
       </ThemeModeRenderPriorityContext.Provider>
       <SidebarDrawer />
-      <ShakeToReportBugHost />
-      <GuestFlowHost />
     </>
   );
 });

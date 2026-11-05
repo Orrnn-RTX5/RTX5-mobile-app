@@ -329,10 +329,19 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
     };
   }, [bulkActionIconColor, navigateToBulkMode, showTradeActionSheet, t]);
 
+  const themeSheetRefs = useRef({
+    textMuted: T.textMuted,
+    positionCloseActionColor,
+    bulkActionSheetConfig,
+  });
+  themeSheetRefs.current.textMuted = T.textMuted;
+  themeSheetRefs.current.positionCloseActionColor = positionCloseActionColor;
+  themeSheetRefs.current.bulkActionSheetConfig = bulkActionSheetConfig;
+
   const showBulkSheet = useCallback(() => {
     if (investorReadOnly || renderablePositions.length === 0) return;
-    runImmediateAction('trade.bulkSheet.open', () => showTradeActionSheet(bulkActionSheetConfig));
-  }, [bulkActionSheetConfig, investorReadOnly, renderablePositions.length, showTradeActionSheet]);
+    runImmediateAction('trade.bulkSheet.open', () => showTradeActionSheet(themeSheetRefs.current.bulkActionSheetConfig));
+  }, [investorReadOnly, renderablePositions.length, showTradeActionSheet]);
 
   const showCloseSellPositions = useCallback(() => {
     if (investorReadOnly) return;
@@ -349,6 +358,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
 
   const showPositionSheet = useCallback(
     (item: PositionItem) => {
+      const { textMuted, positionCloseActionColor: closeActionColor } = themeSheetRefs.current;
       runImmediateAction('trade.positionSheet.open', () => {
         showTradeActionSheet({
           presentation: 'mt5Plain',
@@ -361,9 +371,9 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
               ? []
               : ([
                   {
-                    icon: <Ionicons name="close-circle-outline" size={20} color={positionCloseActionColor} />,
+                    icon: <Ionicons name="close-circle-outline" size={20} color={closeActionColor} />,
                     label: t('Close position'),
-                    textColor: positionCloseActionColor,
+                    textColor: closeActionColor,
                     textFontWeight: TRADE_POSITION_CLOSE_ACTION_FONT_WEIGHT,
                     onPress: () => {
                       if (
@@ -380,7 +390,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
                     },
                   },
                   {
-                    icon: <Ionicons name="create-outline" size={20} color={T.textMuted} />,
+                    icon: <Ionicons name="create-outline" size={20} color={textMuted} />,
                     label: t('Modify position'),
                     activateOnPressIn: true,
                     onPress: () => {
@@ -402,7 +412,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
                     },
                   },
                   {
-                    icon: <Ionicons name="swap-horizontal-outline" size={20} color={T.textMuted} />,
+                    icon: <Ionicons name="swap-horizontal-outline" size={20} color={textMuted} />,
                     label: t('Trade'),
                     activateOnPressIn: true,
                     onPress: () => {
@@ -424,7 +434,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
                   },
                 ] satisfies Parameters<typeof showTradeActionSheet>[0]['actions'])),
             {
-              icon: <Ionicons name="analytics-outline" size={20} color={T.textMuted} />,
+              icon: <Ionicons name="analytics-outline" size={20} color={textMuted} />,
               label: t('Chart'),
               activateOnPressIn: true,
               onPress: () => {
@@ -441,7 +451,7 @@ const TradeScreenInner = React.memo(function TradeScreenInner({
         prefetchOrderTicketData(String(resolvedLogin ?? ''), item.symbol);
       });
     },
-    [T.textMuted, investorReadOnly, positionCloseActionColor, primePositionSnapshot, resolvedLogin, setChartSymbol, showTradeActionSheet, t],
+    [investorReadOnly, primePositionSnapshot, resolvedLogin, setChartSymbol, showTradeActionSheet, t],
   );
 
   const renderPositionRow = useCallback(

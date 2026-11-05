@@ -1638,11 +1638,11 @@ test('theme toggles paint drawer chrome before retained scenes and preference pe
   assert.doesNotMatch(rootSource, /function InnerLayout\(\) \{\s*const T = useTheme\(\)/);
   assert.match(
     fastTabNavigatorSource,
-    /<ThemeModeRenderPriorityContext\.Provider value="retained">[\s\S]*<SceneContent[\s\S]*<\/ThemeModeRenderPriorityContext\.Provider>/,
+    /<ThemeModeRenderPriorityContext\.Provider\s+value=\{visualFocused \? 'immediate' : 'retained'\}\s*>[\s\S]*<SceneContent[\s\S]*<\/ThemeModeRenderPriorityContext\.Provider>/,
   );
   assert.match(
     sidebarDestinationHostSource,
-    /<ThemeModeRenderPriorityContext\.Provider value="retained">[\s\S]*<DestinationView active=\{active\} \/>/,
+    /<ThemeModeRenderPriorityContext\.Provider\s+value=\{active \|\| visualActive \? 'immediate' : 'retained'\}\s*>[\s\S]*<DestinationView active=\{active\} \/>/,
   );
   assert.match(tabsSource, /ThemedTabsChrome/);
   assert.match(tabsSource, /const themeMode = useThemeMode\(\)/);

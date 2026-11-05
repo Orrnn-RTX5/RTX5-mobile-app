@@ -17,7 +17,7 @@ import { FastPressable } from '../../ui/components/FastPressable';
 
 
 import { useTheme } from '../../ui/theme/useTheme';
-import { ThemeColors } from '../../ui/theme/glass';
+import { GDark, GLight, ThemeColors } from '../../ui/theme/glass';
 import { useMemo } from 'react';
 import { useShallow } from 'zustand/shallow';
 import { useIsDarkTheme } from '../../state/themeMode';
@@ -1488,13 +1488,13 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
           canCancelContentTouches={Platform.OS === 'ios'}
           style={styles.content}
           showsVerticalScrollIndicator={false}
-          data={otherRows}
+          data={isScreenFocused ? otherRows : otherRows.slice(0, 2)}
           keyExtractor={(row) => row.key}
           // Virtualize the other-accounts list: render only what fills the screen
           // plus a small buffer, then render the rest lazily as the user scrolls.
-          initialNumToRender={4}
+          initialNumToRender={isScreenFocused ? 4 : 2}
           maxToRenderPerBatch={6}
-          windowSize={9}
+          windowSize={isScreenFocused ? 9 : 3}
           removeClippedSubviews={false}
           ListHeaderComponent={(
             <>
@@ -1818,10 +1818,12 @@ export const AccountsScreenInner = React.memo(function AccountsScreenInner({
         </View>
       )}
 
-      <CertificationDialog
-        visible={isScreenFocused && certificationVisible}
-        onClose={() => setCertificationVisible(false)}
-      />
+      {isScreenFocused && certificationVisible ? (
+        <CertificationDialog
+          visible
+          onClose={() => setCertificationVisible(false)}
+        />
+      ) : null}
 
       {/* Trade Notifications Modal */}
       {isScreenFocused && tradeNotificationsSheetVisible && (
@@ -1990,7 +1992,23 @@ function BrokerLogoAvatar({
   );
 }
 
+const ACCOUNTS_STYLES_CACHE = new Map<string, ReturnType<typeof buildAccountsStyles>>();
+
 const makeStyles = (T: ThemeColors, isDark: boolean, safeTop: number) => {
+  if ((isDark && T === GDark) || (!isDark && T === GLight)) {
+    const key = `${isDark ? 'dark' : 'light'}:${safeTop}`;
+    const cached = ACCOUNTS_STYLES_CACHE.get(key);
+    if (cached) {
+      return cached;
+    }
+    const created = buildAccountsStyles(T, isDark, safeTop);
+    ACCOUNTS_STYLES_CACHE.set(key, created);
+    return created;
+  }
+  return buildAccountsStyles(T, isDark, safeTop);
+};
+
+const buildAccountsStyles = (T: ThemeColors, isDark: boolean, safeTop: number) => {
   const cardBg = isDark ? T.glass2 : '#FFFFFF';
   const raisedBg = isDark ? T.glass1 : 'rgba(0,0,0,0.03)';
   const cardBorder = isDark ? T.border : 'rgba(0,0,0,0.06)';

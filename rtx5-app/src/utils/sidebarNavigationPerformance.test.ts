@@ -5,12 +5,12 @@ import test from 'node:test';
 
 const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
-test('native-revealable sidebar destinations keep the settled theme while hidden', () => {
+test('native-revealable sidebar destinations keep the settled theme while hidden and update immediately when active', () => {
   const hostSource = readSource('src/ui/components/SidebarDestinationHost.tsx');
 
   assert.match(
     hostSource,
-    /<ThemeModeRenderPriorityContext\.Provider value="retained">[\s\S]*<DestinationView active=\{active\}/,
+    /<ThemeModeRenderPriorityContext\.Provider\s+value=\{active \|\| visualActive \? 'immediate' : 'retained'\}\s*>[\s\S]*<DestinationView active=\{active\}/,
   );
   assert.doesNotMatch(hostSource, /'frozen'/);
 });
@@ -223,8 +223,8 @@ test('sidebar drawer reveals instantly and keeps navigation and closing work non
   assert.match(source, /overlay: \{[\s\S]*left: DRAWER_WIDTH,[\s\S]*zIndex: 0,[\s\S]*elevation: 0,/);
   assert.match(
     source,
-    /overlay: \{[\s\S]*backgroundColor: isDark \? '#000000' : 'rgba\(0,0,0,0\.3\)'/,
-    'the open dark drawer must fully conceal a retained light WebView while the light drawer keeps its normal scrim',
+    /overlay: \{[\s\S]*backgroundColor: 'rgba\(0,0,0,0\.3\)'/,
+    'both themes keep the translucent scrim so the main screen updates visibly alongside the sidebar drawer',
   );
   assert.doesNotMatch(source, /overlay: \{\s*\.\.\.StyleSheet\.absoluteFillObject/);
   assert.match(source, /drawer: \{[\s\S]*zIndex: 1,[\s\S]*elevation: 1,/);

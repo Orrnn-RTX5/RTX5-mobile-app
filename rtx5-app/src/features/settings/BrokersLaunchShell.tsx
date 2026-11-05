@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n/useTranslation';
 import { useBrokerDirectory } from '../../query/broker';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { FastPressable } from '../../ui/components/FastPressable';
+import { GDark, GLight } from '../../ui/theme/glass';
 import { useTheme, type ThemeColors } from '../../ui/theme/useTheme';
 import {
   buildBrokerDirectoryRows,
@@ -175,7 +176,23 @@ export const BrokersLaunchShell = memo(function BrokersLaunchShell({
   );
 });
 
+const BROKERS_LAUNCH_STYLES_CACHE = new Map<string, ReturnType<typeof buildBrokersLaunchStyles>>();
+
 function makeStyles(T: ThemeColors, isDark: boolean, safeTop: number) {
+  if ((isDark && T === GDark) || (!isDark && T === GLight)) {
+    const key = `${isDark ? 'dark' : 'light'}:${safeTop}`;
+    const cached = BROKERS_LAUNCH_STYLES_CACHE.get(key);
+    if (cached) {
+      return cached;
+    }
+    const created = buildBrokersLaunchStyles(T, isDark, safeTop);
+    BROKERS_LAUNCH_STYLES_CACHE.set(key, created);
+    return created;
+  }
+  return buildBrokersLaunchStyles(T, isDark, safeTop);
+}
+
+function buildBrokersLaunchStyles(T: ThemeColors, isDark: boolean, safeTop: number) {
   const surface = isDark ? T.glass2 : '#FFFFFF';
   const softSurface = isDark ? 'rgba(255,255,255,0.045)' : '#F8FAFC';
   const dividerColor = isDark ? T.borderSubtle : 'rgba(15,23,42,0.08)';

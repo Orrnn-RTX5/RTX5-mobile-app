@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
-import type { ThemeColors } from '../../ui/theme/glass';
+import { GDark, GLight, type ThemeColors } from '../../ui/theme/glass';
 
-export const makeHelpStyles = (T: ThemeColors, isDark = false) => {
+function buildHelpStyles(T: ThemeColors, isDark = false) {
   const palette = {
     screen: T.bgRoot,
     header: T.bgRoot,
@@ -353,6 +353,15 @@ export const makeHelpStyles = (T: ThemeColors, isDark = false) => {
       textAlign: 'center',
     },
   });
+}
+
+const DARK_HELP_STYLES = buildHelpStyles(GDark, true);
+const LIGHT_HELP_STYLES = buildHelpStyles(GLight, false);
+
+export const makeHelpStyles = (T: ThemeColors, isDark = false) => {
+  if (isDark && T === GDark) return DARK_HELP_STYLES;
+  if (!isDark && T === GLight) return LIGHT_HELP_STYLES;
+  return buildHelpStyles(T, isDark);
 };
 
 export type HelpStyles = ReturnType<typeof makeHelpStyles>;

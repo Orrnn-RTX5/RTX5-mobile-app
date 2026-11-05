@@ -11,6 +11,14 @@ const toggle = readFileSync(
   resolve(process.cwd(), 'src/ui/components/AnimatedSlideToggle.tsx'),
   'utf8',
 );
+const settingRow = readFileSync(
+  resolve(process.cwd(), 'src/features/settings/SettingsScreen/SettingRow.tsx'),
+  'utf8',
+);
+const settingsStyles = readFileSync(
+  resolve(process.cwd(), 'src/features/settings/SettingsScreen/styles.ts'),
+  'utf8',
+);
 
 test('theme rows use the animated slide toggle instead of the platform Switch', () => {
   assert.match(
@@ -59,4 +67,19 @@ test('the slide toggle animates the thumb on the native driver with instant colo
   assert.match(toggle, /backgroundColor: value \? onThumbColor : offThumbColor,/);
   assert.match(toggle, /accessibilityRole="switch"/);
   assert.match(toggle, /accessibilityState=\{\{ checked: value \}\}/);
+});
+
+test('settings theme toggle updates header chrome on the immediate clock and defers persistence', () => {
+  assert.match(
+    settings,
+    /setImmediateThemeMode\(nextMode\);[\s\S]*scheduleAfterImmediateThemePaint\(\(\) => \{[\s\S]*setThemeMode\(nextMode\)/,
+  );
+  assert.match(
+    settings,
+    /<ThemeModeRenderPriorityContext\.Provider\s+value=\{isScreenFocused \? 'immediate' : 'retained'\}\s*>/,
+  );
+  assert.match(settings, /SETTINGS_STYLES_BY_MODE\[themeMode\]/);
+  assert.match(settingsStyles, /export const SETTINGS_STYLES_BY_MODE: Record<'light' \| 'dark', SettingsStyles>/);
+  assert.match(settingRow, /!rightElement && pressed && styles\.rowPressed/);
+  assert.match(settingRow, /android_ripple=\{rightElement \? undefined : \{ color: `\$\{color\}24` \}\}/);
 });

@@ -8,7 +8,7 @@ import { Platform, View, StyleSheet, Text, useWindowDimensions, type GestureResp
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIState } from '../../src/state/uiState';
 import { ActionSheet } from '../../src/ui/components/ActionSheet';
-import { useThemeMode } from '../../src/state/themeMode';
+import { ThemeModeRenderPriorityContext, useThemeMode } from '../../src/state/themeMode';
 import { GDark, GLight } from '../../src/ui/theme/glass';
 import { useTranslation } from '../../src/i18n/useTranslation';
 import { warmActionRoutes } from '../../src/utils/actionRouteWarmup';
@@ -668,16 +668,18 @@ const TabsLayoutInner = memo(function TabsLayoutInner({
       <ChartTradeSheetPortalProvider>
         <AnonymousChartHistoryStartupPrefetch />
         <ThemedTabsChrome isChartTab={isChartTab} />
-        <ChartTradeSheetPortalHost />
-        {/* Trade receipts / result dialogs stack above the sheet entry. */}
-        <ChartTradeFeedbackPortalHost />
-        <OrderTicketLaunchHost />
-        <GlobalActionSheetHost />
-        <QuotesSymbolActionSheetHost />
-        {/* Keep the chart picker pre-mounted beside global hosts. Its dedicated
-            layer can reveal on the first native frame without competing with
-            a shared ActionSheet already used by another destination. */}
-        <ChartSymbolPickerSheetHost />
+        <ThemeModeRenderPriorityContext.Provider value="retained">
+          <ChartTradeSheetPortalHost />
+          {/* Trade receipts / result dialogs stack above the sheet entry. */}
+          <ChartTradeFeedbackPortalHost />
+          <OrderTicketLaunchHost />
+          <GlobalActionSheetHost />
+          <QuotesSymbolActionSheetHost />
+          {/* Keep the chart picker pre-mounted beside global hosts. Its dedicated
+              layer can reveal on the first native frame without competing with
+              a shared ActionSheet already used by another destination. */}
+          <ChartSymbolPickerSheetHost />
+        </ThemeModeRenderPriorityContext.Provider>
       </ChartTradeSheetPortalProvider>
     </View>
   );

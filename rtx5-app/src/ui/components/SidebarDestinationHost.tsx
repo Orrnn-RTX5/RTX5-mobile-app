@@ -117,7 +117,9 @@ const SidebarDestinationLayer = memo(function SidebarDestinationLayer({
       importantForAccessibility={active ? 'auto' : 'no-hide-descendants'}
       testID={`sidebar-destination-${destination}`}
     >
-      <ThemeModeRenderPriorityContext.Provider value="retained">
+      <ThemeModeRenderPriorityContext.Provider
+        value={active || visualActive ? 'immediate' : 'retained'}
+      >
         <DestinationView active={active} />
       </ThemeModeRenderPriorityContext.Provider>
     </View>

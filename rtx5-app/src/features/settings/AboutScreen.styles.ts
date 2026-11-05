@@ -4,7 +4,7 @@ import { GDark, GLight } from '../../ui/theme/glass';
 export const ABOUT_STAR = '#F5B400';
 export const ABOUT_LINK_CHEVRON = '#C7C7CC';
 
-export const makeAboutStyles = (isDark = false) => {
+function buildAboutStyles(isDark = false) {
   const palette = {
     screen: isDark ? GDark.bg : GLight.bg,
     surface: isDark ? GDark.glass2 : '#FFFFFF',
@@ -428,6 +428,11 @@ export const makeAboutStyles = (isDark = false) => {
       color: '#FFFFFF',
     },
   });
-};
+}
+
+const DARK_ABOUT_STYLES = buildAboutStyles(true);
+const LIGHT_ABOUT_STYLES = buildAboutStyles(false);
+
+export const makeAboutStyles = (isDark = false) => (isDark ? DARK_ABOUT_STYLES : LIGHT_ABOUT_STYLES);
 
 export type AboutStyles = ReturnType<typeof makeAboutStyles>;

@@ -1,5 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { usePendingOrdersQuery } from '../../query/pendingOrders';
@@ -17,7 +17,7 @@ import { captureActiveBrokerSessionOwnerStamp, isActiveBrokerSessionOwnerStampCu
 import { PENDING_BULK_OPTIONS, selectPendingOrdersForBulk } from './pendingBulkCancel';
 import { useTranslation } from '../../i18n/useTranslation';
 
-function PendingOrderRow({ order, active, namespace }: { order: PendingOrderReadModel; active: boolean; namespace: string }) {
+const PendingOrderRow = memo(function PendingOrderRow({ order, active, namespace }: { order: PendingOrderReadModel; active: boolean; namespace: string }) {
   const T = useTheme();
   const { t } = useTranslation();
   const isDark = useIsDarkTheme();
@@ -80,9 +80,9 @@ function PendingOrderRow({ order, active, namespace }: { order: PendingOrderRead
       <Ionicons name="chevron-forward" size={16} color={T.textMuted} />
     </View>
   </FastPressable>;
-}
+});
 
-export function PendingOrdersSection({ active }: { active: boolean }) {
+export const PendingOrdersSection = memo(function PendingOrdersSection({ active }: { active: boolean }) {
   const T = useTheme();
   const { t } = useTranslation();
   const session = useActiveBrokerQuerySession();
@@ -161,7 +161,7 @@ export function PendingOrdersSection({ active }: { active: boolean }) {
     </View> : null}
     {data.map(order => <PendingOrderRow key={`${session?.cacheNamespace}:${order.ticket}`} order={order} active={active} namespace={session?.cacheNamespace ?? ''} />)}
   </View>;
-}
+});
 
 const styles = StyleSheet.create({
   container: {

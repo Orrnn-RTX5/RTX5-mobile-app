@@ -40,7 +40,7 @@ import {
 } from './historyMoney';
 import { spacing } from '../../ui/theme/index';
 import { useTheme } from '../../ui/theme/useTheme';
-import { ThemeColors } from '../../ui/theme/glass';
+import { GDark, GLight, ThemeColors } from '../../ui/theme/glass';
 import { fmt } from '../../utils/format';
 import { formatBackendPrice } from '../../utils/backendPrice';
 import { formatBrokerTime } from '../../utils/brokerTime';
@@ -574,9 +574,12 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
   const keyedBaseData = useMemo(() => keyHistoryRows(baseData), [baseData]);
   const data = useMemo(() => sortHistoryRows(keyedBaseData, sortBy), [keyedBaseData, sortBy]);
   const renderHistoryRow = useCallback(
-    ({ item }: { item: HistoryRow }) => <HistoryItemRow item={item} T={T} isDark={isDark} currency={currency} />,
-    [T, isDark, currency],
+    ({ item }: { item: HistoryRow }) => <HistoryItemRow item={item} currency={currency} />,
+    [currency],
   );
+  const handleNetPnlPress = useCallback(() => {
+    router.push({ pathname: '/history/filter', params: { view: 'net-pnl' } });
+  }, []);
   const profitRows = useMemo(
     () => data.filter((item) => typeof item.profit === 'number') as Array<HistoryRow & { profit: number }>,
     [data]
@@ -651,9 +654,9 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
         keyExtractor={historyRowKey}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        initialNumToRender={15}
-        maxToRenderPerBatch={10}
-        windowSize={5}
+        initialNumToRender={isScreenFocused ? 8 : 5}
+        maxToRenderPerBatch={8}
+        windowSize={isScreenFocused ? 5 : 3}
         removeClippedSubviews={true}
         ListHeaderComponent={(
           <>
@@ -784,11 +787,7 @@ const HistoryScreenInner = memo(function HistoryScreenInner({ isScreenFocused }:
                   tone={netTone}
                   T={T}
                   isDark={isDark}
-                  onPress={
-                    tab === 'Positions'
-                      ? () => router.push({ pathname: '/history/filter', params: { view: 'net-pnl' } })
-                      : undefined
-                  }
+                  onPress={tab === 'Positions' ? handleNetPnlPress : undefined}
                 />
               </View>
             </View>
@@ -824,7 +823,21 @@ export function HistoryScreen() {
 /**
  * Renders a generic row for historical account operations such as deposits, withdrawals, or balance adjustments.
  */
-const HistoryItemRow = memo(function HistoryItemRow({ item, T, isDark, currency }: { item: HistoryRow; T: ThemeColors; isDark: boolean; currency: string }) {
+const HistoryItemRow = memo(function HistoryItemRow({
+  item,
+  T: propT,
+  isDark: propIsDark,
+  currency,
+}: {
+  item: HistoryRow;
+  T?: ThemeColors;
+  isDark?: boolean;
+  currency: string;
+}) {
+  const hookT = useTheme();
+  const hookIsDark = useIsDarkTheme();
+  const T = propT ?? hookT;
+  const isDark = propIsDark ?? hookIsDark;
   const isClosedPosition = item.recordKind === 'closed-position';
 
   if (isClosedPosition) {
@@ -928,7 +941,7 @@ const HistoryItemRow = memo(function HistoryItemRow({ item, T, isDark, currency 
  * Closed-position card — mirrors the open-position card on the Trade screen,
  * but renders the *final* close price and close P&L instead of streaming live values.
  */
-function ClosedPositionRow({ item, T, isDark, currency }: { item: HistoryRow; T: ThemeColors; isDark: boolean; currency: string }) {
+const ClosedPositionRow = memo(function ClosedPositionRow({ item, T, isDark, currency }: { item: HistoryRow; T: ThemeColors; isDark: boolean; currency: string }) {
   const symbol = item.symbolRaw ?? parseLine1(item.line1).symbol;
   const sideRaw = (item.sideRaw ?? '').toLowerCase();
   const isBuy = sideRaw === 'buy';
@@ -1016,12 +1029,12 @@ function ClosedPositionRow({ item, T, isDark, currency }: { item: HistoryRow; T:
       </View>
     </View>
   );
-}
+});
 
 /**
  * Reusable UI component displaying a small colored badge or pill with a specific metric value (e.g., profit/loss amount).
  */
-function MetricPill({
+const MetricPill = memo(function MetricPill({
   label, value, icon, tone, T, isDark, onPress,
 }: {
   label: string; value: string;
@@ -1087,7 +1100,7 @@ function MetricPill({
       </Text>
     </View>
   );
-}
+});
 
 function parseLine1(line1: string) {
   const parts = line1.trim().split(/\s+/);
@@ -1202,7 +1215,7 @@ const mpS = StyleSheet.create({
   metricValue: { fontSize: 14, fontWeight: '600', textAlign: 'center', fontVariant: ['tabular-nums'] },
 });
 
-function makeStyles(T: ThemeColors, isDark: boolean) {
+function createHistoryStyles(T: ThemeColors, isDark: boolean) {
   const cardBg = T.glass2;
 
   const accountSummaryCardBg = isDark ? '#1E1E1E' : cardBg; // Matches the app dark card tone.
@@ -1288,4 +1301,13 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
     sectionMeta: { marginTop: 2, fontSize: 13, fontWeight: '500' },
     emptyText: { marginTop: spacing.lg, textAlign: 'center', fontSize: 13 },
   });
+}
+
+const DARK_HISTORY_STYLES = createHistoryStyles(GDark, true);
+const LIGHT_HISTORY_STYLES = createHistoryStyles(GLight, false);
+
+function makeStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_HISTORY_STYLES;
+  if (T === GLight && !isDark) return LIGHT_HISTORY_STYLES;
+  return createHistoryStyles(T, isDark);
 }

@@ -306,13 +306,13 @@ test('tab bar and retained scenes share one deterministic visible route', () => 
   assert.match(navigatorSource, /\|\| previous\.visualFocused !== next\.visualFocused/);
 });
 
-test('native-revealable tab scenes keep the settled theme before first navigation', () => {
+test('native-revealable tab scenes keep the settled theme when hidden and update immediately when visible', () => {
   const navigatorSource = readSource('src/ui/navigation/FastTabNavigator.tsx');
   const themeModeSource = readSource('src/state/themeMode.ts');
 
   assert.match(
     navigatorSource,
-    /<ThemeModeRenderPriorityContext\.Provider value="retained">[\s\S]*<SceneContent/,
+    /<ThemeModeRenderPriorityContext\.Provider\s+value=\{visualFocused \? 'immediate' : 'retained'\}\s*>[\s\S]*<SceneContent/,
   );
   assert.doesNotMatch(navigatorSource, /value=\{visualFocused \? 'retained' : 'frozen'\}/);
   assert.doesNotMatch(themeModeSource, /frozenThemeModeRef|renderPriority === 'frozen'/);
@@ -389,7 +389,7 @@ test('bottom tab presses never write timing logs or LogBox warnings', () => {
 test('bottom tab navigation fast path preserves light and dark tab bar themes', () => {
   const source = readSource('app/(tabs)/_layout.tsx');
 
-  assert.match(source, /import \{ useThemeMode \} from '\.\.\/\.\.\/src\/state\/themeMode'/);
+  assert.match(source, /import \{[^}]*\buseThemeMode\b[^}]*\} from '\.\.\/\.\.\/src\/state\/themeMode'/);
   assert.match(source, /ThemedTabsChrome/);
   assert.match(source, /const themeMode = useThemeMode\(\)/);
   assert.match(source, /const isDark = themeMode === 'dark'/);

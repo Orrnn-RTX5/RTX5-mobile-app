@@ -6,6 +6,7 @@ import { normalizeSymbol } from '../../domain/symbols';
 import { useTranslation } from '../../i18n/useTranslation';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { FastPressable } from '../../ui/components/FastPressable';
+import { GDark, GLight } from '../../ui/theme/glass';
 import { useTheme, type ThemeColors } from '../../ui/theme/useTheme';
 import type { ChartActionLaunchDestination } from './chartActionLaunchController';
 
@@ -329,7 +330,7 @@ function StaticToggleRow({
   );
 }
 
-function makeStyles(T: ThemeColors, isDark: boolean) {
+function createChartActionShellStyles(T: ThemeColors, isDark: boolean) {
   const surface = isDark ? T.glass2 : '#FFFFFF';
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: T.bg },
@@ -392,4 +393,13 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
     timeIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: isDark ? T.glass3 : '#EEF2F7', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
     tradingHoursCopy: { flex: 1 },
   });
+}
+
+const DARK_CHART_ACTION_SHELL_STYLES = createChartActionShellStyles(GDark, true);
+const LIGHT_CHART_ACTION_SHELL_STYLES = createChartActionShellStyles(GLight, false);
+
+function makeStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_CHART_ACTION_SHELL_STYLES;
+  if (T === GLight && !isDark) return LIGHT_CHART_ACTION_SHELL_STYLES;
+  return createChartActionShellStyles(T, isDark);
 }

@@ -56,6 +56,10 @@ export const HelpScreenInner = memo(function HelpScreenInner({ isScreenFocused }
     () => selectHelpFaqItems({ category: selectedCategory, query: faqQuery }),
     [faqQuery, selectedCategory],
   );
+  const renderedFaqItems = useMemo(
+    () => (isScreenFocused ? visibleFaqItems : visibleFaqItems.slice(0, 4)),
+    [isScreenFocused, visibleFaqItems],
+  );
   const normalizedQuery = faqQuery.trim();
   const menuIconColor = isDark ? T.text : '#050505';
   const accentColor = isDark ? T.accent : '#0A6EEB';
@@ -222,7 +226,7 @@ export const HelpScreenInner = memo(function HelpScreenInner({ isScreenFocused }
         </View>
 
         <View style={styles.faqList}>
-          {visibleFaqItems.length > 0 ? visibleFaqItems.map((item) => (
+          {renderedFaqItems.length > 0 ? renderedFaqItems.map((item) => (
             <FaqRow
               key={item.id}
               item={item}

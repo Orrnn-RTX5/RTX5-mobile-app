@@ -178,7 +178,17 @@ export const EconomicCalendarScreenInner = React.memo(function EconomicCalendarS
     })).filter((s) => s.events.length > 0);
   }, [activeTab, selectedImpacts, selectedCurrency, dataEvents]);
 
-  const visibleSections = sections;
+  const visibleSections = useMemo(
+    () => (
+      isScreenFocused
+        ? sections
+        : sections.slice(0, 1).map((section) => ({
+            ...section,
+            events: section.events.slice(0, 5),
+          }))
+    ),
+    [isScreenFocused, sections],
+  );
 
   const renderEvent = useCallback((event: EconomicEvent, idx: number, total: number) => {
     const isExpanded = expandedEventId === event.id;

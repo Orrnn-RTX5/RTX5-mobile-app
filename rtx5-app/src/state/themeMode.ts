@@ -32,6 +32,7 @@ export const ThemeModeRenderPriorityContext =
 
 const immediateThemeVisualAppliers = new Set<ImmediateThemeVisualApplier>();
 const themeModePostPaintTasks = new Set<ThemeModePostPaintTask>();
+let lastAppliedImmediateVisualMode: ThemeMode | null = null;
 let pendingRetainedThemeMode: ThemeMode | null = null;
 let themeModePostPaintScheduled = false;
 let themeModePostPaintFlushing = false;
@@ -50,6 +51,7 @@ export const useThemeModeState = create<ThemeModeState>()((set) => ({
 }));
 
 export function registerImmediateThemeVisualApplier(applier: ImmediateThemeVisualApplier) {
+  lastAppliedImmediateVisualMode = null;
   immediateThemeVisualAppliers.add(applier);
   return () => {
     immediateThemeVisualAppliers.delete(applier);
@@ -57,6 +59,10 @@ export function registerImmediateThemeVisualApplier(applier: ImmediateThemeVisua
 }
 
 export function applyImmediateThemeVisuals(mode: ThemeMode) {
+  if (lastAppliedImmediateVisualMode === mode) {
+    return;
+  }
+  lastAppliedImmediateVisualMode = mode;
   immediateThemeVisualAppliers.forEach((applier) => {
     try {
       applier(mode);
@@ -123,10 +129,10 @@ export function setImmediateThemeMode(
   if (state.themeMode !== mode) {
     state.setImmediateThemeMode(mode);
   }
+  applyImmediateThemeVisuals(mode);
 
   if (options?.deferRetained === false) {
     pendingRetainedThemeMode = null;
-    applyImmediateThemeVisuals(mode);
     useThemeModeState.getState().setRetainedThemeMode(mode);
     return;
   }

@@ -580,7 +580,7 @@ function JournalRowDetail({
   );
 }
 
-function makeStyles(p: JournalPalette) {
+function createServerJournalStyles(p: JournalPalette) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: p.bg },
     body: { flex: 1 },
@@ -720,4 +720,15 @@ function makeStyles(p: JournalPalette) {
     detailValue: { color: p.rowText, fontSize: 12, fontFamily: MONO_FONT, flexShrink: 1, textAlign: 'right' },
     detailMessage: { color: p.rowText, fontSize: 13, lineHeight: 19, fontFamily: MONO_FONT },
   });
+}
+
+const DARK_JOURNAL_PALETTE = makeJournalPalette(true);
+const LIGHT_JOURNAL_PALETTE = makeJournalPalette(false);
+const DARK_SERVER_JOURNAL_STYLES = createServerJournalStyles(DARK_JOURNAL_PALETTE);
+const LIGHT_SERVER_JOURNAL_STYLES = createServerJournalStyles(LIGHT_JOURNAL_PALETTE);
+
+function makeStyles(p: JournalPalette) {
+  if (p === DARK_JOURNAL_PALETTE) return DARK_SERVER_JOURNAL_STYLES;
+  if (p === LIGHT_JOURNAL_PALETTE) return LIGHT_SERVER_JOURNAL_STYLES;
+  return createServerJournalStyles(p);
 }

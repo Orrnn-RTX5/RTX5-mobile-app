@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-export const makeUserGuideStyles = (isDark = false) => {
+function buildUserGuideStyles(isDark = false) {
   const palette = {
     screen: isDark ? '#121212' : '#F2F4F8',
     surfaceSoft: isDark ? '#10151D' : '#F7F7F8',
@@ -227,6 +227,12 @@ export const makeUserGuideStyles = (isDark = false) => {
       paddingBottom: 8,
     },
   });
-};
+}
+
+const DARK_USER_GUIDE_STYLES = buildUserGuideStyles(true);
+const LIGHT_USER_GUIDE_STYLES = buildUserGuideStyles(false);
+
+export const makeUserGuideStyles = (isDark = false) =>
+  isDark ? DARK_USER_GUIDE_STYLES : LIGHT_USER_GUIDE_STYLES;
 
 export type UserGuideStyles = ReturnType<typeof makeUserGuideStyles>;

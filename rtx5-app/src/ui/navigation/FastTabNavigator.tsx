@@ -136,23 +136,27 @@ const SceneContent = memo(function SceneContent({
       <BottomTabBarHeightContext.Provider
         value={tabBarPosition === 'bottom' ? tabBarHeight : 0}
       >
-        <Screen
-          focused={navigationFocused}
-          route={descriptor.route}
-          navigation={descriptor.navigation}
-          headerShown={headerShown}
-          headerStatusBarHeight={headerStatusBarHeight}
-          headerTransparent={headerTransparent}
-          header={header({
-            layout,
-            route: descriptor.route,
-            navigation:
-              descriptor.navigation as BottomTabNavigationProp<ParamListBase>,
-            options: descriptor.options,
-          })}
-        >
-          {descriptor.render()}
-        </Screen>
+        {headerShown === false ? (
+          descriptor.render()
+        ) : (
+          <Screen
+            focused={navigationFocused}
+            route={descriptor.route}
+            navigation={descriptor.navigation}
+            headerShown={headerShown}
+            headerStatusBarHeight={headerStatusBarHeight}
+            headerTransparent={headerTransparent}
+            header={header({
+              layout,
+              route: descriptor.route,
+              navigation:
+                descriptor.navigation as BottomTabNavigationProp<ParamListBase>,
+              options: descriptor.options,
+            })}
+          >
+            {descriptor.render()}
+          </Screen>
+        )}
       </BottomTabBarHeightContext.Provider>
     </View>
   );
@@ -181,7 +185,9 @@ const SceneLayer = memo(function SceneLayer({
       ]}
       pointerEvents={visualFocused ? 'auto' : 'none'}
     >
-      <ThemeModeRenderPriorityContext.Provider value="retained">
+      <ThemeModeRenderPriorityContext.Provider
+        value={visualFocused ? 'immediate' : 'retained'}
+      >
         <SceneContent
           descriptor={descriptor}
           navigationFocused={navigationFocused}

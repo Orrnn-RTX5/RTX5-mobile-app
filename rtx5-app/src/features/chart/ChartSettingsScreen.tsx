@@ -20,7 +20,7 @@ import {
 import { useUserPreferences, type ChartDisplaySettings } from '../../state/userPreferences';
 import { useTranslation } from '../../i18n/useTranslation';
 import { useUIState, type PendingChartCommand } from '../../state/uiState';
-import { ThemeColors } from '../../ui/theme/glass';
+import { GDark, GLight, ThemeColors } from '../../ui/theme/glass';
 import { useTheme } from '../../ui/theme/useTheme';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { runImmediateAction } from '../../utils/actionLatency';
@@ -626,7 +626,7 @@ function NavRow({
   );
 }
 
-function makeStyles(T: ThemeColors, isDark: boolean) {
+function createChartSettingsStyles(T: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     screen: {
       backgroundColor: T.bg,
@@ -803,4 +803,13 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       lineHeight: 18,
     },
   });
+}
+
+const DARK_CHART_SETTINGS_STYLES = createChartSettingsStyles(GDark, true);
+const LIGHT_CHART_SETTINGS_STYLES = createChartSettingsStyles(GLight, false);
+
+function makeStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_CHART_SETTINGS_STYLES;
+  if (T === GLight && !isDark) return LIGHT_CHART_SETTINGS_STYLES;
+  return createChartSettingsStyles(T, isDark);
 }

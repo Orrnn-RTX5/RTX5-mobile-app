@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import type { ThemeColors } from '../../../ui/theme/glass';
+import { GDark, GLight, type ThemeColors } from '../../../ui/theme/glass';
 
 const SETTINGS_DARK_BACKGROUND = '#121212';
 const SETTINGS_DARK_CARD_BACKGROUND = '#1E1E1E';
@@ -184,3 +184,8 @@ export const makeSettingsStyles = (T: ThemeColors, themeMode: 'light' | 'dark') 
 };
 
 export type SettingsStyles = ReturnType<typeof makeSettingsStyles>;
+
+export const SETTINGS_STYLES_BY_MODE: Record<'light' | 'dark', SettingsStyles> = {
+  dark: makeSettingsStyles(GDark, 'dark'),
+  light: makeSettingsStyles(GLight, 'light'),
+};

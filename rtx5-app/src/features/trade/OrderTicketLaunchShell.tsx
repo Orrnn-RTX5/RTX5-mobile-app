@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalizeSymbol } from '../../domain/symbols';
 import { FastPressable } from '../../ui/components/FastPressable';
+import { GDark, GLight } from '../../ui/theme/glass';
 import { useTheme, type ThemeColors } from '../../ui/theme/useTheme';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { useUserPreferences } from '../../state/userPreferences';
@@ -196,7 +197,7 @@ export const OrderTicketLaunchShell = memo(function OrderTicketLaunchShell({
   );
 });
 
-function makeStyles(T: ThemeColors, isDark: boolean) {
+function createOrderTicketShellStyles(T: ThemeColors, isDark: boolean) {
   const elevated = T.glass1;
 
   return StyleSheet.create({
@@ -481,4 +482,13 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       fontVariant: ['tabular-nums'],
     },
   });
+}
+
+const DARK_ORDER_TICKET_SHELL_STYLES = createOrderTicketShellStyles(GDark, true);
+const LIGHT_ORDER_TICKET_SHELL_STYLES = createOrderTicketShellStyles(GLight, false);
+
+function makeStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_ORDER_TICKET_SHELL_STYLES;
+  if (T === GLight && !isDark) return LIGHT_ORDER_TICKET_SHELL_STYLES;
+  return createOrderTicketShellStyles(T, isDark);
 }

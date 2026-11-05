@@ -1,10 +1,11 @@
 import { StyleSheet } from 'react-native';
+import { GDark, GLight } from '../../theme/glass';
 import type { ThemeColors } from '../../theme/useTheme';
 
 const TIMEFRAME_ACTION_SHEET_DARK_BACKGROUND = '#1E1E1E';
 export const ACTION_SHEET_SUBTITLE_ROW_MIN_HEIGHT = 60;
 
-export function makeActionSheetStyles(T: ThemeColors, isDark: boolean) {
+function createActionSheetStyles(T: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     overlay: {
       ...StyleSheet.absoluteFillObject,
@@ -314,4 +315,13 @@ export function makeActionSheetStyles(T: ThemeColors, isDark: boolean) {
       color: isDark ? T.textMuted : '#AEB4BF',
     },
   });
+}
+
+const DARK_ACTION_SHEET_STYLES = createActionSheetStyles(GDark, true);
+const LIGHT_ACTION_SHEET_STYLES = createActionSheetStyles(GLight, false);
+
+export function makeActionSheetStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_ACTION_SHEET_STYLES;
+  if (T === GLight && !isDark) return LIGHT_ACTION_SHEET_STYLES;
+  return createActionSheetStyles(T, isDark);
 }

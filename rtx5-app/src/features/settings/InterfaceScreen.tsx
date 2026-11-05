@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '../../ui/components/Screen';
 import { hideSidebarDestination } from '../../ui/components/sidebarDestinationHostController';
 import { useTheme } from '../../ui/theme/useTheme';
-import { ThemeColors } from '../../ui/theme/glass';
+import { GDark, GLight, ThemeColors } from '../../ui/theme/glass';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { useUserPreferences, type LanguageCode } from '../../state/userPreferences';
 import {
@@ -199,7 +199,23 @@ export const InterfaceScreenInner = memo(function InterfaceScreenInner({
   );
 });
 
+const INTERFACE_STYLES_CACHE = new Map<string, ReturnType<typeof buildInterfaceStyles>>();
+
 function makeStyles(T: ThemeColors, isDark: boolean, safeTop: number) {
+  if ((isDark && T === GDark) || (!isDark && T === GLight)) {
+    const key = `${isDark ? 'dark' : 'light'}:${safeTop}`;
+    const cached = INTERFACE_STYLES_CACHE.get(key);
+    if (cached) {
+      return cached;
+    }
+    const created = buildInterfaceStyles(T, isDark, safeTop);
+    INTERFACE_STYLES_CACHE.set(key, created);
+    return created;
+  }
+  return buildInterfaceStyles(T, isDark, safeTop);
+}
+
+function buildInterfaceStyles(T: ThemeColors, isDark: boolean, safeTop: number) {
   return StyleSheet.create({
     header: {
       flexDirection: 'row',

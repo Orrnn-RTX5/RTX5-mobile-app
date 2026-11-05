@@ -1,12 +1,23 @@
 import { FOOTER_LOT_PICKER_VALUE_ITEM_HEIGHT } from './ChartScreen.constants';
-import { ThemeColors } from "../../ui/theme/glass";
+import { GDark, GLight, ThemeColors } from "../../ui/theme/glass";
 import { spacing } from "../../ui/theme/index";
 import { StyleSheet, Platform } from "react-native";
 import { MENU_BTN_GUTTER, MENU_BUTTON_VISUAL_LEFT } from "../../ui/components/AppHeader";
 
-
+let cachedDarkChartStyles: ReturnType<typeof createChartStyles> | null = null;
+let cachedLightChartStyles: ReturnType<typeof createChartStyles> | null = null;
 
 export function makeStyles(T: ThemeColors, isDark: boolean) {
+    if (isDark && T === GDark) {
+        return (cachedDarkChartStyles ??= createChartStyles(T, true));
+    }
+    if (!isDark && T === GLight) {
+        return (cachedLightChartStyles ??= createChartStyles(T, false));
+    }
+    return createChartStyles(T, isDark);
+}
+
+function createChartStyles(T: ThemeColors, isDark: boolean) {
     const APP_HEADER_MENU_VISUAL_LEFT = MENU_BUTTON_VISUAL_LEFT;
     const COMPACT_SYMBOL_DROPDOWN_LEFT_SHIFT = 26;
     const COMPACT_SYMBOL_DROPDOWN_LEFT_INSET = Math.max(0, APP_HEADER_MENU_VISUAL_LEFT - COMPACT_SYMBOL_DROPDOWN_LEFT_SHIFT);

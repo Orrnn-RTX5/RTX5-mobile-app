@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalizeSymbol } from '../../domain/symbols';
 import { useTranslation } from '../../i18n/useTranslation';
 import { FastPressable } from '../../ui/components/FastPressable';
+import { GDark, GLight } from '../../ui/theme/glass';
 import { useTheme, type ThemeColors } from '../../ui/theme/useTheme';
 import { useIsDarkTheme } from '../../state/themeMode';
 import { formatBackendPrice } from '../../utils/backendPrice';
@@ -268,7 +269,7 @@ function LaunchMetric({
   );
 }
 
-function makeStyles(T: ThemeColors, isDark: boolean) {
+function createQuoteInfoShellStyles(T: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
     backButton: {
       alignItems: 'flex-start',
@@ -462,4 +463,13 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       width: 40,
     },
   });
+}
+
+const DARK_QUOTE_INFO_SHELL_STYLES = createQuoteInfoShellStyles(GDark, true);
+const LIGHT_QUOTE_INFO_SHELL_STYLES = createQuoteInfoShellStyles(GLight, false);
+
+function makeStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_QUOTE_INFO_SHELL_STYLES;
+  if (T === GLight && !isDark) return LIGHT_QUOTE_INFO_SHELL_STYLES;
+  return createQuoteInfoShellStyles(T, isDark);
 }

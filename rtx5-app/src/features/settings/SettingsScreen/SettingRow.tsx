@@ -43,7 +43,7 @@ export function SettingRow({
     <FastPressable
       style={({ pressed }) => [
         styles.row,
-        pressed && styles.rowPressed,
+        !rightElement && pressed && styles.rowPressed,
       ]}
       latencyLabel={`settings.row.${title}`}
       onPress={onPress}
@@ -53,7 +53,7 @@ export function SettingRow({
       activateOnTouchStart={activateOnTouchStart}
       pressRetentionOffset={SETTINGS_ROW_PRESS_RETENTION_OFFSET}
       unstable_pressDelay={0}
-      android_ripple={{ color: `${color}24` }}
+      android_ripple={rightElement ? undefined : { color: `${color}24` }}
       accessibilityRole={onPress ? 'button' : undefined}
     >
       <View style={[styles.iconBox, { backgroundColor: `${color}1A` }, styles.iconBoxTint]}>

@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
-import type { ThemeColors } from '../../../ui/theme/glass';
+import { GDark, GLight, type ThemeColors } from '../../../ui/theme/glass';
 
-export function makeEconomicCalendarStyles(T: ThemeColors, isDark: boolean) {
+function createEconomicCalendarStyles(T: ThemeColors, isDark: boolean) {
   const cardBg = isDark ? T.glass2 : '#FFFFFF';
   const raisedBg = isDark ? T.glass1 : '#F8FAFC';
   const activeBg = isDark ? T.glass3 : '#EEF2FF';
@@ -196,6 +196,15 @@ export function makeEconomicCalendarStyles(T: ThemeColors, isDark: boolean) {
     modalDoneBtn: { marginTop: 22, borderRadius: 14, overflow: 'hidden', paddingVertical: 15, alignItems: 'center' },
     modalDoneBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: 0.3 },
   });
+}
+
+const DARK_ECONOMIC_CALENDAR_STYLES = createEconomicCalendarStyles(GDark, true);
+const LIGHT_ECONOMIC_CALENDAR_STYLES = createEconomicCalendarStyles(GLight, false);
+
+export function makeEconomicCalendarStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_ECONOMIC_CALENDAR_STYLES;
+  if (T === GLight && !isDark) return LIGHT_ECONOMIC_CALENDAR_STYLES;
+  return createEconomicCalendarStyles(T, isDark);
 }
 
 export type EconomicCalendarStyles = ReturnType<typeof makeEconomicCalendarStyles>;

@@ -46,7 +46,10 @@ export const UserGuideScreenInner = memo(function UserGuideScreenInner({ isScree
   const routeBodyReady = useRetainedRouteContentReady(
     isScreenFocused, USER_GUIDE_BODY_PREWARM_DELAY_MS,
   );
-  const visibleSections = GUIDE_MANUAL_SECTIONS;
+  const visibleSections = useMemo(
+    () => (isScreenFocused ? GUIDE_MANUAL_SECTIONS : GUIDE_MANUAL_SECTIONS.slice(0, 2)),
+    [isScreenFocused],
+  );
   const menuIconColor = isDark ? '#F8FAFC' : '#050505';
   const sectionIconColor = isDark ? '#60A5FA' : '#0A6EEB';
   const appName = Constants.expoConfig?.name ?? 'RTX5';

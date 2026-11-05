@@ -31,7 +31,13 @@ import { FastPressable } from '../../../ui/components/FastPressable';
 import { AnimatedSlideToggle } from '../../../ui/components/AnimatedSlideToggle';
 import { useUserPreferences } from '../../../state/userPreferences';
 import { recordAccountJournalEvent } from '../../../state/terminalJournalState';
-import { useThemeMode } from '../../../state/themeMode';
+import {
+  ThemeModeRenderPriorityContext,
+  scheduleAfterImmediateThemePaint,
+  setImmediateThemeMode,
+  useThemeMode,
+  useThemeModeState,
+} from '../../../state/themeMode';
 import { useUIState } from '../../../state/uiState';
 import { fmt } from '../../../utils/format';
 import { GDark, GLight } from '../../../ui/theme/glass';
@@ -52,7 +58,7 @@ import { SettingRow } from './SettingRow';
 import { LogoutConfirmation } from './LogoutConfirmation';
 import { createLogoutConfirmationController } from './logoutConfirmationController';
 import { captureActiveBrokerSession, subscribeActiveBrokerSession } from '../../../state/activeBrokerSession';
-import { makeSettingsStyles } from './styles';
+import { makeSettingsStyles, SETTINGS_STYLES_BY_MODE } from './styles';
 import { resolveSettingsAccountEnvironment, SETTINGS_ACCOUNT_ENVIRONMENT_BADGES } from './accountEnvironmentBadge';
 import { useDeferredActiveFlag } from '../../../hooks/useDeferredActiveFlag';
 import { preloadRegisterScreen } from '../registerScreenPreload';
@@ -232,7 +238,14 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
   const nativeAppVersion = Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? 'Local';
   const appBuildVersion = Application.nativeBuildVersion ?? Constants.nativeBuildVersion ?? '';
   const appVersion = resolveAppDisplayVersion(nativeAppVersion);
-  const styles = useMemo(() => makeSettingsStyles(T, themeMode), [T, themeMode]);
+  const styles = useMemo(
+    () =>
+      (themeMode === 'dark' && T === GDark) || (themeMode === 'light' && T === GLight)
+        ? SETTINGS_STYLES_BY_MODE[themeMode]
+        : makeSettingsStyles(T, themeMode),
+    [T, themeMode],
+  );
+  const themeCommitGenerationRef = useRef(0);
   const settingsAccent = themeMode === 'dark' ? '#347DFF' : '#1D4ED8';
   const settingsAccentActive = themeMode === 'dark' ? '#347DFF' : '#3B82F6';
   const settingsAccentBg = themeMode === 'dark' ? '#1E1E1E' : 'rgba(29, 78, 216, 0.1)';
@@ -250,11 +263,19 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
     />
   ) : null;
   const applyThemeMode = useCallback((nextMode: 'light' | 'dark') => {
-    if (themeMode === nextMode && appliedThemeMode === nextMode) {
+    const currentImmediateMode = useThemeModeState.getState().themeMode;
+    if (themeMode === nextMode && appliedThemeMode === nextMode && currentImmediateMode === nextMode) {
       return;
     }
+    const commitGeneration = ++themeCommitGenerationRef.current;
     setPendingThemeMode(nextMode);
-    setThemeMode(nextMode);
+    setImmediateThemeMode(nextMode);
+    scheduleAfterImmediateThemePaint(() => {
+      if (themeCommitGenerationRef.current !== commitGeneration) {
+        return;
+      }
+      setThemeMode(nextMode);
+    });
   }, [appliedThemeMode, setThemeMode, themeMode]);
   const toggleThemeMode = useCallback(() => {
     applyThemeMode(themeMode === 'light' ? 'dark' : 'light');
@@ -571,6 +592,9 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
   };
 
   return (
+    <ThemeModeRenderPriorityContext.Provider
+      value={isScreenFocused || pendingThemeMode !== null ? 'immediate' : 'retained'}
+    >
     <Screen noBottomInset style={styles.screen}>
       <View style={styles.headerWrap}>
         <AppHeader
@@ -939,11 +963,18 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
         onConfirm={confirmLogout}
       />
     </Screen>
+    </ThemeModeRenderPriorityContext.Provider>
   );
 });
 
 export function SettingsScreen() {
   const isScreenFocused = useIsFocused();
   const deferredScreenFocused = useNextFrameValue(isScreenFocused);
-  return <SettingsScreenInner isScreenFocused={deferredScreenFocused} />;
+  return (
+    <ThemeModeRenderPriorityContext.Provider
+      value={isScreenFocused ? 'immediate' : 'retained'}
+    >
+      <SettingsScreenInner isScreenFocused={deferredScreenFocused} />
+    </ThemeModeRenderPriorityContext.Provider>
+  );
 }

@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
-import type { ThemeColors } from '../../../ui/theme/glass';
+import { GDark, GLight, type ThemeColors } from '../../../ui/theme/glass';
 
-export function makeJournalStyles(T: ThemeColors) {
+function createJournalStyles(T: ThemeColors) {
   const bg = T.bgRoot;
   const surface = T.bgSecondary;
   const surfaceHi = T.glass1;
@@ -636,6 +636,15 @@ export function makeJournalStyles(T: ThemeColors) {
     neutralText: { color: neutral },
     noteText: { color: note },
   });
+}
+
+const DARK_JOURNAL_STYLES = createJournalStyles(GDark);
+const LIGHT_JOURNAL_STYLES = createJournalStyles(GLight);
+
+export function makeJournalStyles(T: ThemeColors) {
+  if (T === GDark) return DARK_JOURNAL_STYLES;
+  if (T === GLight) return LIGHT_JOURNAL_STYLES;
+  return createJournalStyles(T);
 }
 
 export type JournalStyles = ReturnType<typeof makeJournalStyles>;

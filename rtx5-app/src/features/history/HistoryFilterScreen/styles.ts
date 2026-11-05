@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
-import type { ThemeColors } from '../../../ui/theme/glass';
+import { GDark, GLight, type ThemeColors } from '../../../ui/theme/glass';
 
-export function makeHistoryFilterStyles(T: ThemeColors) {
+function createHistoryFilterStyles(T: ThemeColors) {
   return StyleSheet.create({
     screen: { backgroundColor: T.bg },
     page: { flex: 1, backgroundColor: T.bg },
@@ -129,4 +129,13 @@ export function makeHistoryFilterStyles(T: ThemeColors) {
     applyBtnDisabled: { opacity: 0.4 },
     applyBtnText: { color: '#FFFFFF', fontSize: 15, lineHeight: 22, fontWeight: '600', textAlign: 'center' },
   });
+}
+
+const DARK_HISTORY_FILTER_STYLES = createHistoryFilterStyles(GDark);
+const LIGHT_HISTORY_FILTER_STYLES = createHistoryFilterStyles(GLight);
+
+export function makeHistoryFilterStyles(T: ThemeColors) {
+  if (T === GDark) return DARK_HISTORY_FILTER_STYLES;
+  if (T === GLight) return LIGHT_HISTORY_FILTER_STYLES;
+  return createHistoryFilterStyles(T);
 }

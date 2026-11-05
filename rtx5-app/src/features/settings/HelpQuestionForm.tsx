@@ -5,10 +5,35 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '../../i18n/useTranslation';
 import { FastPressable } from '../../ui/components/FastPressable';
 import { OVERLAY_MODAL_PROPS } from '../../ui/overlayModalProps';
+import { GDark, GLight, type ThemeColors } from '../../ui/theme/glass';
 import { useTheme } from '../../ui/theme/useTheme';
 
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_TITLE_LENGTH = 120;
+
+function buildHelpQuestionFormStyles(T: ThemeColors) {
+  return StyleSheet.create({
+    screen: { flex: 1, backgroundColor: T.bgRoot },
+    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border },
+    close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    title: { flex: 1, color: T.text, fontSize: 20, fontWeight: '500' },
+    content: { padding: 20, gap: 16 },
+    body: { color: T.textSub, fontSize: 14, lineHeight: 21 },
+    label: { color: T.text, fontSize: 14, fontWeight: '600' },
+    input: { minHeight: 150, maxHeight: 240, borderWidth: 1, borderColor: T.border, borderRadius: 8, backgroundColor: T.glass1, color: T.text, padding: 12, fontSize: 16, textAlignVertical: 'top' },
+    titleInput: { minHeight: 48, maxHeight: undefined, textAlignVertical: 'center' },
+    count: { color: T.textMuted, fontSize: 12, textAlign: 'right' },
+    button: { minHeight: 48, padding: 14, borderRadius: 8, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
+    buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', textAlign: 'center' },
+    disabled: { opacity: 0.45 },
+    feedback: { color: T.textSub, fontSize: 14, lineHeight: 21 },
+    success: { alignItems: 'center', gap: 16, paddingVertical: 24 },
+    successTitle: { color: T.text, fontSize: 22, fontWeight: '600' },
+  });
+}
+
+const DARK_HELP_QUESTION_STYLES = buildHelpQuestionFormStyles(GDark);
+const LIGHT_HELP_QUESTION_STYLES = buildHelpQuestionFormStyles(GLight);
 
 export type HelpQuestionDraft = { title: string; question: string };
 
@@ -32,24 +57,10 @@ export function HelpQuestionForm({ visible, onClose, onSubmitQuestion }: {
   const questionInputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
   const questionFocusedRef = useRef(false);
-  const styles = useMemo(() => StyleSheet.create({
-    screen: { flex: 1, backgroundColor: T.bgRoot },
-    header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.border },
-    close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-    title: { flex: 1, color: T.text, fontSize: 20, fontWeight: '500' },
-    content: { padding: 20, gap: 16 },
-    body: { color: T.textSub, fontSize: 14, lineHeight: 21 },
-    label: { color: T.text, fontSize: 14, fontWeight: '600' },
-    input: { minHeight: 150, maxHeight: 240, borderWidth: 1, borderColor: T.border, borderRadius: 8, backgroundColor: T.glass1, color: T.text, padding: 12, fontSize: 16, textAlignVertical: 'top' },
-    titleInput: { minHeight: 48, maxHeight: undefined, textAlignVertical: 'center' },
-    count: { color: T.textMuted, fontSize: 12, textAlign: 'right' },
-    button: { minHeight: 48, padding: 14, borderRadius: 8, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
-    buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', textAlign: 'center' },
-    disabled: { opacity: 0.45 },
-    feedback: { color: T.textSub, fontSize: 14, lineHeight: 21 },
-    success: { alignItems: 'center', gap: 16, paddingVertical: 24 },
-    successTitle: { color: T.text, fontSize: 22, fontWeight: '600' },
-  }), [T]);
+  const styles = useMemo(
+    () => (T === GDark ? DARK_HELP_QUESTION_STYLES : T === GLight ? LIGHT_HELP_QUESTION_STYLES : buildHelpQuestionFormStyles(T)),
+    [T],
+  );
 
   const submitQuestion = async () => {
     if (!questionTitle.trim() || !question.trim() || submittingRef.current || submitted) return;

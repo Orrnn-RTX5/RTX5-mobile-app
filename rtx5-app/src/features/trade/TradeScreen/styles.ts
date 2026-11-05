@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { spacing } from '../../../ui/theme/index';
-import type { ThemeColors } from '../../../ui/theme/glass';
+import { GDark, GLight, type ThemeColors } from '../../../ui/theme/glass';
 
 const SETTINGS_DARK_BACKGROUND = '#121212';
 const SETTINGS_DARK_CARD_BACKGROUND = '#1E1E1E';
@@ -16,7 +16,7 @@ const SETTINGS_DARK_CARD_BACKGROUND = '#1E1E1E';
  */
 const TRADE_SUMMARY_OVERSCROLL_BLEED = 96;
 
-export function makeTradeScreenStyles(T: ThemeColors, isDark: boolean) {
+function createTradeScreenStyles(T: ThemeColors, isDark: boolean) {
   const screenBg = isDark ? SETTINGS_DARK_BACKGROUND : T.bg;
   const cardBg = isDark ? SETTINGS_DARK_CARD_BACKGROUND : T.glass2;
 
@@ -451,6 +451,15 @@ export function makeTradeScreenStyles(T: ThemeColors, isDark: boolean) {
       textAlign: 'right',
     },
   });
+}
+
+const DARK_TRADE_SCREEN_STYLES = createTradeScreenStyles(GDark, true);
+const LIGHT_TRADE_SCREEN_STYLES = createTradeScreenStyles(GLight, false);
+
+export function makeTradeScreenStyles(T: ThemeColors, isDark: boolean) {
+  if (T === GDark && isDark) return DARK_TRADE_SCREEN_STYLES;
+  if (T === GLight && !isDark) return LIGHT_TRADE_SCREEN_STYLES;
+  return createTradeScreenStyles(T, isDark);
 }
 
 export type TradeScreenStyles = ReturnType<typeof makeTradeScreenStyles>;

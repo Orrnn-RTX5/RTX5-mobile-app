@@ -241,6 +241,38 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
     themeCommitGenerationRef.current += 1;
   }, []);
 
+  const pauseLiveWorkForDrawer = useCallback(() => {
+    if (liveWorkResumeTimerRef.current) {
+      clearTimeout(liveWorkResumeTimerRef.current);
+      liveWorkResumeTimerRef.current = null;
+    }
+    const previousSnapshotRelease = liveSnapshotPauseReleaseRef.current;
+    liveSnapshotPauseReleaseRef.current =
+      pauseLiveQuoteSnapshotNotifications(SIDEBAR_LIVE_WORK_PAUSE_TIMEOUT_MS);
+    previousSnapshotRelease?.();
+    const previousSymbolRelease = liveSymbolPauseReleaseRef.current;
+    liveSymbolPauseReleaseRef.current =
+      pauseLiveSymbolQuoteNotifications(SIDEBAR_LIVE_WORK_PAUSE_TIMEOUT_MS);
+    previousSymbolRelease?.();
+    // This service API is a shared expiry, not an owned token. Extend it only
+    // for this short motion and let it expire; clearing it here could cancel a
+    // newer Quotes action-sheet deferral.
+    quotesWsService.deferReconnectForInteraction?.(SIDEBAR_RECONNECT_DEFER_MS);
+  }, []);
+
+  const scheduleLiveWorkResumeAfterClose = useCallback(() => {
+    if (liveWorkResumeTimerRef.current) {
+      clearTimeout(liveWorkResumeTimerRef.current);
+    }
+    liveWorkResumeTimerRef.current = setTimeout(() => {
+      liveWorkResumeTimerRef.current = null;
+      liveSnapshotPauseReleaseRef.current?.();
+      liveSnapshotPauseReleaseRef.current = null;
+      liveSymbolPauseReleaseRef.current?.();
+      liveSymbolPauseReleaseRef.current = null;
+    }, SIDEBAR_LIVE_WORK_RESUME_DELAY_MS);
+  }, []);
+
   const handleThemeModePress = useCallback((nextMode: ThemeMode) => {
     const generation = themeCommitGenerationRef.current + 1;
     themeCommitGenerationRef.current = generation;
@@ -248,6 +280,7 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
       return;
     }
 
+    pauseLiveWorkForDrawer();
     // Advance the lightweight app-wide clock in the touch turn. Hidden visual
     // surfaces then settle before the drawer can close and reveal them. Keep
     // durable preference work behind the selector's first themed frame.
@@ -257,7 +290,7 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
         setPreferenceThemeMode(nextMode);
       }
     });
-  }, [setPreferenceThemeMode, themeMode]);
+  }, [pauseLiveWorkForDrawer, setPreferenceThemeMode, themeMode]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -279,52 +312,29 @@ export const SidebarDrawer = memo(function SidebarDrawer() {
     });
   }, [isLoggedIn, router]);
 
-  useEffect(() => () => {
-    if (navigationUnlockTimerRef.current) {
-      clearTimeout(navigationUnlockTimerRef.current);
-      navigationUnlockTimerRef.current = null;
-    }
-    if (liveWorkResumeTimerRef.current) {
-      clearTimeout(liveWorkResumeTimerRef.current);
-      liveWorkResumeTimerRef.current = null;
-    }
-    liveSnapshotPauseReleaseRef.current?.();
-    liveSnapshotPauseReleaseRef.current = null;
-    liveSymbolPauseReleaseRef.current?.();
-    liveSymbolPauseReleaseRef.current = null;
-  }, []);
-
   useEffect(() => {
-    if (interactive) setFailedBrokerLogoUrls([]);
-  }, [brokerId, accountDetails?.id, isLoggedIn, interactive]);
-
-  const pauseLiveWorkForDrawer = useCallback(() => {
-    if (liveWorkResumeTimerRef.current) {
-      clearTimeout(liveWorkResumeTimerRef.current);
-      liveWorkResumeTimerRef.current = null;
+    if (initialSidebarOpenRef.current) {
+      pauseLiveWorkForDrawer();
     }
-    liveSnapshotPauseReleaseRef.current ??=
-      pauseLiveQuoteSnapshotNotifications(SIDEBAR_LIVE_WORK_PAUSE_TIMEOUT_MS);
-    liveSymbolPauseReleaseRef.current ??=
-      pauseLiveSymbolQuoteNotifications(SIDEBAR_LIVE_WORK_PAUSE_TIMEOUT_MS);
-    // This service API is a shared expiry, not an owned token. Extend it only
-    // for this short motion and let it expire; clearing it here could cancel a
-    // newer Quotes action-sheet deferral.
-    quotesWsService.deferReconnectForInteraction?.(SIDEBAR_RECONNECT_DEFER_MS);
-  }, []);
-
-  const scheduleLiveWorkResumeAfterClose = useCallback(() => {
-    if (liveWorkResumeTimerRef.current) {
-      clearTimeout(liveWorkResumeTimerRef.current);
-    }
-    liveWorkResumeTimerRef.current = setTimeout(() => {
-      liveWorkResumeTimerRef.current = null;
+    return () => {
+      if (navigationUnlockTimerRef.current) {
+        clearTimeout(navigationUnlockTimerRef.current);
+        navigationUnlockTimerRef.current = null;
+      }
+      if (liveWorkResumeTimerRef.current) {
+        clearTimeout(liveWorkResumeTimerRef.current);
+        liveWorkResumeTimerRef.current = null;
+      }
       liveSnapshotPauseReleaseRef.current?.();
       liveSnapshotPauseReleaseRef.current = null;
       liveSymbolPauseReleaseRef.current?.();
       liveSymbolPauseReleaseRef.current = null;
-    }, SIDEBAR_LIVE_WORK_RESUME_DELAY_MS);
-  }, []);
+    };
+  }, [pauseLiveWorkForDrawer]);
+
+  useEffect(() => {
+    if (interactive) setFailedBrokerLogoUrls([]);
+  }, [brokerId, accountDetails?.id, isLoggedIn, interactive]);
 
   /* Keep the drawer warm offscreen and reveal its final position on touch-down. */
   const revealDrawerImmediately = useCallback(() => {
@@ -827,7 +837,7 @@ type SidebarThemeSelectorProps = {
 /**
  * A segmented control component allowing the user to select their app-wide color theme preference (System, Light, Dark).
  */
-function SidebarThemeSelector({
+const SidebarThemeSelector = memo(function SidebarThemeSelector({
   appliedThemeMode,
   onSelectThemeMode,
 }: SidebarThemeSelectorProps) {
@@ -879,7 +889,7 @@ function SidebarThemeSelector({
       </View>
     </View>
   );
-}
+});
 
 function makeStyles(T: ThemeColors, isDark: boolean) {
   return StyleSheet.create({
@@ -894,9 +904,7 @@ function makeStyles(T: ThemeColors, isDark: boolean) {
       right: 0,
       bottom: 0,
       left: DRAWER_WIDTH,
-      // While switching to dark, conceal the retained chart WebView for its
-      // brief native bridge catch-up. The close fade reveals the themed chart.
-      backgroundColor: isDark ? '#000000' : 'rgba(0,0,0,0.3)',
+      backgroundColor: 'rgba(0,0,0,0.3)',
       zIndex: 0,
       elevation: 0,
     },
