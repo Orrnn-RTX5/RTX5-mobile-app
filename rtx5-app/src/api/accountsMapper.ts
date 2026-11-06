@@ -4,26 +4,13 @@ import {
   type AccountEnvironment,
   type BackendAccountEnvironmentSource,
 } from '../domain/accountType';
+import { readBackendNumber, resolveAccountCurrencyDigits } from '../utils/accountCurrency';
+import { isValidPublicationToken } from '../utils/accountMetrics';
 
-type NumericAccountField = number | string | null | undefined;
+type NumericAccountField = number | string | { amount?: number | string | null; currency?: string; scale?: number } | null | undefined;
 
 function parseFiniteNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim();
-    if (!normalized) {
-      return undefined;
-    }
-    const parsed = Number(normalized);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-
-  return undefined;
+  return readBackendNumber(value);
 }
 
 function pickFiniteNumber(...values: unknown[]): number | undefined {
@@ -134,6 +121,10 @@ export interface TradingAccountRaw {
   status?: string | null;
   created_at?: NumericAccountField;
   updated_at?: NumericAccountField;
+  currency_digits?: NumericAccountField;
+  currencyDigits?: NumericAccountField;
+  publication_token?: string | null;
+  publicationToken?: string | null;
 }
 
 /**
@@ -146,6 +137,8 @@ export interface TradingAccount {
   accountEnvironment: AccountEnvironment;
   accountEnvironmentSource: BackendAccountEnvironmentSource;
   currency: string;
+  currencyDigits?: number | null;
+  publicationToken?: string;
   leverage: number;
   balance: number;
   credit: number;
@@ -217,6 +210,9 @@ export function mapRawAccount(
     .filter(([, metric]) => metric.stale)
     .map(([key]) => key);
 
+  const rawToken = raw.publication_token ?? raw.publicationToken;
+  const publicationToken = isValidPublicationToken(rawToken) ? rawToken.trim() : prior?.publicationToken;
+
   return {
     login,
     name: raw.name || `Account ${login}`,
@@ -226,6 +222,8 @@ export function mapRawAccount(
     accountEnvironment: accountEnvironmentEvidence.accountType,
     accountEnvironmentSource: accountEnvironmentEvidence.source,
     currency: raw.currency || 'USD',
+    currencyDigits: resolveAccountCurrencyDigits(raw, raw.currency_digits ?? raw.currencyDigits) ?? prior?.currencyDigits ?? null,
+    ...(publicationToken ? { publicationToken } : {}),
     leverage: toFiniteNumber(raw.leverage),
     balance: toFiniteNumber(raw.balance),
     credit: toFiniteNumber(raw.credit),

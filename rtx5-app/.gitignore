@@ -24,6 +24,8 @@ expo-env.d.ts
 .metro-health-check*
 
 # debug
+*.log
+.codex-*
 npm-debug.*
 yarn-debug.*
 yarn-error.*

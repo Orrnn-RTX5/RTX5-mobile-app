@@ -970,11 +970,5 @@ const SettingsScreenInner = memo(function SettingsScreenInner({ isScreenFocused 
 export function SettingsScreen() {
   const isScreenFocused = useIsFocused();
   const deferredScreenFocused = useNextFrameValue(isScreenFocused);
-  return (
-    <ThemeModeRenderPriorityContext.Provider
-      value={isScreenFocused ? 'immediate' : 'retained'}
-    >
-      <SettingsScreenInner isScreenFocused={deferredScreenFocused} />
-    </ThemeModeRenderPriorityContext.Provider>
-  );
+  return <SettingsScreenInner isScreenFocused={deferredScreenFocused} />;
 }

@@ -14,6 +14,7 @@
  */
 import type { Deal } from '../../api/deals';
 import type { ClosedPosition } from '../../api/positions';
+import { readBackendNumber } from '../../utils/accountCurrency';
 
 const dealTimeAsc = (a: Deal, b: Deal): number =>
   (typeof a.time === 'number' ? a.time : 0) - (typeof b.time === 'number' ? b.time : 0);
@@ -245,4 +246,246 @@ function closedPositionOpeningKeys(record: ClosedPosition): string[] {
   return [openSeconds, openSeconds - 1, openSeconds + 1].map(
     (seconds) => `open:${symbol}|${side}|${volumeKey}|${openPriceKey}|${seconds}`,
   );
+}
+
+export interface CollapsedClosedPosition extends ClosedPosition {
+  positionId: string;
+  openPrice: number;
+  closePrice: number;
+  openTime: number;
+  closeTime: number;
+  fee: number;
+  netProfit: number;
+}
+
+const isEntryInDeal = (deal: any): boolean => {
+  const entry = String(deal?.entry ?? '')
+    .trim()
+    .toLowerCase();
+  if (entry === 'entry_in' || entry === 'in' || entry === '0' || deal?.entry === 0) {
+    return true;
+  }
+  return false;
+};
+
+const isEntryOutDeal = (deal: any): boolean => {
+  const entry = String(deal?.entry ?? '')
+    .trim()
+    .toLowerCase();
+  return (
+    entry === 'entry_out' ||
+    entry === 'entry_inout' ||
+    entry === 'entry_out_by' ||
+    entry === 'out' ||
+    entry === 'inout' ||
+    entry === 'out_by' ||
+    entry === '1' ||
+    entry === '2' ||
+    entry === '3' ||
+    deal?.entry === 1 ||
+    deal?.entry === 2 ||
+    deal?.entry === 3
+  );
+};
+
+const resolveDealPositionGroupId = (deal: any): string | null => {
+  const raw =
+    deal?.position_id ??
+    deal?.positionId ??
+    deal?.position ??
+    deal?.position_ticket ??
+    deal?.order;
+  if (raw === null || raw === undefined) return null;
+  const num = Number(raw);
+  if (Number.isFinite(num) && num <= 0) return null;
+  const text = String(raw).trim();
+  return text ? text : null;
+};
+
+const isSellAction = (action: unknown): boolean => {
+  const raw = String(action ?? '')
+    .trim()
+    .toLowerCase();
+  return raw === 'deal_sell' || raw === 'sell' || raw === '1' || action === 1;
+};
+
+export function collapseDealHistory(deals: readonly any[] | null | undefined): CollapsedClosedPosition[] {
+  if (!Array.isArray(deals) || deals.length === 0) {
+    return [];
+  }
+
+  const tradingDeals = deals
+    .filter((d) => {
+      if (!d || typeof d !== 'object') return false;
+      const vol = readBackendNumber(d.volume ?? d.volume_lots ?? d.quantity);
+      if (vol === undefined || vol <= 0) return false;
+      const sym = String(d.symbol ?? '').trim();
+      if (!sym) return false;
+      return isEntryInDeal(d) || isEntryOutDeal(d);
+    })
+    .slice()
+    .sort(
+      (a, b) =>
+        (readBackendNumber(a.time ?? a.timestamp) ?? 0) -
+        (readBackendNumber(b.time ?? b.timestamp) ?? 0),
+    );
+
+  type PositionGroup = {
+    positionId: string;
+    symbol: string;
+    accountLogin: number;
+    entries: any[];
+    exits: any[];
+  };
+
+  const groupsByKey = new Map<string, PositionGroup>();
+  const fifoOpenQueueBySymbol = new Map<string, any[]>();
+  const fifoGroups: PositionGroup[] = [];
+
+  for (const deal of tradingDeals) {
+    const symbol = String(deal.symbol ?? '').trim();
+    const posId = resolveDealPositionGroupId(deal);
+    if (posId !== null) {
+      const groupKey = `${symbol}|${posId}`;
+      let group = groupsByKey.get(groupKey);
+      if (!group) {
+        group = {
+          positionId: posId,
+          symbol,
+          accountLogin: readBackendNumber(deal.account_login ?? deal.login) ?? 0,
+          entries: [],
+          exits: [],
+        };
+        groupsByKey.set(groupKey, group);
+      }
+      if (isEntryInDeal(deal)) {
+        group.entries.push(deal);
+      } else if (isEntryOutDeal(deal)) {
+        group.exits.push(deal);
+      }
+    } else {
+      if (isEntryInDeal(deal)) {
+        const q = fifoOpenQueueBySymbol.get(symbol);
+        if (q) q.push(deal);
+        else fifoOpenQueueBySymbol.set(symbol, [deal]);
+      } else if (isEntryOutDeal(deal)) {
+        const q = fifoOpenQueueBySymbol.get(symbol);
+        const matchedOpen = q && q.length > 0 ? q.shift() : undefined;
+        const fallbackId = String(
+          deal.ticket ?? deal.deal ?? deal.id ?? matchedOpen?.ticket ?? fifoGroups.length + 1,
+        );
+        fifoGroups.push({
+          positionId: fallbackId,
+          symbol,
+          accountLogin: readBackendNumber(deal.account_login ?? deal.login) ?? 0,
+          entries: matchedOpen ? [matchedOpen] : [],
+          exits: [deal],
+        });
+      }
+    }
+  }
+
+  const allGroups = [...groupsByKey.values(), ...fifoGroups];
+  const collapsed: CollapsedClosedPosition[] = [];
+
+  for (const group of allGroups) {
+    if (group.exits.length === 0) {
+      continue;
+    }
+
+    let entryVolSum = 0;
+    let entryWeightedPriceSum = 0;
+    let exitVolSum = 0;
+    let exitWeightedPriceSum = 0;
+    let profitSum = 0;
+    let commissionSum = 0;
+    let swapSum = 0;
+    let feeSum = 0;
+
+    for (const entry of group.entries) {
+      const vol = readBackendNumber(entry.volume ?? entry.volume_lots ?? entry.quantity) ?? 0;
+      const price = readBackendNumber(entry.price ?? entry.open_price ?? entry.openPrice) ?? 0;
+      if (vol > 0 && price > 0) {
+        entryVolSum += vol;
+        entryWeightedPriceSum += price * vol;
+      }
+      profitSum += readBackendNumber(entry.profit) ?? 0;
+      commissionSum += readBackendNumber(entry.commission) ?? 0;
+      swapSum += readBackendNumber(entry.swap ?? entry.storage) ?? 0;
+      feeSum += readBackendNumber(entry.fee) ?? 0;
+    }
+
+    for (const exit of group.exits) {
+      const vol = readBackendNumber(exit.volume ?? exit.volume_lots ?? exit.quantity) ?? 0;
+      const price = readBackendNumber(exit.price ?? exit.close_price ?? exit.closePrice) ?? 0;
+      if (vol > 0 && price > 0) {
+        exitVolSum += vol;
+        exitWeightedPriceSum += price * vol;
+      }
+      profitSum += readBackendNumber(exit.profit) ?? 0;
+      commissionSum += readBackendNumber(exit.commission) ?? 0;
+      swapSum += readBackendNumber(exit.swap ?? exit.storage) ?? 0;
+      feeSum += readBackendNumber(exit.fee) ?? 0;
+    }
+
+    const openPrice = entryVolSum > 0 ? entryWeightedPriceSum / entryVolSum : 0;
+    const closePrice = exitVolSum > 0 ? exitWeightedPriceSum / exitVolSum : 0;
+    const volume = exitVolSum > 0 ? exitVolSum : entryVolSum;
+
+    const firstEntry = group.entries[0];
+    const firstExit = group.exits[0];
+    const lastExit = group.exits[group.exits.length - 1];
+    const side: 'buy' | 'sell' = firstEntry
+      ? isSellAction(firstEntry.action ?? firstEntry.type)
+        ? 'sell'
+        : 'buy'
+      : isSellAction(firstExit.action ?? firstExit.type)
+        ? 'buy'
+        : 'sell';
+
+    const openTime =
+      readBackendNumber(firstEntry?.time ?? firstEntry?.timestamp) ??
+      readBackendNumber(firstExit?.time ?? firstExit?.timestamp) ??
+      0;
+    const closeTime =
+      readBackendNumber(lastExit?.time ?? lastExit?.timestamp) ?? openTime;
+    const numericTicket = Number(group.positionId);
+    const ticket = Number.isFinite(numericTicket) && numericTicket > 0 ? numericTicket : 0;
+
+    collapsed.push({
+      ticket,
+      positionId: group.positionId,
+      account_login: group.accountLogin,
+      symbol: group.symbol,
+      side,
+      volume,
+      openPrice,
+      closePrice,
+      price_open: openPrice,
+      price_close: closePrice,
+      profit: profitSum,
+      swap: swapSum,
+      commission: commissionSum,
+      fee: feeSum,
+      netProfit: profitSum + commissionSum + swapSum + feeSum,
+      time_create: openTime,
+      time_update: closeTime,
+      time_close: closeTime,
+      openTime,
+      closeTime,
+      comment: String(lastExit?.comment ?? firstEntry?.comment ?? '').trim() || undefined,
+    });
+  }
+
+  return collapsed;
+}
+
+export function resolveClosedPositionsHistory(
+  dealHistory: readonly any[] | null | undefined,
+  fallbackPositionsHistory: readonly ClosedPosition[] | null | undefined,
+): ClosedPosition[] {
+  if (Array.isArray(dealHistory) && dealHistory.length > 0) {
+    return collapseDealHistory(dealHistory);
+  }
+  return Array.isArray(fallbackPositionsHistory) ? [...fallbackPositionsHistory] : [];
 }

@@ -1234,8 +1234,8 @@ test('chart SL/TP toolbar icon renders the split red/green stop-loss and take-pr
 
   assertSourceContains(
     iconsSource,
-    /LinearGradient id="sltpRedFill"[\s\S]*LinearGradient id="sltpGreenFill"[\s\S]*d="M6\.35 5H8\.65V11\.8H10\.85L7\.5 18\.5L4\.15 11\.8H6\.35Z"[\s\S]*d="M16\.5 5\.5L19\.85 12\.2H17\.65V19H15\.35V12\.2H13\.15Z"[\s\S]*export const TvOneClick =/,
-    'ChartToolbarIcons must render the refined SL/TP vector icon and the One-Click Trading toolbar icon',
+    /M11\.35 2\.77A9\.25 9\.25 0 0 0 11\.35 21\.23L11\.35 18\.32A6\.35 6\.35 0 0 1 11\.35 5\.68Z[\s\S]*M12\.65 2\.77A9\.25 9\.25 0 0 1 12\.65 21\.23L12\.65 18\.32A6\.35 6\.35 0 0 0 12\.65 5\.68Z[\s\S]*M12 7\.65V12\.15L14\.4 14\.55[\s\S]*export const TvOneClick =[\s\S]*M13\.6 2\.6L5\.6 13\.4H11\.7L10\.4 21\.4L18\.4 10\.6H12\.3L13\.6 2\.6Z/,
+    'ChartToolbarIcons must render the refined SL/TP order-levels vector icon and the One-Click Trading toolbar icon',
   );
   assertSourceContains(
     source,

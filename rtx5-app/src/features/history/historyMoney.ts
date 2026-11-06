@@ -1,5 +1,16 @@
 import type { Deal } from '../../api/deals';
 import type { ClosedPosition } from '../../api/positions';
+import {
+  normalizeBalanceLedgerOperation,
+  type BalanceLedgerOperation,
+} from '../../api/transactions';
+import {
+  formatAccountAmount,
+  METRIC_UNAVAILABLE,
+  readBackendNumber,
+  resolveAccountCurrencyDigits,
+} from '../../utils/accountCurrency';
+import { resolveTradeAccountMetrics } from '../../utils/accountMetrics';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -212,4 +223,220 @@ export function calculateHistoryMoneySummary({
     deposit: (Number.isFinite(balance) ? balance : 0) - totalClosedPnl,
     depositSource: 'balance-minus-closed-pnl',
   };
+}
+
+export interface HistoryFinancialSummary {
+  profit: number | null;
+  grossProfit: number | null;
+  commission: number | null;
+  swap: number | null;
+  fee: number | null;
+  credit: number | null;
+  deposit: number | null;
+  withdrawal: number | null;
+}
+
+const CASH_OR_CANCELED_DEAL_TYPES = new Set([
+  'balance',
+  'deal_balance',
+  'credit',
+  'deposit',
+  'withdrawal',
+  'bonus',
+  'charge',
+  'correction',
+  'canceled',
+  'cancelled',
+]);
+
+const VALID_DEAL_TYPES = new Set([
+  'buy',
+  'sell',
+  'deal_buy',
+  'deal_sell',
+  '0',
+  '1',
+]);
+
+const isTradingDealRecord = (deal: any): boolean => {
+  if (!deal || typeof deal !== 'object') return false;
+  if (deal.historySource === 'order' || deal.historySource === 'closed-position') {
+    return false;
+  }
+  if (deal.canceled === true || deal.cancelled === true) {
+    return false;
+  }
+
+  const rawType = deal.type ?? deal.action;
+  const normalizedType = String(rawType ?? '')
+    .trim()
+    .toLowerCase();
+  const normalizedEntry = String(deal.entry ?? '')
+    .trim()
+    .toLowerCase();
+  const normalizedStatus = String(deal.status ?? deal.state ?? '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    CASH_OR_CANCELED_DEAL_TYPES.has(normalizedType) ||
+    CASH_OR_CANCELED_DEAL_TYPES.has(normalizedEntry) ||
+    CASH_OR_CANCELED_DEAL_TYPES.has(normalizedStatus)
+  ) {
+    return false;
+  }
+
+  if (rawType !== undefined && rawType !== null && normalizedType !== '') {
+    return VALID_DEAL_TYPES.has(normalizedType);
+  }
+
+  return (
+    readBackendNumber(deal.profit) !== undefined ||
+    readBackendNumber(deal.commission) !== undefined ||
+    readBackendNumber(deal.swap) !== undefined ||
+    readBackendNumber(deal.fee) !== undefined
+  );
+};
+
+export function calculateHistoryFinancialSummary(
+  deals: readonly any[] | null | undefined,
+  balanceOperations?: readonly (BalanceLedgerOperation | Record<string, unknown>)[] | null,
+): HistoryFinancialSummary {
+  let profit: number | null = null;
+  let grossProfit: number | null = null;
+  let commission: number | null = null;
+  let swap: number | null = null;
+  let fee: number | null = null;
+
+  if (Array.isArray(deals)) {
+    profit = 0;
+    grossProfit = 0;
+    commission = 0;
+    swap = 0;
+    fee = 0;
+
+    for (const deal of deals) {
+      if (!isTradingDealRecord(deal)) continue;
+      const dealProfit = readBackendNumber(deal.profit) ?? 0;
+      const dealCommission = readBackendNumber(deal.commission) ?? 0;
+      const dealSwap = readBackendNumber(deal.swap ?? deal.storage) ?? 0;
+      const dealFee = readBackendNumber(deal.fee) ?? 0;
+
+      grossProfit += dealProfit;
+      commission += dealCommission;
+      swap += dealSwap;
+      fee += dealFee;
+      profit += dealProfit + dealCommission + dealSwap + dealFee;
+    }
+  }
+
+  let credit: number | null = null;
+  let deposit: number | null = null;
+  let withdrawal: number | null = null;
+
+  if (Array.isArray(balanceOperations)) {
+    credit = 0;
+    deposit = 0;
+    withdrawal = 0;
+
+    for (const rawOp of balanceOperations) {
+      const op = normalizeBalanceLedgerOperation(rawOp);
+      if (!op) continue;
+      if (op.type === 'credit') {
+        credit += op.amount;
+      } else if (op.type === 'deposit') {
+        deposit += op.amount;
+      } else if (op.type === 'withdrawal') {
+        withdrawal += -Math.abs(op.amount);
+      }
+    }
+  }
+
+  return {
+    profit,
+    grossProfit,
+    commission,
+    swap,
+    fee,
+    credit,
+    deposit,
+    withdrawal,
+  };
+}
+
+const normalizeRecordTimestampMs = (record: any): number | null => {
+  const raw = record?.timestamp ?? record?.time ?? record?.created_at ?? record?.time_close;
+  const num = readBackendNumber(raw);
+  if (num !== undefined && num > 0) {
+    return num < 1e11 ? num * 1000 : num;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    const parsed = Date.parse(raw.trim());
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return null;
+};
+
+export function filterHistoryByPeriodAndSymbol<
+  TDeal extends Record<string, any>,
+  TBalanceOp extends Record<string, any>,
+>(input: {
+  deals: readonly TDeal[];
+  balanceOperations: readonly TBalanceOp[];
+  fromMs?: number | null;
+  toMs?: number | null;
+  symbol?: string | null;
+}): {
+  deals: TDeal[];
+  balanceOperations: TBalanceOp[];
+} {
+  const normalizedSymbol =
+    typeof input.symbol === 'string' &&
+    input.symbol.trim() !== '' &&
+    input.symbol.trim().toUpperCase() !== 'ALL' &&
+    input.symbol.trim().toUpperCase() !== 'ALL SYMBOLS'
+      ? input.symbol.trim().toUpperCase()
+      : null;
+
+  const isWithinPeriod = (record: any): boolean => {
+    if (input.fromMs == null && input.toMs == null) return true;
+    const tsMs = normalizeRecordTimestampMs(record);
+    if (tsMs === null) return false;
+    if (typeof input.fromMs === 'number' && Number.isFinite(input.fromMs) && tsMs < input.fromMs) {
+      return false;
+    }
+    if (typeof input.toMs === 'number' && Number.isFinite(input.toMs) && tsMs > input.toMs) {
+      return false;
+    }
+    return true;
+  };
+
+  // Date/Period filter filters BOTH deals and balanceOperations.
+  // Symbol filter filters ONLY deals (never balanceOperations).
+  const filteredDeals = input.deals.filter((deal) => {
+    if (!isWithinPeriod(deal)) return false;
+    if (normalizedSymbol !== null) {
+      const dealSym = String(deal?.symbol ?? '')
+        .trim()
+        .toUpperCase();
+      if (dealSym !== normalizedSymbol) return false;
+    }
+    return true;
+  });
+
+  const filteredBalanceOperations = input.balanceOperations.filter((op) => isWithinPeriod(op));
+
+  return {
+    deals: filteredDeals,
+    balanceOperations: filteredBalanceOperations,
+  };
+}
+
+export function formatHistoryBalanceMetric(account: unknown): string {
+  const metrics = resolveTradeAccountMetrics(account);
+  if (metrics.balance === null) {
+    return METRIC_UNAVAILABLE;
+  }
+  const currencyDigits = resolveAccountCurrencyDigits(account);
+  return formatAccountAmount(metrics.balance, currencyDigits);
 }

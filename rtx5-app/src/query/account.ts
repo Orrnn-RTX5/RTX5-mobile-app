@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getAccountSummary, AccountSummary } from '../api/account';
+import { getAccountSummaryWithMetrics, AccountSummary } from '../api/account';
 import {
   getSessionQueryCacheNamespace,
   runSessionBoundQuery,
@@ -43,7 +43,7 @@ export function useAccountSummary(
       const previous = queryClient.getQueryData<AccountSummary>(queryKey);
       return runSessionBoundQuery(
         cacheNamespace,
-        () => getAccountSummary(login, previous),
+        () => getAccountSummaryWithMetrics(login, previous),
       );
     },
     enabled,

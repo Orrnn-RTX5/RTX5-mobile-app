@@ -3297,6 +3297,21 @@ export const CH_HTML = `
         // of the right-side price scale, keeping the green/red live price + countdown badge
         // centered in the middle of the right scale.
         var margins = resolveRightPriceScaleMarginFractions();
+        if (isValidPriceRange(lastCappedDefaultPriceRange)) {
+          var cachedSpan = getPriceRangeSpan(lastCappedDefaultPriceRange);
+          var guardMargin = cachedSpan * 0.15;
+          if (
+            cachedSpan > 0 &&
+            Math.abs(rawTargetSpan - cachedSpan) <= cachedSpan * 0.12 &&
+            liveBadgePrice >= lastCappedDefaultPriceRange.from + guardMargin &&
+            liveBadgePrice <= lastCappedDefaultPriceRange.to - guardMargin
+          ) {
+            return {
+              from: lastCappedDefaultPriceRange.from,
+              to: lastCappedDefaultPriceRange.to,
+            };
+          }
+        }
         var topFraction = Math.max(
           0.15,
           Math.min(0.85, (0.5 - margins.top) / margins.candleHeightRatio)

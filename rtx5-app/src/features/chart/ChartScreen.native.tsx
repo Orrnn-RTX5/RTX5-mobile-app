@@ -349,6 +349,7 @@ import { PriceDragControl } from '../trade/PriceDragControl';
 import { resolveChartTradeButtonQuote } from "./components/ChartTradeButtonsFeature/quoteFallback";
 import { CHART_HEADER_GLYPH_SIZE, CHART_HEADER_ICON_SIZE, TvCrosshair, TvLayers, TvOneClick, TvTradeClock } from "./components/ChartToolbarIcons";
 import { ChartWindowManagerOverlay } from './components/ChartWindowManagerOverlay';
+import { OneClickRiskDisclaimerOverlay } from './components/OneClickRiskDisclaimerOverlay';
 import {
   ChartWindowsLayout,
   type ChartWindowPaneFrame,
@@ -968,6 +969,8 @@ const ChartScreenInner = React.memo(function ChartScreenInner({
   const setChartShowOnChartItem = useUserPreferences((s) => s.setChartShowOnChartItem);
   const oneClickAccepted = useUserPreferences((s) => s.oneClickAccepted);
   const setOneClickAccepted = useUserPreferences((s) => s.setOneClickAccepted);
+  const setOneClickDisclaimerAccepted = useUserPreferences((s) => s.setOneClickDisclaimerAccepted);
+  const [showOneClickDisclaimer, setShowOneClickDisclaimer] = useState(false);
   const isVerticalScrollingLocked = chartVerticalScrollingLocked;
   const isChartAutoScaleEnabled = chartAutoScaleEnabled;
   const resolvedChartColors = useMemo(
@@ -7972,6 +7975,11 @@ const ChartScreenInner = React.memo(function ChartScreenInner({
       oneClick: () => {
         runImmediateAction('chart.oneClick.toggle', () => {
           const currentState = useUserPreferences.getState();
+          if (!currentState.oneClickDisclaimerAccepted) {
+            setOneClickDisclaimerAccepted(true);
+            setShowOneClickDisclaimer(true);
+            return;
+          }
           setOneClickAccepted(!currentState.oneClickAccepted);
         });
       },
@@ -9983,7 +9991,11 @@ const ChartScreenInner = React.memo(function ChartScreenInner({
       const nextAccumulator = isChartMarketClosed
         ? previousAccumulator
         : accumulateCurrentChartBid(exactQuote, canonicalCandles);
-      if (nextAccumulator === previousAccumulator && previousAccumulator) {
+      if (
+        nextAccumulator === previousAccumulator &&
+        previousAccumulator &&
+        retainedChartTradeDisplayQuoteRef.current?.bid === exactQuote.bid
+      ) {
         return;
       }
       retainedChartTradeDisplayQuoteRef.current = exactQuote;
@@ -11124,7 +11136,7 @@ const ChartScreenInner = React.memo(function ChartScreenInner({
         >
           <TvTradeClock
             size={CHART_HEADER_ICON_SIZE}
-            color={chartDirectProtectionActive ? BLUE : (isDark ? '#B0BEC5' : HEADER_CONTROL_COLOR)}
+            color={chartDirectProtectionActive ? BLUE : HEADER_CONTROL_COLOR}
             active={chartDirectProtectionActive}
           />
           {chartSlTpBackendLocked ? (
@@ -13538,6 +13550,21 @@ const ChartScreenInner = React.memo(function ChartScreenInner({
         onSetHorizontal={() => chartWindows.setLayout('horizontal')}
         onSetVertical={() => chartWindows.setLayout('vertical')}
         onMovePane={chartWindows.movePane}
+      />
+
+      <OneClickRiskDisclaimerOverlay
+        visible={showOneClickDisclaimer}
+        isDark={isDark}
+        onCancel={() => {
+          setOneClickDisclaimerAccepted(true);
+          setShowOneClickDisclaimer(false);
+          setOneClickAccepted(false);
+        }}
+        onAccept={() => {
+          setOneClickDisclaimerAccepted(true);
+          setOneClickAccepted(true);
+          setShowOneClickDisclaimer(false);
+        }}
       />
 
       {/* While the SL/TP trade sheet is open (it portals over this screen),

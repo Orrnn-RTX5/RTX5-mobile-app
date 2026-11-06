@@ -103,6 +103,7 @@ type PersistedUserPreferencesState = Omit<
   | 'setPriceSource'
   | 'setOpenOrderMode'
   | 'setOneClickAccepted'
+  | 'setOneClickDisclaimerAccepted'
   | 'setHistoryRange'
   | 'setHistoryDateRange'
   | 'mergeAccountEnvironmentForAccount'
@@ -500,6 +501,7 @@ export function normalizePersistedUserPreferencesState(
     // still wins, so a user who turns it off keeps the Order Ticket flow after
     // every restart.
     oneClickAccepted: asBoolean(state.oneClickAccepted, true),
+    oneClickDisclaimerAccepted: asBoolean(state.oneClickDisclaimerAccepted, false),
     historyRange: nextHistoryRange,
     historyFromMs: asFiniteNumber(state.historyFromMs, null),
     historyToMs: asFiniteNumber(state.historyToMs, null),
@@ -711,6 +713,7 @@ function partializeUserPreferences(state: UserPreferencesState): PersistedUserPr
     priceSource: state.priceSource,
     openOrderMode: state.openOrderMode,
     oneClickAccepted: state.oneClickAccepted,
+    oneClickDisclaimerAccepted: state.oneClickDisclaimerAccepted,
     historyRange: state.historyRange,
     historyFromMs: state.historyFromMs,
     historyToMs: state.historyToMs,
@@ -764,6 +767,7 @@ export const useUserPreferences = create<UserPreferencesState>()(
       priceSource: 'bid',
       openOrderMode: 'Regular',
       oneClickAccepted: true,
+      oneClickDisclaimerAccepted: false,
       historyRange: 'All time',
       historyFromMs: null,
       historyToMs: null,
@@ -950,6 +954,7 @@ export const useUserPreferences = create<UserPreferencesState>()(
       setPriceSource: (source) => set({ priceSource: source }),
       setOpenOrderMode: (mode) => set({ openOrderMode: mode }),
       setOneClickAccepted: (accepted) => set({ oneClickAccepted: accepted }),
+      setOneClickDisclaimerAccepted: (accepted) => set({ oneClickDisclaimerAccepted: accepted }),
       setHistoryRange: (range) => set({ historyRange: range, historyFromMs: null, historyToMs: null }),
       setHistoryDateRange: (fromMs, toMs, range) => set({
         historyFromMs: fromMs,

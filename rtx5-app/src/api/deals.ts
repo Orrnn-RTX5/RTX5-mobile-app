@@ -230,3 +230,104 @@ export const dealsApi = {
     return readDealsPayload(await response.json());
   },
 };
+
+export const DEALS_HISTORY_CHUNK_SIZE = 500;
+export const DEALS_HISTORY_MAX_ROWS = 500_000;
+
+export function deduplicateDeals<T extends Record<string, any>>(deals: readonly T[]): T[] {
+  const byId = new Map<string, T>();
+  const result: T[] = [];
+
+  for (const deal of deals) {
+    if (!deal || typeof deal !== 'object') continue;
+    const rawKey = deal.ticket ?? deal.deal ?? deal.id;
+    const key =
+      rawKey !== undefined && rawKey !== null && String(rawKey).trim() !== ''
+        ? String(rawKey).trim()
+        : null;
+    if (key === null) {
+      result.push(deal);
+      continue;
+    }
+    if (!byId.has(key)) {
+      byId.set(key, deal);
+      result.push(deal);
+    }
+  }
+
+  return result;
+}
+
+const isDealEndpointFallbackStatus = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') return false;
+  const record = error as Record<string, any>;
+  const status = Number(record.status ?? record.response?.status);
+  return status === 404 || status === 501;
+};
+
+export async function fetchDealsWithFallback(options: {
+  login?: number | string;
+  from?: number;
+  to?: number;
+  pageSize?: number;
+  maxRows?: number;
+  fetchAccountPage?: AccountDealsPageFetcher;
+  fetchLoginPage?: (
+    login: number,
+    limit: number,
+    offset: number,
+    from?: number,
+    to?: number,
+  ) => Promise<Deal[]>;
+}): Promise<Deal[]> {
+  const pageSize = options.pageSize ?? DEALS_HISTORY_CHUNK_SIZE;
+  const maxRows = options.maxRows ?? DEALS_HISTORY_MAX_ROWS;
+  const fetchAccountPage = options.fetchAccountPage ?? dealsApi.getAccountDeals;
+  const fetchLoginPage = options.fetchLoginPage ?? dealsApi.getDeals;
+  const loginNum = options.login !== undefined ? Number(options.login) : NaN;
+
+  const collected: Deal[] = [];
+  const seenSignatures = new Set<string>();
+  let offset = 0;
+  let useLoginFallback = false;
+
+  while (collected.length < maxRows) {
+    let page: Deal[];
+    if (!useLoginFallback) {
+      try {
+        page = await fetchAccountPage(pageSize, offset, options.from, options.to);
+      } catch (err) {
+        if (
+          isDealEndpointFallbackStatus(err) &&
+          Number.isFinite(loginNum) &&
+          loginNum > 0
+        ) {
+          useLoginFallback = true;
+          page = await fetchLoginPage(loginNum, pageSize, offset, options.from, options.to);
+        } else {
+          throw err;
+        }
+      }
+    } else {
+      page = await fetchLoginPage(loginNum, pageSize, offset, options.from, options.to);
+    }
+
+    if (!Array.isArray(page) || page.length === 0) {
+      break;
+    }
+
+    const sig = dealPageSignature(page);
+    if (seenSignatures.has(sig)) {
+      break;
+    }
+    seenSignatures.add(sig);
+
+    collected.push(...page);
+    if (page.length < pageSize) {
+      break;
+    }
+    offset += pageSize;
+  }
+
+  return deduplicateDeals(collected).slice(0, maxRows);
+}

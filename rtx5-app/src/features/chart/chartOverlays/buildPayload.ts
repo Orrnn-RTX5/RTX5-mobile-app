@@ -203,7 +203,7 @@ const buildOpenPositionLabelPatch = (
   const profit = positionProfitDisplay(position, liveQuote);
   const livePnl = profit.value ?? resolveLivePositionPnl(position, liveQuote);
   const currency = accountCurrency?.trim() || 'USD';
-  const labelValueText = `${Number.isFinite(livePnl) ? formatLivePositionPnl(livePnl) : '—'} ${currency}`;
+  const labelValueText = `${Number.isFinite(livePnl) ? formatLivePositionPnl(livePnl, 2) : '—'} ${currency}`;
   const sideColor = resolveOpenPositionSideColor(position.side, colors, sellColor);
 
   return {

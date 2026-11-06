@@ -237,3 +237,54 @@ test('canonical next bucket accepts a newer Bid whose feed clock trails rollover
   assert.equal(state?.candle.open, canonicalTail.open);
   assert.equal(state?.candle.close, 101);
 });
+
+test('canonical next bucket accepts a newer Bid when server feed clock is 20s ahead of device wall clock at rollover', () => {
+  const contextKey = 'broker-a:account-1:XAUUSD:M1';
+  const prevState = accumulateChartBidTick(null, {
+    contextKey,
+    timeframe: 'M1',
+    canonicalTail: {
+      time: 1_785_000_000,
+      open: 4778.79,
+      high: 4779.05,
+      low: 4777.08,
+      close: 4778.00,
+      volume: 10,
+    },
+    quote: captureExactChartQuote(contextKey, {
+      bid: 4778.00,
+      ask: 4778.39,
+      feedTickAt: 1_785_000_059_000,
+      receivedAt: 1_785_000_039_000,
+      receiptMonotonicAt: 1_000,
+    })!,
+  });
+  const rolledCanonicalTail = {
+    time: 1_785_000_060,
+    open: 4777.96,
+    high: 4778.27,
+    low: 4777.96,
+    close: 4778.27,
+    volume: 2,
+  };
+  const nextQuote = captureExactChartQuote(contextKey, {
+    bid: 4778.27,
+    ask: 4778.66,
+    feedTickAt: 1_785_000_064_000,
+    receivedAt: 1_785_000_044_000,
+    receiptMonotonicAt: 6_000,
+  });
+  assert.ok(nextQuote);
+  const nextState = accumulateChartBidTick(prevState, {
+    contextKey,
+    timeframe: 'M1',
+    canonicalTail: rolledCanonicalTail,
+    quote: nextQuote,
+  });
+
+  assert.equal(nextState?.candle.time, rolledCanonicalTail.time);
+  assert.equal(nextState?.candle.open, 4777.96);
+  assert.equal(nextState?.candle.high, 4778.27);
+  assert.equal(nextState?.candle.close, 4778.27);
+  assert.equal(nextState?.bid, 4778.27);
+});

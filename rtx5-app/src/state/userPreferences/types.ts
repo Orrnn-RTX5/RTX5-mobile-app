@@ -98,6 +98,7 @@ export type UserPreferencesState = {
   historySummaryDetailsVisible: boolean;
   tradeSummaryDetailsVisible: boolean;
   oneClickAccepted: boolean;
+  oneClickDisclaimerAccepted: boolean;
   historyRange: string;
   /**
    * Unix millisecond bounds for a custom history date filter.
@@ -179,6 +180,7 @@ export type UserPreferencesState = {
   setPriceSource: (source: 'bid' | 'ask') => void;
   setOpenOrderMode: (mode: 'Regular' | 'Risk calculator' | 'One-click') => void;
   setOneClickAccepted: (accepted: boolean) => void;
+  setOneClickDisclaimerAccepted: (accepted: boolean) => void;
   setHistoryRange: (range: string) => void;
   /** Persist custom Unix-ms bounds and their label in one update. */
   setHistoryDateRange: (fromMs: number | null, toMs: number | null, range?: string) => void;

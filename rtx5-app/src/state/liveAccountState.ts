@@ -3,6 +3,11 @@
  */
 
 import { create } from 'zustand';
+import {
+  accountMetricsUnavailable,
+  comparePublicationTokens,
+  isValidPublicationToken,
+} from '../utils/accountMetrics';
 
 /**
  * Represents the live financial metrics for the currently active trading account.
@@ -13,6 +18,8 @@ export type LiveAccountData = {
   login: number;
   /** The settled cash balance of the account */
   balance: number;
+  /** Optional credit/bonus balance */
+  credit?: number;
   /** The current equity (balance + floating PnL) */
   equity: number;
   /** The amount of margin currently tied up in open positions */
@@ -23,9 +30,30 @@ export type LiveAccountData = {
   margin_level: number;
   /** The current aggregate unrealized profit/loss from all open positions */
   floating: number;
+  /** Optional profile & provenance metadata */
+  currency?: string;
+  currency_digits?: number | null;
+  leverage?: number;
+  publication_token?: string;
+  metricsStatus?: 'ok' | 'unavailable';
+  valid?: boolean;
+  stale?: boolean;
+  status?: string;
+  calculated_at?: string | number;
+  as_of?: string | number;
+  source_as_of?: string | number;
+  broker_id?: string;
 };
 
-export type LiveAccountMetricFlags = Record<keyof Omit<LiveAccountData, 'login'>, boolean>;
+export type LiveAccountMetricKey =
+  | 'balance'
+  | 'equity'
+  | 'margin'
+  | 'margin_free'
+  | 'margin_level'
+  | 'floating';
+
+export type LiveAccountMetricFlags = Record<LiveAccountMetricKey, boolean>;
 
 /**
  * Metrics the server calculates and may omit when that calculation fails
@@ -88,7 +116,7 @@ const initialState: LiveAccountData = {
   floating: 0,
 };
 
-const financialMetricKeys: Array<keyof Omit<LiveAccountData, 'login'>> = [
+const financialMetricKeys: LiveAccountMetricKey[] = [
   'balance',
   'equity',
   'margin',
@@ -113,9 +141,18 @@ function buildMetricFlags(
   let nextFlags = currentFlags;
 
   for (const key of financialMetricKeys) {
-    if (key in data && !nextFlags[key]) {
-      if (nextFlags === currentFlags) nextFlags = { ...currentFlags };
-      nextFlags[key] = true;
+    if (key in data && data[key] !== undefined) {
+      if (key === 'margin' && typeof data.margin === 'number' && data.margin < 0) {
+        if (nextFlags[key]) {
+          if (nextFlags === currentFlags) nextFlags = { ...currentFlags };
+          nextFlags[key] = false;
+        }
+        continue;
+      }
+      if (!nextFlags[key]) {
+        if (nextFlags === currentFlags) nextFlags = { ...currentFlags };
+        nextFlags[key] = true;
+      }
     }
   }
 
@@ -128,7 +165,7 @@ function clearStaleFlags(
 ): LiveAccountMetricFlags {
   let nextFlags = currentFlags;
   for (const key of financialMetricKeys) {
-    if (key in data && nextFlags[key]) {
+    if (key in data && data[key] !== undefined && nextFlags[key]) {
       if (nextFlags === currentFlags) nextFlags = { ...currentFlags };
       nextFlags[key] = false;
     }
@@ -142,6 +179,90 @@ function hasAnyMetric(flags: LiveAccountMetricFlags): boolean {
 
 function mergeMetrics(state: LiveAccountState, data: Partial<LiveAccountData>, snapshot = false) {
   const loginChanged = data.login !== undefined && data.login !== state.login;
+  const baseState = loginChanged ? initialState : state;
+
+  // Explicit staleness / validity / malformed publication_token check
+  const hasExplicitValidityField =
+    data.valid !== undefined ||
+    data.stale !== undefined ||
+    data.status !== undefined ||
+    data.publication_token !== undefined ||
+    data.calculated_at !== undefined ||
+    data.as_of !== undefined ||
+    data.source_as_of !== undefined;
+
+  if (hasExplicitValidityField && accountMetricsUnavailable(data)) {
+    return {
+      ...baseState,
+      ...(data.login !== undefined ? { login: data.login } : {}),
+      metricsStatus: 'unavailable' as const,
+      hasMetrics: false,
+      metricFlags: initialMetricFlags,
+      staleMetricFlags: {
+        balance: true,
+        equity: true,
+        margin: true,
+        margin_free: true,
+        margin_level: true,
+        floating: true,
+      },
+    };
+  }
+
+  // Publication token monotonicity guard (Section 4.4)
+  const currentToken = !loginChanged && isValidPublicationToken(state.publication_token)
+    ? state.publication_token
+    : undefined;
+  const incomingTokenRaw = data.publication_token;
+  const incomingToken = isValidPublicationToken(incomingTokenRaw) ? incomingTokenRaw : undefined;
+
+  if (currentToken) {
+    if (incomingTokenRaw === undefined) {
+      // Untokenized response after a tokenized snapshot:
+      // Do NOT overwrite any financial metric; only merge profile metadata if present.
+      const profilePatch: Partial<LiveAccountData> = {};
+      if (data.currency !== undefined) profilePatch.currency = data.currency;
+      if (data.currency_digits !== undefined) profilePatch.currency_digits = data.currency_digits;
+      if (data.leverage !== undefined) profilePatch.leverage = data.leverage;
+      if (Object.keys(profilePatch).length === 0) {
+        return state;
+      }
+      return { ...state, ...profilePatch };
+    }
+
+    if (incomingToken) {
+      const cmp = comparePublicationTokens(incomingToken, currentToken);
+      if (cmp < 0) {
+        return state;
+      }
+      if (cmp === 0) {
+        const profilePatch: Partial<LiveAccountData> = {};
+        if (!state.currency && data.currency !== undefined) profilePatch.currency = data.currency;
+        if (
+          (state.currency_digits === undefined || state.currency_digits === null) &&
+          data.currency_digits !== undefined
+        ) {
+          profilePatch.currency_digits = data.currency_digits;
+        }
+        if (state.leverage === undefined && data.leverage !== undefined) {
+          profilePatch.leverage = data.leverage;
+        }
+        if (Object.keys(profilePatch).length === 0) {
+          return state;
+        }
+        return { ...state, ...profilePatch };
+      }
+    }
+  }
+
+  const normalizedData: Partial<LiveAccountData> = { ...data };
+  if (typeof normalizedData.margin === 'number' && normalizedData.margin < 0) {
+    normalizedData.margin = 0;
+  }
+  if (hasExplicitValidityField) {
+    normalizedData.metricsStatus = 'ok';
+  }
+
   const metricFlags = buildMetricFlags(data, loginChanged ? initialMetricFlags : state.metricFlags);
   let staleMetricFlags = clearStaleFlags(data, loginChanged ? initialMetricFlags : state.staleMetricFlags);
   if (snapshot) {
@@ -156,10 +277,10 @@ function mergeMetrics(state: LiveAccountState, data: Partial<LiveAccountData>, s
   const hasMetrics = hasAnyMetric(metricFlags);
   if (!loginChanged && metricFlags === state.metricFlags && staleMetricFlags === state.staleMetricFlags
       && hasMetrics === state.hasMetrics
-      && (Object.keys(data) as Array<keyof LiveAccountData>).every(key => Object.is(data[key], state[key]))) {
+      && (Object.keys(normalizedData) as Array<keyof LiveAccountData>).every(key => Object.is(normalizedData[key], state[key]))) {
     return state;
   }
-  return { ...(loginChanged ? initialState : state), ...data, hasMetrics, metricFlags, staleMetricFlags };
+  return { ...(loginChanged ? initialState : state), ...normalizedData, hasMetrics, metricFlags, staleMetricFlags };
 }
 
 /**

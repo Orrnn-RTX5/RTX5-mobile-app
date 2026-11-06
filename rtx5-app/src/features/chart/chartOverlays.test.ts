@@ -144,10 +144,10 @@ test('buildChartOverlayPayload maps open positions for the chart symbol with the
   const openLine = payload.priceLines.find((line: any) => line.id === 'open-1');
   assert.equal(openLine?.lineWidth, 1);
   assert.equal(openLine?.lineStyle, CHART_LINE_STYLE.Dashed);
-  assert.equal(openLine?.title, 'BUY 0.20, +42.000 USD');
+  assert.equal(openLine?.title, 'BUY 0.20, +42.00 USD');
   assert.equal(openLine?.color, TEST_CHART_COLORS.tradeOpen);
   assert.equal(openLine?.labelSideText, 'BUY 0.20');
-  assert.equal(openLine?.labelValueText, '+42.000 USD');
+  assert.equal(openLine?.labelValueText, '+42.00 USD');
   assert.equal(openLine?.labelSideColor, TEST_CHART_COLORS.tradeOpen);
   assert.equal(openLine?.labelValueColor, TEST_CHART_COLORS.tradeOpen);
   assert.equal(openLine?.labelPlacement, 'line');
@@ -523,10 +523,10 @@ test('per-tick open-position patches update only label values and preserve line 
     }),
   );
 
-  assert.equal(firstPayload.priceLines.find((line) => line.id === 'open-buy-tick')?.labelValueText, '+0.10000 USD');
-  assert.equal(firstPayload.priceLines.find((line) => line.id === 'open-sell-tick')?.labelValueText, '+0.20000 USD');
-  assert.equal(secondPayload.priceLines.find((line) => line.id === 'open-buy-tick')?.labelValueText, '-0.10000 USD');
-  assert.equal(secondPayload.priceLines.find((line) => line.id === 'open-sell-tick')?.labelValueText, '-0.20000 USD');
+  assert.equal(firstPayload.priceLines.find((line) => line.id === 'open-buy-tick')?.labelValueText, '+0.10 USD');
+  assert.equal(firstPayload.priceLines.find((line) => line.id === 'open-sell-tick')?.labelValueText, '+0.20 USD');
+  assert.equal(secondPayload.priceLines.find((line) => line.id === 'open-buy-tick')?.labelValueText, '-0.10 USD');
+  assert.equal(secondPayload.priceLines.find((line) => line.id === 'open-sell-tick')?.labelValueText, '-0.20 USD');
   for (const line of firstPayload.priceLines) {
     assert.equal(line.labelValueColor, line.labelSideColor);
   }
@@ -580,8 +580,8 @@ test('per-tick chart labels reuse the Trade row backend PnL and precision', () =
     showOnChart: BOTH_SIDES,
   });
 
-  assert.equal(patch?.labelValueText, '+12.500 USD');
-  assert.equal(patch?.title, 'BUY 0.10, +12.500 USD');
+  assert.equal(patch?.labelValueText, '+12.50 USD');
+  assert.equal(patch?.title, 'BUY 0.10, +12.50 USD');
 });
 
 test('cold or stale chart labels use the same position snapshot fallback as Trade', () => {
@@ -611,8 +611,8 @@ test('cold or stale chart labels use the same position snapshot fallback as Trad
   });
 
   const line = payload.priceLines.find((item) => item.id === 'open-stale-fallback');
-  assert.equal(line?.labelValueText, '+12.500 USD');
-  assert.equal(line?.title, 'BUY 0.10, +12.500 USD');
+  assert.equal(line?.labelValueText, '+12.50 USD');
+  assert.equal(line?.title, 'BUY 0.10, +12.50 USD');
 });
 
 test('buildChartOverlayPayload does not substitute bid for a missing sell-side ask', () => {

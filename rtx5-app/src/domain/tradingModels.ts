@@ -60,9 +60,18 @@ export type PositionItem = {
   pnlReported?: boolean;
   swap: number;
   commission?: number;
+  margin?: number;
+  contractSize?: number;
   openTime: string;
   sl?: number;
   tp?: number;
+  stateVersion?: string;
+  priceTimeMsc?: number;
+  updateKind?: string;
+  pnl_available?: boolean;
+  hasBackendProfit?: boolean;
+  hasBackendMargin?: boolean;
+  hasBackendCurrentPrice?: boolean;
   clientCreatedAt?: number;
   clientModifiedAt?: number;
 };

@@ -67,7 +67,10 @@ export function filterRealtimePositionRows(
     const row = value as PositionRecord;
     const identity = resolveMapperIdentity(row);
     const normalizedId = normalizeIdentity(identity?.value);
+    const updateKind = String(row.update_kind ?? row.updateKind ?? '').trim().toLowerCase();
+    const isPnlOnlyPatch = updateKind === 'pnl';
     const canCreate = Boolean(
+      !isPnlOnlyPatch &&
       identity &&
       (identity.key === 'ticket' || identity.key === 'position_ticket') &&
       isCredibleBrokerPositionTicket(identity.value),
@@ -188,10 +191,16 @@ export function isAuthoritativeRealtimePositionsBatch(
   // Scoped/delta arrays are partial even if a parent payload uses a broader
   // lifecycle label.
   if (
+    record?.partial === true ||
+    record?.snapshot === false ||
+    record?.is_snapshot === false ||
+    record?.isSnapshot === false ||
+    (typeof record?.symbol === 'string' && record.symbol.trim() !== '') ||
     hints.some((hint) =>
       hint === 'position.update' ||
       hint === 'positions.update' ||
-      /(^|\.)(incremental|delta|partial|scoped)(\.|$)/.test(hint),
+      hint === 'pnl.update' ||
+      /(^|\.)(incremental|delta|partial|scoped|pnl)(\.|$)/.test(hint),
     )
   ) {
     return false;

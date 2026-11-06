@@ -36,10 +36,9 @@ function createJournalStyles(T: ThemeColors) {
     backButton: {
       width: 36,
       height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
-      backgroundColor: subtleFill,
+      paddingLeft: 4,
     },
     headerTitleWrap: {
       flex: 1,

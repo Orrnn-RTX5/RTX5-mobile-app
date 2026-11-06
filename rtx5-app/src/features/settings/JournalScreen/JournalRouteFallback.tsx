@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppMenuIcon } from '../../../ui/components/AppMenuIcon';
 import { Screen } from '../../../ui/components/Screen';
 import { useTheme } from '../../../ui/theme/useTheme';
 import { makeJournalStyles } from './styles';
@@ -17,7 +18,7 @@ export function JournalRouteFallback() {
     <Screen style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <View style={styles.backButton}>
-          <Ionicons name="reader-outline" size={22} color={T.text} />
+          <AppMenuIcon color={T.text} />
         </View>
         <View style={styles.headerTitleWrap}>
           <Text style={styles.headerTitle}>Journal</Text>

@@ -6,3 +6,7 @@
 export function buildAccountDetailPath(login: number | string): string {
   return `/account/${encodeURIComponent(String(login))}`;
 }
+
+export function buildAccountMetricsPath(login: number | string): string {
+  return `/account/${encodeURIComponent(String(login))}/metrics`;
+}

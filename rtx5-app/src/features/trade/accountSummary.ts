@@ -1,7 +1,20 @@
 import type { LiveAccountData, LiveAccountMetricFlags } from '../../state/liveAccountState';
 import type { AccountSummary } from '../../state/tradingState';
 import type { PositionItem, QuoteItem } from '../../domain/tradingModels';
-import { sumLivePositionMargin, sumLivePositionPnl } from './livePositionMetrics.ts';
+import { readBackendNumber } from '../../utils/accountCurrency';
+import {
+  resolveTradeAccountMetrics,
+  type TradeAccountMetrics,
+} from '../../utils/accountMetrics';
+import {
+  readBackendPositionMargin,
+  resolveTradeProfit,
+  sumLivePositionMargin,
+  sumLivePositionPnl,
+} from './livePositionMetrics.ts';
+
+export type { TradeAccountMetrics };
+export { resolveTradeAccountMetrics };
 
 type TradeLiveAccountMetrics = Partial<LiveAccountData> & {
   metricFlags?: Partial<LiveAccountMetricFlags>;
@@ -196,3 +209,100 @@ export function resolveRenderableTradeAccountSummary(
     marginLevel: nextMarginLevel,
   };
 }
+
+export const applyLivePositionProfit = (
+  metrics: TradeAccountMetrics,
+  positions: readonly any[] | null | undefined,
+  contractSizesBySymbol?: ReadonlyMap<string, number>,
+): TradeAccountMetrics => {
+  if (!Array.isArray(positions)) return metrics;
+  if (positions.length === 0) {
+    return {
+      ...metrics,
+      floatingPnL: metrics.floatingPnL === null ? null : 0,
+      unrealizedPL: metrics.unrealizedPL === null ? null : 0,
+    };
+  }
+  let positionsMargin: number | null = 0;
+  for (const position of positions) {
+    const positionMargin = readBackendPositionMargin(position);
+    if (positionMargin === null) {
+      positionsMargin = null;
+      break;
+    }
+    positionsMargin += positionMargin;
+  }
+  const margin =
+    metrics.margin !== null && metrics.margin > 0
+      ? metrics.margin
+      : positionsMargin !== null && positionsMargin > 0
+        ? positionsMargin
+        : (metrics.margin ?? positionsMargin);
+  let floatingPnL = 0;
+  let allProfitsAvailable = true;
+  for (const position of positions) {
+    const resolved = resolveTradeProfit(position, contractSizesBySymbol);
+    if (resolved.value === null) {
+      allProfitsAvailable = false;
+      break;
+    }
+    const swap = readBackendNumber(position?.swap ?? position?.storage) ?? 0;
+    const commission = readBackendNumber(position?.commission) ?? 0;
+    floatingPnL += resolved.value + swap + commission;
+  }
+  if (!allProfitsAvailable) {
+    return margin === metrics.margin ? metrics : { ...metrics, margin };
+  }
+  const liveEquity =
+    metrics.balance !== null
+      ? metrics.balance + (metrics.credit ?? 0) + floatingPnL
+      : metrics.equity;
+  const hasBackendPositionTotals = positionsMargin !== null;
+  const equity =
+    (metrics.equity === null && !hasBackendPositionTotals) || liveEquity === null
+      ? null
+      : liveEquity;
+  const freeMargin =
+    (metrics.freeMargin === null && !hasBackendPositionTotals) ||
+    equity === null ||
+    margin === null
+      ? metrics.freeMargin
+      : equity - margin;
+  const marginLevel =
+    (metrics.marginLevel === null && !hasBackendPositionTotals) ||
+    equity === null ||
+    margin === null
+      ? metrics.marginLevel
+      : margin <= 0
+        ? metrics.marginLevel !== null && metrics.marginLevel > 0
+          ? metrics.marginLevel
+          : null
+        : (equity / margin) * 100;
+  const resolvedFloating =
+    metrics.floatingPnL === null && !hasBackendPositionTotals ? null : floatingPnL;
+  const resolvedUnrealized =
+    metrics.unrealizedPL === null && !hasBackendPositionTotals ? null : floatingPnL;
+
+  return {
+    ...metrics,
+    equity,
+    margin,
+    freeMargin,
+    marginLevel,
+    floatingPnL: resolvedFloating,
+    unrealizedPL: resolvedUnrealized,
+  };
+};
+
+export const isAccountBlown = (
+  metricsOrAccount:
+    | Pick<TradeAccountMetrics, 'balance' | 'equity'>
+    | { balance?: number | null; equity?: number | null }
+    | null
+    | undefined,
+): boolean => {
+  if (!metricsOrAccount) return false;
+  const equity = readBackendNumber(metricsOrAccount.equity) ?? null;
+  const balance = readBackendNumber(metricsOrAccount.balance) ?? null;
+  return equity !== null && equity <= 0 && (balance ?? 0) <= 0;
+};

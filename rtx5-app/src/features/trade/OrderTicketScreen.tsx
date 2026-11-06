@@ -42,7 +42,11 @@ import { checkOrderPolicy } from '../../services/tradingPolicy';
 import { useTheme, ThemeColors } from '../../ui/theme/useTheme';
 import { fmt } from '../../utils/format';
 import { formatBackendPrice } from '../../utils/backendPrice';
-import { orderTicketMarginDisplay } from './orderTicketBackendValues';
+import {
+  ORDER_TICKET_MARGIN_DEBOUNCE_MS,
+  orderTicketMarginDisplay,
+  resolveOrderTicketRequiredMargin,
+} from './orderTicketBackendValues';
 import {
   safeRouterBack,
   scheduleBackNavigationAfterVisualFrame,
@@ -645,18 +649,29 @@ function OrderTicketInteractiveContent() {
   // the only figure that matches what the trading engine actually locks. Keyed
   // on (login, symbol, side, volume) so it refetches as the user edits volume.
   // Margin is direction-independent for display, so 'buy' is representative.
-  const marginCalcPayload = useMemo<MarginCalcPayload | null>(() => {
+  const rawMarginCalcPayload = useMemo<MarginCalcPayload | null>(() => {
     if (!routeQueriesActive) return null;
     if (loginNum === undefined || loginNum <= 0) return null;
     if (!symbol || !(volume > 0)) return null;
     return { account_login: loginNum, symbol, side: 'buy', volume };
   }, [loginNum, routeQueriesActive, symbol, volume]);
-  const { data: serverMargin, isError: marginError } = useMarginCalculation(marginCalcPayload);
+  const [marginCalcPayload, setMarginCalcPayload] = useState<MarginCalcPayload | null>(rawMarginCalcPayload);
+  useEffect(() => {
+    if (rawMarginCalcPayload === null) {
+      setMarginCalcPayload(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setMarginCalcPayload(rawMarginCalcPayload);
+    }, ORDER_TICKET_MARGIN_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [rawMarginCalcPayload]);
+  const { data: serverMargin, isFetching: marginFetching, isError: marginError } = useMarginCalculation(marginCalcPayload);
 
-  const serverRequiredMargin =
-    typeof serverMargin?.required_margin === 'number' && Number.isFinite(serverMargin.required_margin)
-      ? serverMargin.required_margin
-      : null;
+  const serverRequiredMargin = resolveOrderTicketRequiredMargin(serverMargin, {
+    isLoading: marginFetching,
+    isError: marginError,
+  });
   const marginDisplay = orderTicketMarginDisplay(serverRequiredMargin, currency);
 
   const baseSymbol = symbol.replace(/[a-z_.-].*$/, '');

@@ -14,57 +14,38 @@ export const CHART_HEADER_ICON_SIZE = 22;
 export const CHART_HEADER_GLYPH_SIZE = 18;
 
 export const TvTradeClock = ({
-  color: _color,
+  color = '#0F172A',
   size = CHART_HEADER_ICON_SIZE,
   active = false,
 }: {
   color?: string;
   size?: number;
   active?: boolean;
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Defs>
-      <LinearGradient id="sltpRedFill" x1="50%" y1="0%" x2="50%" y2="100%">
-        <Stop offset="0%" stopColor="#FF6B75" />
-        <Stop offset="100%" stopColor="#F23645" />
-      </LinearGradient>
-      <LinearGradient id="sltpGreenFill" x1="50%" y1="0%" x2="50%" y2="100%">
-        <Stop offset="0%" stopColor="#34D399" />
-        <Stop offset="100%" stopColor="#089981" />
-      </LinearGradient>
-    </Defs>
-    {active ? (
-      <Rect
-        x="1.5"
-        y="2.5"
-        width="21"
-        height="19"
-        rx="5.5"
-        fill="rgba(41, 98, 255, 0.10)"
-        stroke="rgba(41, 98, 255, 0.48)"
-        strokeWidth="1.2"
+}) => {
+  const iconColor = active ? '#2962FF' : color;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Left half of split trade-clock ring */}
+      <Path
+        d="M11.35 2.77A9.25 9.25 0 0 0 11.35 21.23L11.35 18.32A6.35 6.35 0 0 1 11.35 5.68Z"
+        fill={iconColor}
       />
-    ) : null}
-    {/* Left: Stop Loss (Red downward arrow) */}
-    <Path
-      d="M6.35 5H8.65V11.8H10.85L7.5 18.5L4.15 11.8H6.35Z"
-      fill="url(#sltpRedFill)"
-      stroke="url(#sltpRedFill)"
-      strokeWidth="1.15"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-    {/* Right: Take Profit (Green upward arrow) */}
-    <Path
-      d="M16.5 5.5L19.85 12.2H17.65V19H15.35V12.2H13.15Z"
-      fill="url(#sltpGreenFill)"
-      stroke="url(#sltpGreenFill)"
-      strokeWidth="1.15"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
+      {/* Right half of split trade-clock ring */}
+      <Path
+        d="M12.65 2.77A9.25 9.25 0 0 1 12.65 21.23L12.65 18.32A6.35 6.35 0 0 0 12.65 5.68Z"
+        fill={iconColor}
+      />
+      {/* Center trade-clock hands (12 o'clock to 4:30) */}
+      <Path
+        d="M12 7.65V12.15L14.4 14.55"
+        stroke={iconColor}
+        strokeWidth="2.2"
+        strokeLinecap="butt"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+};
 
 export const TvSlTpIcon = TvTradeClock;
 
@@ -76,25 +57,21 @@ export const TvOneClick = ({
   color: string;
   size?: number;
   active?: boolean;
-}) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <Path
-      d="M5.2 8.2A8.5 8.5 0 0 1 9.5 4.3M18.8 15.8A8.5 8.5 0 0 1 14.5 19.7"
-      stroke={color}
-      strokeWidth={active ? '1.85' : '1.6'}
-      strokeLinecap="round"
-      opacity={active ? 0.95 : 0.72}
-    />
-    <Path
-      d="M13.1 3.8L6.9 12.5H11.4L10.3 20.2L17.1 11.3H12.6L13.1 3.8Z"
-      fill={active ? color : 'none'}
-      stroke={color}
-      strokeWidth={active ? '1.45' : '1.75'}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </Svg>
-);
+}) => {
+  const iconColor = active ? '#2962FF' : color;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M13.6 2.6L5.6 13.4H11.7L10.4 21.4L18.4 10.6H12.3L13.6 2.6Z"
+        fill={iconColor}
+        stroke={iconColor}
+        strokeWidth="0.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+};
 
 export const TvCrosshair = ({ color, size = 26, strokeWidth = 2, active = false }: { color: string; size?: number; strokeWidth?: number; active?: boolean }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

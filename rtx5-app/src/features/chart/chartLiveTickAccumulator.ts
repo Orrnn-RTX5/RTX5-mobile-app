@@ -4,6 +4,7 @@ import { getBucketStart, normalizeTimeframe } from '../../domain/candles/core/ti
 import type { ExactChartQuoteSnapshot } from './exactChartQuote';
 
 const FRESH_FEED_CLOCK_WINDOW_MS = 5_000;
+const MAX_FEED_CLOCK_AHEAD_MS = 60_000;
 
 export type ChartLiveTickAccumulator = Readonly<{
   contextKey: string;
@@ -44,7 +45,9 @@ const getQuoteCandleTimeMs = (quote: ExactChartQuoteSnapshot): number | null => 
   const feedTickAtMs = normalizeQuoteTickTimestampToMs(quote.feedTickAt);
   if (
     feedTickAtMs !== null &&
-    (receivedAtMs === null || Math.abs(receivedAtMs - feedTickAtMs) <= FRESH_FEED_CLOCK_WINDOW_MS)
+    (receivedAtMs === null ||
+      (receivedAtMs - feedTickAtMs <= FRESH_FEED_CLOCK_WINDOW_MS &&
+        feedTickAtMs - receivedAtMs <= MAX_FEED_CLOCK_AHEAD_MS))
   ) {
     return feedTickAtMs;
   }
@@ -101,22 +104,6 @@ export const accumulateChartBidTick = (
     return previous?.contextKey === contextKey ? previous : null;
   }
 
-  const receiptBucketTime = getBucketStart(input.quote.receivedAt, timeframe);
-  const currentKnownBucket =
-    input.canonicalTail?.time ??
-    (previous?.contextKey === contextKey ? previous.candle.time : null);
-  if (
-    currentKnownBucket !== null &&
-    currentKnownBucket > bucketTime &&
-    receiptBucketTime === currentKnownBucket
-  ) {
-    // Near rollover, an otherwise-fresh broker timestamp can still trail the
-    // locally received/canonical bucket by a few seconds. Once the canonical
-    // series has opened that bucket, keep accepting newer Bids into it instead
-    // of freezing the marker until the feed clock crosses the boundary.
-    bucketTime = currentKnownBucket;
-  }
-
   const sameContext =
     previous?.contextKey === contextKey && previous.timeframe === timeframe;
   const quoteOrderMs = getQuoteOrderMs(input.quote);
@@ -134,6 +121,28 @@ export const accumulateChartBidTick = (
   );
   if (isOlderQuote) {
     return previous;
+  }
+
+  const receiptBucketTime = getBucketStart(input.quote.receivedAt, timeframe);
+  const feedBucketTime =
+    input.quote.feedTickAt !== null && input.quote.feedTickAt !== undefined
+      ? getBucketStart(input.quote.feedTickAt, timeframe)
+      : null;
+  const currentKnownBucket =
+    input.canonicalTail?.time ??
+    (previous?.contextKey === contextKey ? previous.candle.time : null);
+  if (
+    currentKnownBucket !== null &&
+    currentKnownBucket > bucketTime &&
+    (receiptBucketTime === currentKnownBucket ||
+      feedBucketTime === currentKnownBucket ||
+      currentKnownBucket - bucketTime <= 60)
+  ) {
+    // Near rollover (or when device wall-clock trails the broker server clock
+    // that opened the canonical bucket), keep accepting newer Bids into the
+    // already-open current bucket instead of freezing the live price marker
+    // and OHLC header until the trailing clock crosses the minute boundary.
+    bucketTime = currentKnownBucket;
   }
 
   if (sameContext && previous && bucketTime < previous.candle.time) {

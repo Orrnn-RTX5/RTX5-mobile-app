@@ -23,6 +23,8 @@ const TERMINAL_POSITION_STATES = new Set([
   'POSITION TP HIT',
   'POSITION STOP LOSS HIT',
   'POSITION TAKE PROFIT HIT',
+  'STOP OUT',
+  'POSITION STOP OUT',
   'REMOVED',
   'DELETED',
 ]);
@@ -63,6 +65,13 @@ export function isTerminalPositionUpdate(dto: any): boolean {
   // `position_closed` rows carrying `close_reason`. A row with a known close
   // reason is terminal even when the event name was stripped from it.
   if (TERMINAL_CLOSE_REASONS.has(normalizeLifecycleState(source.close_reason))) {
+    return true;
+  }
+  if (source.closed === true) {
+    return true;
+  }
+  const timeClose = Number(source.time_close);
+  if (Number.isFinite(timeClose) && timeClose > 0) {
     return true;
   }
   return [
@@ -243,6 +252,14 @@ export function buildMergedPositions(
   );
   const mapped = dtos
     .filter((dto) => !isTerminalPositionUpdate(dto))
+    .filter((dto) => {
+      const updateKind = String(dto?.update_kind ?? dto?.updateKind ?? '')
+        .trim()
+        .toLowerCase();
+      if (updateKind !== 'pnl') return true;
+      const incomingId = dto?.ticket ?? dto?.position_ticket ?? dto?.order_ticket ?? dto?.id;
+      return incomingId != null && currentByIncomingId.has(String(incomingId));
+    })
     .map((dto) => {
       const incomingId = dto?.ticket ?? dto?.position_ticket ?? dto?.order_ticket ?? dto?.id;
       return mapPositionToItem(

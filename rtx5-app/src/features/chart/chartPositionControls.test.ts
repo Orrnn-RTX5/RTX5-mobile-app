@@ -37,7 +37,7 @@ test('confirmed fill merges immediately, keeps the exact broker ticket and entry
   assert.equal(lines[0].price,1.10017);
   assert.equal(lines[0].positionControl?.positionId,position.id);
   assert.equal(lines[0].labelSideText,'BUY 0.003');
-  assert.equal(lines[0].labelValueText,'-0.09000 EUR');
+  assert.equal(lines[0].labelValueText,'-0.09 EUR');
   assert.equal(lines[0].dragKey,undefined);
 });
 
@@ -125,7 +125,7 @@ test('entry and protection prices use broker precision across asset classes; lot
   }
   assert.equal(formatPositionLots(0.003,0.001),'0.003'); assert.equal(formatPositionLots(1.25,0.25),'1.25');
   assert.equal(formatPositionLots(0.003,0.01),'0.003'); assert.equal(formatPositionLots(2,1),'2');
-  assert.equal(overlay([position],{accountCurrency:undefined}).priceLines.find(line=>line.id.startsWith('open-'))?.labelValueText,'+12.500 USD');
+  assert.equal(overlay([position],{accountCurrency:undefined}).priceLines.find(line=>line.id.startsWith('open-'))?.labelValueText,'+12.50 USD');
 });
 
 test('reverse waits for confirmed close, never opens after failed close or account change; replacement failure is distinct', async () => {
